@@ -116,6 +116,8 @@ jobs:
           JULES_API_KEY: ${{ secrets.JULES_API_KEY }}
           REPO_NAME: ${{ steps.get_pr.outputs.pr_repo }}
           PR_NUMBER: ${{ steps.get_pr.outputs.pr_number }}
+          BRANCH_NAME: ${{ github.event.workflow_run.head_branch }}
+          ERROR_MESSAGE: ""
         run: |
           # Load the error message from the downloaded artifact
           if [ -f failure-context/error_message.txt ]; then
