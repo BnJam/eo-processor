@@ -224,11 +224,19 @@ mod tests {
         pyo3::prepare_freethreaded_python();
 
         Python::with_gil(|py| {
-            let result =
-                enhanced_vegetation_index_1d(py, nir.readonly(), red.readonly(), blue.readonly())
-                    .unwrap();
+            let nir_py = nir.into_pyarray(py);
+            let red_py = red.into_pyarray(py);
+            let blue_py = blue.into_pyarray(py);
+            let result = enhanced_vegetation_index_1d(
+                py,
+                nir_py.readonly(),
+                red_py.readonly(),
+                blue_py.readonly(),
+            )
+            .unwrap();
 
-            let result_array = result.readonly().as_array();
+            let readonly_result = result.readonly();
+            let result_array = readonly_result.as_array();
 
             assert_relative_eq!(result_array[0], 0.46153846153846156, epsilon = 1e-10);
         });
@@ -246,11 +254,19 @@ mod tests {
         pyo3::prepare_freethreaded_python();
 
         Python::with_gil(|py| {
-            let result =
-                enhanced_vegetation_index_1d(py, nir.readonly(), red.readonly(), blue.readonly())
-                    .unwrap();
+            let nir_py = nir.into_pyarray(py);
+            let red_py = red.into_pyarray(py);
+            let blue_py = blue.into_pyarray(py);
+            let result = enhanced_vegetation_index_1d(
+                py,
+                nir_py.readonly(),
+                red_py.readonly(),
+                blue_py.readonly(),
+            )
+            .unwrap();
 
-            let result_array = result.readonly().as_array();
+            let readonly_result = result.readonly();
+            let result_array = readonly_result.as_array();
             // Should return 0.0 due to EPSILON check
             assert_relative_eq!(result_array[0], 0.0, epsilon = 1e-10);
         });

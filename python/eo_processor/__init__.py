@@ -6,6 +6,7 @@ computations that can be used within XArray/Dask workflows to bypass Python's GI
 """
 
 from ._core import (
+    enhanced_vegetation_index_1d,
     normalized_difference_1d,
     normalized_difference_2d,
     normalized_difference_3d,
