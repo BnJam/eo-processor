@@ -1,14 +1,10 @@
 import numpy as np
 import pytest
 
-# NOTE: Replace 'eo_processor' with the actual name of your Python package
-# (the one that exposes the Rust-compiled functions).
-# If your final Python module name is 'eo_processor', this is correct.
 try:
     from eo_processor import (
-        normalized_difference_1d,
-        normalized_difference_2d,
-        enhanced_vegetation_index_1d,
+        normalized_difference,
+        enhanced_vegetation_index,
     )
 except ImportError:
     raise ImportError(
@@ -34,7 +30,7 @@ def test_data_2d():
 def test_normalized_difference_1d_basic(test_data_1d):
     """Tests the basic, expected calculation for ND."""
     a, b = test_data_1d
-    result = normalized_difference_1d(a, b)
+    result, dims = normalized_difference(a, b, ["band"])
 
     # Expected results:
     # (0.8 - 0.2) / (0.8 + 0.2) = 0.6 / 1.0 = 0.6
@@ -44,13 +40,14 @@ def test_normalized_difference_1d_basic(test_data_1d):
 
     np.testing.assert_allclose(result, expected, atol=1e-10)
     assert result.shape == a.shape
+    assert dims == ["band"]
 
 
 def test_normalized_difference_1d_zero_denominator():
     """Tests ND with inputs that sum to zero, expecting 0.0 as per Rust logic."""
     a = np.array([0.5, 0.0, 0.0], dtype=np.float64)
     b = np.array([-0.5, 0.0, 0.0], dtype=np.float64)
-    result = normalized_difference_1d(a, b)
+    result, _ = normalized_difference(a, b, ["band"])
 
     # Expected:
     # Index 0: sum is 0.0, should be 0.0
@@ -64,7 +61,7 @@ def test_normalized_difference_1d_zero_denominator():
 def test_normalized_difference_2d_basic(test_data_2d):
     """Tests the basic calculation for 2D ND arrays."""
     a, b = test_data_2d
-    result = normalized_difference_2d(a, b)
+    result, dims = normalized_difference(a, b, ["y", "x"])
 
     # Expected results match 1D test for the first three elements
     # Index [1, 1]: (0.5 - 0.5) / (0.5 + 0.5) = 0.0 / 1.0 = 0.0
@@ -72,6 +69,7 @@ def test_normalized_difference_2d_basic(test_data_2d):
 
     np.testing.assert_allclose(result, expected, atol=1e-10)
     assert result.shape == a.shape
+    assert dims == ["y", "x"]
 
 
 def test_enhanced_vegetation_index_1d_basic():
@@ -89,12 +87,8 @@ def test_enhanced_vegetation_index_1d_basic():
     # Expected = 0.75 / 1.625 ≈ 0.46153846
 
     expected = 0.75 / 1.625
-    result = enhanced_vegetation_index_1d(nir, red, blue)
+    result, dims = enhanced_vegetation_index(nir, red, blue, ["band"])
 
     np.testing.assert_allclose(result[0], expected, atol=1e-10)
     assert result.shape == nir.shape
-
-
-# You would add similar tests for ndvi_1d, ndvi_2d, ndwi_1d, and ndwi_2d if you want
-# explicit tests for the convenience wrappers, though testing the core
-# normalized_difference functions is often sufficient.
+    assert dims == ["band"]
