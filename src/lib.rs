@@ -11,17 +11,10 @@ use pyo3::prelude::*;
 #[pymodule]
 fn _core(_py: Python, m: &PyModule) -> PyResult<()> {
     // --- Spectral Indices ---
-    m.add_function(wrap_pyfunction!(indices::normalized_difference_1d, m)?)?;
-    m.add_function(wrap_pyfunction!(indices::normalized_difference_2d, m)?)?;
-    m.add_function(wrap_pyfunction!(indices::normalized_difference_3d, m)?)?;
-    m.add_function(wrap_pyfunction!(indices::ndvi_1d, m)?)?;
-    m.add_function(wrap_pyfunction!(indices::ndvi_2d, m)?)?;
-    m.add_function(wrap_pyfunction!(indices::ndvi_3d, m)?)?;
-    m.add_function(wrap_pyfunction!(indices::ndwi_1d, m)?)?;
-    m.add_function(wrap_pyfunction!(indices::ndwi_2d, m)?)?;
-
-    // New function
-    m.add_function(wrap_pyfunction!(indices::enhanced_vegetation_index_1d, m)?)?;
+    m.add_function(wrap_pyfunction!(indices::normalized_difference, m)?)?;
+    m.add_function(wrap_pyfunction!(indices::ndvi, m)?)?;
+    m.add_function(wrap_pyfunction!(indices::ndwi, m)?)?;
+    m.add_function(wrap_pyfunction!(indices::enhanced_vegetation_index, m)?)?;
 
     // --- Spatial Functions (Future) ---
     // m.add_function(wrap_pyfunction!(spatial::median_filter_2d, m)?)?;
