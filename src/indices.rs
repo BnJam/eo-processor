@@ -207,6 +207,7 @@ mod tests {
     use super::*;
     use approx::assert_relative_eq;
     use ndarray::array;
+    use numpy::PyArray1;
 
     #[test]
     fn test_enhanced_vegetation_index_1d_basic() {
@@ -224,11 +225,15 @@ mod tests {
         pyo3::prepare_freethreaded_python();
 
         Python::with_gil(|py| {
+            let nir = PyArray1::from_array(py, &nir);
+            let red = PyArray1::from_array(py, &red);
+            let blue = PyArray1::from_array(py, &blue);
             let result =
                 enhanced_vegetation_index_1d(py, nir.readonly(), red.readonly(), blue.readonly())
                     .unwrap();
 
-            let result_array = result.readonly().as_array();
+            let result_array = result.readonly();
+            let result_array = result_array.as_array();
 
             assert_relative_eq!(result_array[0], 0.46153846153846156, epsilon = 1e-10);
         });
@@ -246,11 +251,15 @@ mod tests {
         pyo3::prepare_freethreaded_python();
 
         Python::with_gil(|py| {
+            let nir = PyArray1::from_array(py, &nir);
+            let red = PyArray1::from_array(py, &red);
+            let blue = PyArray1::from_array(py, &blue);
             let result =
                 enhanced_vegetation_index_1d(py, nir.readonly(), red.readonly(), blue.readonly())
                     .unwrap();
 
-            let result_array = result.readonly().as_array();
+            let result_array = result.readonly();
+            let result_array = result_array.as_array();
             // Should return 0.0 due to EPSILON check
             assert_relative_eq!(result_array[0], 0.0, epsilon = 1e-10);
         });

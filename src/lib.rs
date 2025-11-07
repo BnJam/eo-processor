@@ -1,6 +1,7 @@
 // Bring in the functionality from sub-modules
 pub mod indices;
-// pub mod spatial; // For future spatial functions (e.g., median_filter)
+pub mod spatial;
+pub mod temporal;
 
 use pyo3::prelude::*;
 
@@ -19,12 +20,13 @@ fn _core(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(indices::ndvi_3d, m)?)?;
     m.add_function(wrap_pyfunction!(indices::ndwi_1d, m)?)?;
     m.add_function(wrap_pyfunction!(indices::ndwi_2d, m)?)?;
-
-    // New function
     m.add_function(wrap_pyfunction!(indices::enhanced_vegetation_index_1d, m)?)?;
 
-    // --- Spatial Functions (Future) ---
-    // m.add_function(wrap_pyfunction!(spatial::median_filter_2d, m)?)?;
+    // --- Spatial Functions ---
+    m.add_function(wrap_pyfunction!(spatial::median_filter_2d, m)?)?;
+
+    // --- Temporal Functions ---
+    m.add_function(wrap_pyfunction!(temporal::temporal_mean_1d, m)?)?;
 
     Ok(())
 }

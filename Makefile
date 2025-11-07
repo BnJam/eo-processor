@@ -8,8 +8,8 @@ VENV_DIR = .venv
 
 # Use direct commands, assuming the virtual environment is manually activated
 
-PYTHON_RUN = python
-PYTEST_RUN = pytest
+PYTHON_RUN = $(VENV_DIR)/bin/python
+PYTEST_RUN = $(PYTHON_RUN) -m pytest
 
 # ==============================================================================
 # Default and Setup Targets
@@ -46,7 +46,7 @@ install: build ## Install the project from the built wheel
 	@echo "📦 Installing built wheel into environment..."
 	# Find the latest built wheel and install it
 	uv pip uninstall eo_processor || true
-	uv pip install .[dask]
+	uv pip install .[dask,dev]
 
 clean: ## Clean up build artifacts
 	@echo "🧹 Cleaning up..."
@@ -61,7 +61,7 @@ clean: ## Clean up build artifacts
 
 test: ## Run tests (assuming you use pytest)
 	@echo "🧪 Running tests..."
-	$(PYTEST_RUN)
+	RUSTFLAGS="$(shell python3-config --ldflags --embed)" $(PYTEST_RUN)
 
 lint: ## Run linters (customize with your preferred uv-managed tools)
 	@echo "🔍 Running linters..."

@@ -14,6 +14,9 @@ from ._core import (
     ndvi_3d,
     ndwi_1d,
     ndwi_2d,
+    enhanced_vegetation_index_1d,
+    median_filter_2d,
+    temporal_mean_1d,
 )
 
 __version__ = "0.1.0"
@@ -27,9 +30,14 @@ __all__ = [
     "ndvi_3d",
     "ndwi_1d",
     "ndwi_2d",
+    "enhanced_vegetation_index_1d",
+    "median_filter_2d",
+    "temporal_mean_1d",
     "normalized_difference",
     "ndvi",
     "ndwi",
+    "median_filter",
+    "enhanced_vegetation_index",
 ]
 
 
@@ -145,3 +153,51 @@ def ndwi(green, nir):
         return ndwi_2d(green, nir)
     else:
         raise ValueError(f"Unsupported array dimension: {green.ndim}. Only 1D and 2D arrays are supported.")
+
+
+def enhanced_vegetation_index(nir, red, blue):
+    """
+    Compute EVI (Enhanced Vegetation Index).
+
+    EVI = 2.5 * (NIR - Red) / (NIR + 6 * Red - 7.5 * Blue + 1)
+
+    Parameters
+    ----------
+    nir : numpy.ndarray
+        Near-infrared band values
+    red : numpy.ndarray
+        Red band values
+    blue : numpy.ndarray
+        Blue band values
+
+    Returns
+    -------
+    numpy.ndarray
+        EVI values ranging from -1 to 1
+    """
+    if nir.ndim == 1:
+        return enhanced_vegetation_index_1d(nir, red, blue)
+    else:
+        raise ValueError(f"Unsupported array dimension: {nir.ndim}. Only 1D arrays are supported.")
+
+
+def median_filter(data, kernel_size=3):
+    """
+    Apply a 2D median filter to an array.
+
+    Parameters
+    ----------
+    data : numpy.ndarray
+        A 2D array to filter.
+    kernel_size : int
+        The size of the square kernel (e.g., 3 for a 3x3 window).
+
+    Returns
+    -------
+    numpy.ndarray
+        A new 2D array with the median filter applied.
+    """
+    if data.ndim == 2:
+        return median_filter_2d(data, kernel_size)
+    else:
+        raise ValueError(f"Unsupported array dimension: {data.ndim}. Only 2D arrays are supported.")
