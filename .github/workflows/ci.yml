@@ -1,60 +1,108 @@
-name: Build and Test
+name: CI
 
 on:
-  pull_request: # Only runs when a Pull Request is opened or updated
-    branches: ["main"]
+  pull_request:
+    types: [opened, synchronize, reopened, edited]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  # ----------------------------------------------------
-  # JOB 1: RUST LINTING, FORMATTING, AND UNIT TESTS
-  # ----------------------------------------------------
-  rust-checks:
-    name: Rust Checks (Linter, Fmt, Test)
+  test:
+    name: Tests (Python ${{ matrix.python-version }})
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12"]
     steps:
       - uses: actions/checkout@v4
+
+      # --- RUST TOOLCHAIN SETUP ---
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
         with:
-          components: rustfmt, clippy
+          python-version: ${{ matrix.python-version }}
 
-      - name: ⚙️ Check Formatting (rustfmt)
-        run: cargo fmt --check
+      - name: Install uv and tools
+        uses: astral-sh/setup-uv@v3
 
-      - name: 🔎 Run Linting (clippy)
-        run: cargo clippy --tests -- -D warnings
+      - name: Sync dependencies (dev + extras)
+        # This step will install maturin (assuming it's in your dev dependencies)
+        run: uv sync --all-extras --dev
 
-      - name: 🧪 Run Native Rust Tests
-        run: cargo test --verbose
+      # --- LINT STEP ---
+      - name: 🔎 Run Rust Checks (Clippy & Fmt)
+        # Ensure Rust code is formatted and linted before building
+        run: |
+          cargo fmt --check
+          cargo clippy --tests -- -D warnings
 
-  # ----------------------------------------------------
-  # JOB 2: PYTHON INTEGRATION TESTS (One version is enough for PRs)
-  # ----------------------------------------------------
-  python-tests:
-    name: Python 3.12 Integration Test
+      - name: Lint (Ruff)
+        id: lint_step
+        continue-on-error: false
+        run: |
+          # Keeping paths as stac_mcp/, update this if your python source moves
+          uv run ruff format stac_mcp/ tests/
+          uv run ruff check stac_mcp/ tests/ --fix --no-cache
+
+      # --- BUILD STEP (Changed to Maturin) ---
+      - name: 🔨 Build and Install Module (maturin develop)
+        id: build_step
+        continue-on-error: false
+        # maturin develop builds the Rust part and installs the result for testing
+        run: uv run maturin develop
+
+      # --- TESTS + COVERAGE STEPS ---
+      - name: Tests + coverage
+        id: tests_step
+        continue-on-error: false
+        run: |
+          # Pytest will now run against the module installed by maturin develop
+          uv run coverage run -m pytest -v
+          uv run coverage xml
+          uv run python scripts/generate_coverage_badge.py coverage.xml coverage-badge.svg
+          uv run coverage report
+
+      - name: Check coverage threshold
+        id: coverage_threshold_step
+        continue-on-error: false
+        run: uv run coverage report --fail-under=85
+
+  codeql:
+    name: CodeQL Analysis
     runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+    strategy:
+      fail-fast: false
+      matrix:
+        language: ["python"]
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
       - name: Set up Python 3.12
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-          cache: "uv"
-
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Install Dependencies
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ matrix.language }}
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+      - name: Install dependencies (runtime only)
         run: |
-          pip install uv
-          # Install maturin and all optional/dev dependencies
-          uv pip install maturin ".[dev,dask]"
-
-      - name: 🔨 Build and Install Module (maturin develop)
-        run: maturin develop
-
-      - name: 🚀 Run Python Integration Tests (pytest)
-        run: uv run pytest
+          uv sync
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
