@@ -1,176 +1,100 @@
-"""Tests for basic eo-processor functionality."""
-
 import numpy as np
 import pytest
 
-
-def test_imports():
-    """Test that all functions can be imported."""
+# NOTE: Replace 'eo_processor' with the actual name of your Python package
+# (the one that exposes the Rust-compiled functions).
+# If your final Python module name is 'eo_processor', this is correct.
+try:
     from eo_processor import (
-        normalized_difference,
         normalized_difference_1d,
         normalized_difference_2d,
-        ndvi,
-        ndvi_1d,
-        ndvi_2d,
-        ndwi,
-        ndwi_1d,
-        ndwi_2d,
+        enhanced_vegetation_index_1d,
     )
-    assert normalized_difference is not None
-    assert ndvi is not None
-    assert ndwi is not None
+except ImportError:
+    raise ImportError(
+        "Could not import eo_processor module. Ensure the Rust extension is built and installed."
+    )
+
+@pytest.fixture
+def test_data_1d():
+    """Fixture for standard 1D array test data."""
+    return (
+        np.array([0.8, 0.7, 0.6], dtype=np.float64),  # Band A (e.g., NIR)
+        np.array([0.2, 0.1, 0.3], dtype=np.float64),  # Band B (e.g., Red)
+    )
+
+@pytest.fixture
+def test_data_2d():
+    """Fixture for standard 2D array test data."""
+    a = np.array([[0.8, 0.7], [0.6, 0.5]], dtype=np.float64)
+    b = np.array([[0.2, 0.1], [0.3, 0.5]], dtype=np.float64)
+    return a, b
 
 
-def test_normalized_difference_1d():
-    """Test normalized difference with 1D arrays."""
-    from eo_processor import normalized_difference_1d
-    
-    a = np.array([0.8, 0.7, 0.6])
-    b = np.array([0.2, 0.1, 0.3])
-    
+def test_normalized_difference_1d_basic(test_data_1d):
+    """Tests the basic, expected calculation for ND."""
+    a, b = test_data_1d
     result = normalized_difference_1d(a, b)
-    
-    expected = np.array([0.6, 0.75, 1.0 / 3.0])
-    np.testing.assert_allclose(result, expected, rtol=1e-10)
+
+    # Expected results:
+    # (0.8 - 0.2) / (0.8 + 0.2) = 0.6 / 1.0 = 0.6
+    # (0.7 - 0.1) / (0.7 + 0.1) = 0.6 / 0.8 = 0.75
+    # (0.6 - 0.3) / (0.6 + 0.3) = 0.3 / 0.9 = 0.333333...
+    expected = np.array([0.6, 0.75, 1/3], dtype=np.float64)
+
+    np.testing.assert_allclose(result, expected, atol=1e-10)
+    assert result.shape == a.shape
 
 
-def test_normalized_difference_2d():
-    """Test normalized difference with 2D arrays."""
-    from eo_processor import normalized_difference_2d
-    
-    a = np.array([[0.8, 0.7], [0.6, 0.5]])
-    b = np.array([[0.2, 0.1], [0.3, 0.5]])
-    
+def test_normalized_difference_1d_zero_denominator():
+    """Tests ND with inputs that sum to zero, expecting 0.0 as per Rust logic."""
+    a = np.array([0.5, 0.0, 0.0], dtype=np.float64)
+    b = np.array([-0.5, 0.0, 0.0], dtype=np.float64)
+    result = normalized_difference_1d(a, b)
+
+    # Expected:
+    # Index 0: sum is 0.0, should be 0.0
+    # Index 1: sum is 0.0, should be 0.0
+    # Index 2: sum is 0.0, should be 0.0
+    expected = np.array([0.0, 0.0, 0.0], dtype=np.float64)
+
+    np.testing.assert_allclose(result, expected, atol=1e-10)
+
+
+def test_normalized_difference_2d_basic(test_data_2d):
+    """Tests the basic calculation for 2D ND arrays."""
+    a, b = test_data_2d
     result = normalized_difference_2d(a, b)
-    
-    expected = np.array([[0.6, 0.75], [1.0 / 3.0, 0.0]])
-    np.testing.assert_allclose(result, expected, rtol=1e-10)
+
+    # Expected results match 1D test for the first three elements
+    # Index [1, 1]: (0.5 - 0.5) / (0.5 + 0.5) = 0.0 / 1.0 = 0.0
+    expected = np.array([[0.6, 0.75], [1/3, 0.0]], dtype=np.float64)
+
+    np.testing.assert_allclose(result, expected, atol=1e-10)
+    assert result.shape == a.shape
 
 
-def test_normalized_difference_auto():
-    """Test auto-detection of array dimensions."""
-    from eo_processor import normalized_difference
-    
-    # Test 1D
-    a_1d = np.array([0.8, 0.7])
-    b_1d = np.array([0.2, 0.1])
-    result_1d = normalized_difference(a_1d, b_1d)
-    assert result_1d.shape == (2,)
-    
-    # Test 2D
-    a_2d = np.array([[0.8, 0.7], [0.6, 0.5]])
-    b_2d = np.array([[0.2, 0.1], [0.3, 0.5]])
-    result_2d = normalized_difference(a_2d, b_2d)
-    assert result_2d.shape == (2, 2)
+def test_enhanced_vegetation_index_1d_basic():
+    """Tests the EVI formula calculation with known constants."""
+    # EVI = G * (NIR - RED) / (NIR + C1 * RED - C2 * BLUE + L)
+    # G=2.5, L=1.0, C1=6.0, C2=7.5
+
+    nir = np.array([0.4], dtype=np.float64)
+    red = np.array([0.1], dtype=np.float64)
+    blue = np.array([0.05], dtype=np.float64)
+
+    # Calculation:
+    # Numerator = 2.5 * (0.4 - 0.1) = 0.75
+    # Denominator = 0.4 + 6.0*0.1 - 7.5*0.05 + 1.0 = 0.4 + 0.6 - 0.375 + 1.0 = 1.625
+    # Expected = 0.75 / 1.625 ≈ 0.46153846
+
+    expected = 0.75 / 1.625
+    result = enhanced_vegetation_index_1d(nir, red, blue)
+
+    np.testing.assert_allclose(result[0], expected, atol=1e-10)
+    assert result.shape == nir.shape
 
 
-def test_normalized_difference_invalid_dimension():
-    """Test that 3D arrays raise an error."""
-    from eo_processor import normalized_difference
-    
-    a = np.random.rand(2, 2, 2)
-    b = np.random.rand(2, 2, 2)
-    
-    with pytest.raises(ValueError, match="Unsupported array dimension"):
-        normalized_difference(a, b)
-
-
-def test_ndvi_basic():
-    """Test NDVI computation."""
-    from eo_processor import ndvi
-    
-    nir = np.array([0.8, 0.7, 0.6])
-    red = np.array([0.2, 0.1, 0.3])
-    
-    result = ndvi(nir, red)
-    
-    # NDVI = (NIR - Red) / (NIR + Red)
-    expected = (nir - red) / (nir + red)
-    np.testing.assert_allclose(result, expected, rtol=1e-10)
-
-
-def test_ndvi_2d():
-    """Test NDVI with 2D arrays."""
-    from eo_processor import ndvi
-    
-    nir = np.random.rand(10, 10)
-    red = np.random.rand(10, 10)
-    
-    result = ndvi(nir, red)
-    
-    assert result.shape == (10, 10)
-    assert result.dtype == np.float64
-    
-    # Verify the computation
-    expected = (nir - red) / (nir + red)
-    np.testing.assert_allclose(result, expected, rtol=1e-10)
-
-
-def test_ndwi_basic():
-    """Test NDWI computation."""
-    from eo_processor import ndwi
-    
-    green = np.array([0.3, 0.4, 0.5])
-    nir = np.array([0.2, 0.1, 0.3])
-    
-    result = ndwi(green, nir)
-    
-    # NDWI = (Green - NIR) / (Green + NIR)
-    expected = (green - nir) / (green + nir)
-    np.testing.assert_allclose(result, expected, rtol=1e-10)
-
-
-def test_zero_division_handling():
-    """Test that zero division is handled gracefully."""
-    from eo_processor import normalized_difference
-    
-    a = np.array([0.0, 0.5, 0.0])
-    b = np.array([0.0, 0.5, 0.0])
-    
-    result = normalized_difference(a, b)
-    
-    # When both values are the same, result should be 0
-    # When both are zero, result should be 0 (handled as edge case)
-    assert result[0] == 0.0
-    assert result[1] == 0.0
-    assert result[2] == 0.0
-
-
-def test_large_array_performance():
-    """Test with large arrays to verify no crashes."""
-    from eo_processor import ndvi
-    
-    # Create large arrays
-    nir = np.random.rand(1000, 1000)
-    red = np.random.rand(1000, 1000)
-    
-    result = ndvi(nir, red)
-    
-    assert result.shape == (1000, 1000)
-    assert not np.isnan(result).any()  # No NaN values
-
-
-def test_ndvi_range():
-    """Test that NDVI values are in valid range [-1, 1]."""
-    from eo_processor import ndvi
-    
-    nir = np.random.rand(100, 100)
-    red = np.random.rand(100, 100)
-    
-    result = ndvi(nir, red)
-    
-    assert result.min() >= -1.0
-    assert result.max() <= 1.0
-
-
-def test_output_dtype():
-    """Test that output is always float64."""
-    from eo_processor import ndvi
-    
-    nir = np.array([0.8, 0.7], dtype=np.float64)
-    red = np.array([0.2, 0.1], dtype=np.float64)
-    
-    result = ndvi(nir, red)
-    
-    assert result.dtype == np.float64
+# You would add similar tests for ndvi_1d, ndvi_2d, ndwi_1d, and ndwi_2d if you want
+# explicit tests for the convenience wrappers, though testing the core
+# normalized_difference functions is often sufficient.

@@ -5,7 +5,7 @@ description = "High-performance Rust UDFs for Earth Observation processing"
 # IMPROVED: Explicitly mention Rust, PyO3, and Dask acceleration
 readme = "README.md"
 license = { file = "LICENSE" }
-authors = [{ name = "Ben" }]
+authors = [{ name = "Ben Smith" }]
 # 🚀 ADD KEYWORDS for better PyPI searchability
 keywords = ["earth-observation", "gis", "remote-sensing", "ndvi", "dask", "xarray", "rust", "pyo3", "numpy"]
 classifiers = [
@@ -22,6 +22,7 @@ classifiers = [
 ]
 requires-python = ">=3.8"
 dependencies = [
+    "maturin>=1.9.6",
     "numpy>=1.20.0",
 ]
 
@@ -40,7 +41,11 @@ python-source = "python"
 module-name = "eo_processor._core"
 features = ["pyo3/extension-module"]
 
-[tool.uv.workspace]
-members = [
-    "eo-processor",
-]
+[build-system]
+requires = ["maturin>=1.9.6"]
+build-backend = "maturin"
+
+[tool.maturin.metadata]
+authors = ["Ben Smith"]
+license = "MIT"
+repository = "https://github.com/Bnjam/eo-processor"

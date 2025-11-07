@@ -1,17 +1,21 @@
 # ==============================================================================
 # Project Variables
 # ==============================================================================
+
 # The default virtual environment directory for uv
+
 VENV_DIR = .venv
-# Use 'uv run' for all commands to automatically activate the environment
-PYTHON_RUN = uv run python
-PYTEST_RUN = uv run pytest
+
+# Use direct commands, assuming the virtual environment is manually activated
+
+PYTHON_RUN = python
+PYTEST_RUN = pytest
 
 # ==============================================================================
 # Default and Setup Targets
 # ==============================================================================
 
-.PHONY: all setup sync develop build clean test lint help
+.PHONY: all setup sync develop build install clean test lint help
 
 all: develop
 
@@ -26,10 +30,8 @@ sync: ## Sync dependencies (install/update packages)
 
 develop: sync ## Install the Rust code as a Python module for development
 	@echo "🔨 Installing native extension in development mode..."
-	# maturin uses its own logic for development install, and it's best to run
-	# it inside the uv-managed environment using 'uv run'.
-	# The '--uv' flag tells maturin to use uv for installation steps.
-	uv run maturin develop --uv
+	# NOTE: This target assumes the virtual environment is manually activated (e.g., source .venv/bin/activate)
+	maturin develop
 
 # ==============================================================================
 # Build, Clean, and Utility Targets
@@ -37,13 +39,14 @@ develop: sync ## Install the Rust code as a Python module for development
 
 build: sync ## Build the release wheels for distribution
 	@echo "⚙️ Building release wheels..."
-	# The build command uses the project's requirements via PEP 517
-	uv build --release --out dist
+	# NOTE: This target assumes the virtual environment is manually activated
+	maturin build --release --out dist
 
 install: build ## Install the project from the built wheel
 	@echo "📦 Installing built wheel into environment..."
 	# Find the latest built wheel and install it
-	$(PYTHON_RUN) -m pip install --force-reinstall dist/*.whl
+	uv pip uninstall eo_processor || true
+	uv pip install .[dask]
 
 clean: ## Clean up build artifacts
 	@echo "🧹 Cleaning up..."
@@ -56,14 +59,14 @@ clean: ## Clean up build artifacts
 	# Remove the virtual environment
 	rm -rf $(VENV_DIR)
 
-test: develop ## Run tests (assuming you use pytest)
+test: ## Run tests (assuming you use pytest)
 	@echo "🧪 Running tests..."
 	$(PYTEST_RUN)
 
 lint: ## Run linters (customize with your preferred uv-managed tools)
 	@echo "🔍 Running linters..."
-	# Example: uv run ruff check .
-	# Example: uv run black . --check
+	# Example: ruff format stac_mcp/ tests/
+	# Example: ruff check stac_mcp/ tests/ --fix --no-cache
 	# Add your actual lint commands here
 
 # ==============================================================================
@@ -74,4 +77,4 @@ help:
 	@echo "Usage: make <target>"
 	@echo ""
 	@echo "Available targets:"
-	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-10s\033[0m %s\n", $$1, $$2}'
+	@grep -E '^$$a-zA-Z\_-$$+:.?## .$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-10s\033[0m %s\n", $$1, $$2}'

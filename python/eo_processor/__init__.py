@@ -8,8 +8,10 @@ computations that can be used within XArray/Dask workflows to bypass Python's GI
 from ._core import (
     normalized_difference_1d,
     normalized_difference_2d,
+    normalized_difference_3d,
     ndvi_1d,
     ndvi_2d,
+    ndvi_3d,
     ndwi_1d,
     ndwi_2d,
 )
@@ -19,8 +21,10 @@ __version__ = "0.1.0"
 __all__ = [
     "normalized_difference_1d",
     "normalized_difference_2d",
+    "normalized_difference_3d",
     "ndvi_1d",
     "ndvi_2d",
+    "ndvi_3d",
     "ndwi_1d",
     "ndwi_2d",
     "normalized_difference",
@@ -32,23 +36,23 @@ __all__ = [
 def normalized_difference(a, b):
     """
     Compute normalized difference between two arrays.
-    
+
     Automatically handles both 1D and 2D arrays.
-    
+
     Formula: (a - b) / (a + b)
-    
+
     Parameters
     ----------
     a : numpy.ndarray
         First input array (e.g., NIR band for NDVI)
     b : numpy.ndarray
         Second input array (e.g., Red band for NDVI)
-    
+
     Returns
     -------
     numpy.ndarray
         Array with the same shape as inputs containing normalized difference values
-    
+
     Examples
     --------
     >>> import numpy as np
@@ -63,6 +67,8 @@ def normalized_difference(a, b):
         return normalized_difference_1d(a, b)
     elif a.ndim == 2:
         return normalized_difference_2d(a, b)
+    elif a.ndim == 3:
+        return normalized_difference_3d(a, b)
     else:
         raise ValueError(f"Unsupported array dimension: {a.ndim}. Only 1D and 2D arrays are supported.")
 
@@ -70,23 +76,23 @@ def normalized_difference(a, b):
 def ndvi(nir, red):
     """
     Compute NDVI (Normalized Difference Vegetation Index).
-    
+
     NDVI = (NIR - Red) / (NIR + Red)
-    
+
     Automatically handles both 1D and 2D arrays.
-    
+
     Parameters
     ----------
     nir : numpy.ndarray
         Near-infrared band values
     red : numpy.ndarray
         Red band values
-    
+
     Returns
     -------
     numpy.ndarray
         NDVI values ranging from -1 to 1
-    
+
     Examples
     --------
     >>> import numpy as np
@@ -99,6 +105,8 @@ def ndvi(nir, red):
         return ndvi_1d(nir, red)
     elif nir.ndim == 2:
         return ndvi_2d(nir, red)
+    elif nir.ndim == 3:
+        return ndvi_3d(nir, red)
     else:
         raise ValueError(f"Unsupported array dimension: {nir.ndim}. Only 1D and 2D arrays are supported.")
 
@@ -106,23 +114,23 @@ def ndvi(nir, red):
 def ndwi(green, nir):
     """
     Compute NDWI (Normalized Difference Water Index).
-    
+
     NDWI = (Green - NIR) / (Green + NIR)
-    
+
     Automatically handles both 1D and 2D arrays.
-    
+
     Parameters
     ----------
     green : numpy.ndarray
         Green band values
     nir : numpy.ndarray
         Near-infrared band values
-    
+
     Returns
     -------
     numpy.ndarray
         NDWI values ranging from -1 to 1
-    
+
     Examples
     --------
     >>> import numpy as np
