@@ -6,6 +6,7 @@ computations that can be used within XArray/Dask workflows to bypass Python's GI
 """
 
 from ._core import (
+<<<<<<< HEAD
     normalized_difference_1d,
     normalized_difference_2d,
     normalized_difference_3d,
@@ -17,11 +18,18 @@ from ._core import (
     enhanced_vegetation_index_1d,
     median_filter_2d,
     temporal_mean_1d,
+=======
+    normalized_difference,
+    ndvi,
+    ndwi,
+    enhanced_vegetation_index,
+>>>>>>> main
 )
 
 __version__ = "0.1.0"
 
 __all__ = [
+<<<<<<< HEAD
     "normalized_difference_1d",
     "normalized_difference_2d",
     "normalized_difference_3d",
@@ -201,3 +209,10 @@ def median_filter(data, kernel_size=3):
         return median_filter_2d(data, kernel_size)
     else:
         raise ValueError(f"Unsupported array dimension: {data.ndim}. Only 2D arrays are supported.")
+=======
+    "normalized_difference",
+    "ndvi",
+    "ndwi",
+    "enhanced_vegetation_index",
+]
+>>>>>>> main
