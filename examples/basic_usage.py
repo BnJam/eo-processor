@@ -1,0 +1,81 @@
+"""
+Basic usage examples for eo-processor.
+
+This script demonstrates how to use the Rust-accelerated UDFs for
+Earth Observation computations.
+"""
+
+import numpy as np
+from eo_processor import ndvi, ndwi, normalized_difference
+
+# Example 1: Computing NDVI with 1D arrays
+print("Example 1: NDVI with 1D arrays")
+print("-" * 40)
+nir_1d = np.array([0.8, 0.7, 0.6, 0.5, 0.4])
+red_1d = np.array([0.2, 0.1, 0.3, 0.2, 0.1])
+ndvi_result = ndvi(nir_1d, red_1d)
+print(f"NIR:  {nir_1d}")
+print(f"Red:  {red_1d}")
+print(f"NDVI: {ndvi_result}")
+print()
+
+# Example 2: Computing NDVI with 2D arrays (image-like)
+print("Example 2: NDVI with 2D arrays (100x100 image)")
+print("-" * 40)
+nir_2d = np.random.rand(100, 100) * 0.8 + 0.2  # NIR values between 0.2 and 1.0
+red_2d = np.random.rand(100, 100) * 0.4        # Red values between 0.0 and 0.4
+ndvi_2d_result = ndvi(nir_2d, red_2d)
+print(f"NIR shape:  {nir_2d.shape}")
+print(f"Red shape:  {red_2d.shape}")
+print(f"NDVI shape: {ndvi_2d_result.shape}")
+print(f"NDVI min:   {ndvi_2d_result.min():.4f}")
+print(f"NDVI max:   {ndvi_2d_result.max():.4f}")
+print(f"NDVI mean:  {ndvi_2d_result.mean():.4f}")
+print()
+
+# Example 3: Computing NDWI (water index)
+print("Example 3: NDWI (Normalized Difference Water Index)")
+print("-" * 40)
+green = np.array([0.3, 0.4, 0.5, 0.6])
+nir = np.array([0.2, 0.1, 0.3, 0.2])
+ndwi_result = ndwi(green, nir)
+print(f"Green: {green}")
+print(f"NIR:   {nir}")
+print(f"NDWI:  {ndwi_result}")
+print()
+
+# Example 4: Generic normalized difference
+print("Example 4: Generic normalized difference")
+print("-" * 40)
+a = np.array([0.9, 0.8, 0.7])
+b = np.array([0.1, 0.2, 0.3])
+nd_result = normalized_difference(a, b)
+print(f"A:  {a}")
+print(f"B:  {b}")
+print(f"ND: {nd_result}")
+print()
+
+# Example 5: Performance comparison
+print("Example 5: Performance comparison (1000x1000 array)")
+print("-" * 40)
+import time
+
+# Large arrays for performance testing
+size = 1000
+nir_large = np.random.rand(size, size)
+red_large = np.random.rand(size, size)
+
+# Rust implementation
+start_rust = time.time()
+ndvi_rust = ndvi(nir_large, red_large)
+time_rust = time.time() - start_rust
+
+# Pure Python/NumPy implementation
+start_numpy = time.time()
+ndvi_numpy = (nir_large - red_large) / (nir_large + red_large)
+time_numpy = time.time() - start_numpy
+
+print(f"Rust implementation:  {time_rust*1000:.2f} ms")
+print(f"NumPy implementation: {time_numpy*1000:.2f} ms")
+print(f"Speedup: {time_numpy/time_rust:.2f}x")
+print(f"Results match: {np.allclose(ndvi_rust, ndvi_numpy, rtol=1e-10)}")
