@@ -1,0 +1,60 @@
+name: Build and Test
+
+on:
+  pull_request: # Only runs when a Pull Request is opened or updated
+    branches: ["main"]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  # ----------------------------------------------------
+  # JOB 1: RUST LINTING, FORMATTING, AND UNIT TESTS
+  # ----------------------------------------------------
+  rust-checks:
+    name: Rust Checks (Linter, Fmt, Test)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: ⚙️ Check Formatting (rustfmt)
+        run: cargo fmt --check
+
+      - name: 🔎 Run Linting (clippy)
+        run: cargo clippy --tests -- -D warnings
+
+      - name: 🧪 Run Native Rust Tests
+        run: cargo test --verbose
+
+  # ----------------------------------------------------
+  # JOB 2: PYTHON INTEGRATION TESTS (One version is enough for PRs)
+  # ----------------------------------------------------
+  python-tests:
+    name: Python 3.12 Integration Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "uv"
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install Dependencies
+        run: |
+          pip install uv
+          # Install maturin and all optional/dev dependencies
+          uv pip install maturin ".[dev,dask]"
+
+      - name: 🔨 Build and Install Module (maturin develop)
+        run: maturin develop
+
+      - name: 🚀 Run Python Integration Tests (pytest)
+        run: uv run pytest

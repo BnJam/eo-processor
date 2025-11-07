@@ -1,14 +1,13 @@
-[build-system]
-requires = ["maturin>=1.0,<2.0"]
-build-backend = "maturin"
-
 [project]
 name = "eo-processor"
 version = "0.1.0"
 description = "High-performance Rust UDFs for Earth Observation processing"
+# IMPROVED: Explicitly mention Rust, PyO3, and Dask acceleration
 readme = "README.md"
 license = { file = "LICENSE" }
 authors = [{ name = "Ben" }]
+# 🚀 ADD KEYWORDS for better PyPI searchability
+keywords = ["earth-observation", "gis", "remote-sensing", "ndvi", "dask", "xarray", "rust", "pyo3", "numpy"]
 classifiers = [
     "Programming Language :: Rust",
     "Programming Language :: Python :: Implementation :: CPython",
@@ -18,6 +17,8 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "License :: OSI Approved :: MIT License",
+    # Add a classifier for your domain
+    "Topic :: Scientific/Engineering :: GIS",
 ]
 requires-python = ">=3.8"
 dependencies = [
@@ -38,3 +39,8 @@ dask = [
 python-source = "python"
 module-name = "eo_processor._core"
 features = ["pyo3/extension-module"]
+
+[tool.uv.workspace]
+members = [
+    "eo-processor",
+]
