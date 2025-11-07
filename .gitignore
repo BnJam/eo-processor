@@ -67,3 +67,7 @@ htmlcov/
 # OS
 .DS_Store
 Thumbs.db
+
+# Build artifacts
+*.pyc
+*.pyo
