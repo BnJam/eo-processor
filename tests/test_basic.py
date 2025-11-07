@@ -31,7 +31,7 @@ def test_normalized_difference_1d():
     
     result = normalized_difference_1d(a, b)
     
-    expected = np.array([0.6, 0.75, 0.333333333333])
+    expected = np.array([0.6, 0.75, 1.0 / 3.0])
     np.testing.assert_allclose(result, expected, rtol=1e-10)
 
 
@@ -44,7 +44,7 @@ def test_normalized_difference_2d():
     
     result = normalized_difference_2d(a, b)
     
-    expected = np.array([[0.6, 0.75], [0.333333333333, 0.0]])
+    expected = np.array([[0.6, 0.75], [1.0 / 3.0, 0.0]])
     np.testing.assert_allclose(result, expected, rtol=1e-10)
 
 

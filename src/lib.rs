@@ -2,6 +2,9 @@ use numpy::{IntoPyArray, PyArray1, PyArray2, PyReadonlyArray1, PyReadonlyArray2}
 use pyo3::prelude::*;
 use ndarray::{Array1, Array2, Zip};
 
+/// Threshold for detecting near-zero values to avoid division by zero
+const EPSILON: f64 = 1e-10;
+
 /// Compute normalized difference between two arrays.
 ///
 /// This function computes (a - b) / (a + b) element-wise, handling division by zero
@@ -39,7 +42,7 @@ fn normalized_difference_1d<'py>(
         .and(&b)
         .for_each(|r, &a_val, &b_val| {
             let sum = a_val + b_val;
-            *r = if sum.abs() < 1e-10 {
+            *r = if sum.abs() < EPSILON {
                 0.0
             } else {
                 (a_val - b_val) / sum
@@ -87,7 +90,7 @@ fn normalized_difference_2d<'py>(
         .and(&b)
         .for_each(|r, &a_val, &b_val| {
             let sum = a_val + b_val;
-            *r = if sum.abs() < 1e-10 {
+            *r = if sum.abs() < EPSILON {
                 0.0
             } else {
                 (a_val - b_val) / sum
@@ -222,8 +225,8 @@ mod tests {
             assert_relative_eq!(result_array[0], 0.6, epsilon = 1e-10);
             // Expected: (0.7-0.1)/(0.7+0.1) = 0.6/0.8 = 0.75
             assert_relative_eq!(result_array[1], 0.75, epsilon = 1e-10);
-            // Expected: (0.6-0.3)/(0.6+0.3) = 0.3/0.9 = 0.333...
-            assert_relative_eq!(result_array[2], 0.333333333, epsilon = 1e-6);
+            // Expected: (0.6-0.3)/(0.6+0.3) = 0.3/0.9 = 1/3
+            assert_relative_eq!(result_array[2], 1.0 / 3.0, epsilon = 1e-10);
         });
     }
 
@@ -280,7 +283,8 @@ mod tests {
             
             assert_relative_eq!(result_array[[0, 0]], 0.6, epsilon = 1e-10);
             assert_relative_eq!(result_array[[0, 1]], 0.75, epsilon = 1e-10);
-            assert_relative_eq!(result_array[[1, 0]], 0.333333333, epsilon = 1e-6);
+            // (0.6 - 0.3) / (0.6 + 0.3) = 0.3 / 0.9 = 1/3
+            assert_relative_eq!(result_array[[1, 0]], 1.0 / 3.0, epsilon = 1e-10);
             // (0.5 - 0.5) / (0.5 + 0.5) = 0.0 / 1.0 = 0.0
             assert_relative_eq!(result_array[[1, 1]], 0.0, epsilon = 1e-10);
         });
