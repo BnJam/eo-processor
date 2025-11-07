@@ -115,11 +115,15 @@ def example_map_blocks_vs_apply_ufunc():
     # define block function that uses the Rust ndvi on numpy blocks
     def block_ndvi(darr_chunk: xr.DataArray):
         # ds will have 'nir' and 'red' DataArrays for the current block
-        # Extract numpy arrays
-        nir_block = darr_chunk.data[0]
-        red_block = darr_chunk.data[1]
+        # Extract numpy arrays by label for safety
+        nir_block = darr_chunk.sel(band="nir").values
+        red_block = darr_chunk.sel(band="red").values
         # Call the Rust-accelerated ndvi function
-        return ndvi(nir_block, red_block)
+        result_data = ndvi(nir_block, red_block)
+
+        # The function must return an xarray.DataArray so map_blocks knows the dims.
+        # Do not add coordinates, as xarray will do that automatically.
+        return xr.DataArray(result_data, dims=("y", "x"))
 
     # Provide a template so xarray knows the shape/dtype of output blocks.
     # template should represent a single-block (chunk) result, with dims y,x.
