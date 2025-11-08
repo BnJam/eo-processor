@@ -1,5 +1,7 @@
 # eo-processor
 
+[![Coverage](./coverage-badge.svg)](#test-coverage)
+
 High-performance Rust UDFs for Earth Observation (EO) processing with Python bindings.
 
 ## Overview
