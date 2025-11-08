@@ -11,9 +11,23 @@ const EPSILON: f64 = 1e-10;
 pub fn normalized_difference(py: Python<'_>, a: &PyAny, b: &PyAny) -> PyResult<PyObject> {
     if let Ok(a_1d) = a.extract::<PyReadonlyArray1<f64>>() {
         let b_1d = b.extract::<PyReadonlyArray1<f64>>()?;
+        if a_1d.shape() != b_1d.shape() {
+            return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                "Shape mismatch for 1D arrays: a {:?} vs b {:?}",
+                a_1d.shape(),
+                b_1d.shape()
+            )));
+        }
         normalized_difference_1d(py, a_1d, b_1d).map(|res| res.into_py(py))
     } else if let Ok(a_2d) = a.extract::<PyReadonlyArray2<f64>>() {
         let b_2d = b.extract::<PyReadonlyArray2<f64>>()?;
+        if a_2d.shape() != b_2d.shape() {
+            return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                "Shape mismatch for 2D arrays: a {:?} vs b {:?}",
+                a_2d.shape(),
+                b_2d.shape()
+            )));
+        }
         normalized_difference_2d(py, a_2d, b_2d).map(|res| res.into_py(py))
     } else {
         Err(pyo3::exceptions::PyTypeError::new_err(
@@ -117,18 +131,44 @@ fn normalized_difference_2d<'py>(
 
 /// Compute NDVI (Normalized Difference Vegetation Index) from NIR and Red bands.
 ///
-/// Thin wrapper around normalized_difference.
+/// Thin wrapper around `normalized_difference`.
 ///
 /// NDVI = (NIR - Red) / (NIR + Red)
 ///
-/// This is a convenience wrapper around normalized_difference for 1D arrays.
+/// This is a convenience wrapper around `normalized_difference` for both 1D and 2D arrays.
+/// It will dispatch based on the dimensionality of the provided numpy arrays.
 ///
 /// # Arguments
-/// * `nir` - Near-infrared band values
-/// * `red` - Red band values
+/// * `nir` - Near-infrared band values (1D or 2D float64 numpy array)
+/// * `red` - Red band values (same shape and type as `nir`)
 ///
 /// # Returns
-/// NDVI values ranging from -1 to 1
+/// NDVI values ranging from -1 to 1 with the same shape as inputs
+///
+/// # Example (1D)
+/// ```python
+/// import numpy as np
+/// from eo_processor import ndvi
+///
+/// nir = np.array([0.8, 0.7, 0.6])
+/// red = np.array([0.2, 0.1, 0.3])
+/// ndvi_vals = ndvi(nir, red)
+/// # Expected: [0.6, 0.75, (0.3/0.9)]
+/// print(ndvi_vals)
+/// ```
+///
+/// # Example (2D)
+/// ```python
+/// import numpy as np
+/// from eo_processor import ndvi
+///
+/// nir = np.array([[0.8, 0.7],
+///                 [0.6, 0.5]])
+/// red = np.array([[0.2, 0.1],
+///                 [0.3, 0.5]])
+/// ndvi_vals = ndvi(nir, red)
+/// print(ndvi_vals.shape)  # (2, 2)
+/// ```
 #[pyfunction]
 pub fn ndvi(py: Python<'_>, nir: &PyAny, red: &PyAny) -> PyResult<PyObject> {
     normalized_difference(py, nir, red)
@@ -136,21 +176,93 @@ pub fn ndvi(py: Python<'_>, nir: &PyAny, red: &PyAny) -> PyResult<PyObject> {
 
 /// Compute NDWI (Normalized Difference Water Index) from Green and NIR bands.
 ///
-/// Thin wrapper around normalized_difference.
+/// Thin wrapper around `normalized_difference`.
 ///
 /// NDWI = (Green - NIR) / (Green + NIR)
 ///
+/// Dispatches for 1D and 2D arrays automatically.
+///
 /// # Arguments
-/// * `green` - Green band values
-/// * `nir` - Near-infrared band values
+/// * `green` - Green band values (1D or 2D float64 numpy array)
+/// * `nir` - Near-infrared band values (same shape and type as `green`)
 ///
 /// # Returns
-/// NDWI values ranging from -1 to 1
+/// NDWI values ranging from -1 to 1 with the same shape as inputs
+///
+/// # Example (1D)
+/// ```python
+/// import numpy as np
+/// from eo_processor import ndwi
+///
+/// green = np.array([0.4, 0.5, 0.6])
+/// nir   = np.array([0.2, 0.1, 0.3])
+/// ndwi_vals = ndwi(green, nir)
+/// print(ndwi_vals)
+/// ```
+///
+/// # Example (2D)
+/// ```python
+/// import numpy as np
+/// from eo_processor import ndwi
+///
+/// green = np.array([[0.4, 0.5],
+///                   [0.6, 0.7]])
+/// nir   = np.array([[0.2, 0.1],
+///                   [0.3, 0.4]])
+/// ndwi_vals = ndwi(green, nir)
+/// print(ndwi_vals.shape)  # (2, 2)
+/// ```
 #[pyfunction]
 pub fn ndwi(py: Python<'_>, green: &PyAny, nir: &PyAny) -> PyResult<PyObject> {
     normalized_difference(py, green, nir)
 }
 
+/// Compute Enhanced Vegetation Index (EVI).
+///
+/// Formula:
+/// EVI = G * (NIR - Red) / (NIR + C1 * Red - C2 * Blue + L)
+///
+/// Constants (MODIS standard):
+/// G = 2.5, C1 = 6.0, C2 = 7.5, L = 1.0
+///
+/// Automatically dispatches for 1D or 2D float64 numpy arrays.
+///
+/// # Arguments
+/// * `nir`  - Near-infrared band values
+/// * `red`  - Red band values
+/// * `blue` - Blue band values
+///
+/// All three inputs must be the same shape & type (1D or 2D float64).
+///
+/// # Returns
+/// EVI values (same shape as input).
+///
+/// # Example (1D)
+/// ```python
+/// import numpy as np
+/// from eo_processor import enhanced_vegetation_index as evi
+///
+/// nir  = np.array([0.6, 0.7])
+/// red  = np.array([0.3, 0.2])
+/// blue = np.array([0.1, 0.05])
+/// evi_vals = evi(nir, red, blue)
+/// print(evi_vals)
+/// ```
+///
+/// # Example (2D)
+/// ```python
+/// import numpy as np
+/// from eo_processor import enhanced_vegetation_index as evi
+///
+/// nir  = np.array([[0.6, 0.7],
+///                  [0.2, 0.3]])
+/// red  = np.array([[0.3, 0.2],
+///                  [0.1, 0.15]])
+/// blue = np.array([[0.1, 0.05],
+///                  [0.02, 0.03]])
+/// evi_vals = evi(nir, red, blue)
+/// print(evi_vals.shape)  # (2, 2)
+/// ```
 #[pyfunction]
 pub fn enhanced_vegetation_index(
     py: Python<'_>,
@@ -161,10 +273,26 @@ pub fn enhanced_vegetation_index(
     if let Ok(nir_1d) = nir.extract::<PyReadonlyArray1<f64>>() {
         let red_1d = red.extract::<PyReadonlyArray1<f64>>()?;
         let blue_1d = blue.extract::<PyReadonlyArray1<f64>>()?;
+        if nir_1d.shape() != red_1d.shape() || nir_1d.shape() != blue_1d.shape() {
+            return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                "Shape mismatch for 1D EVI inputs: nir {:?}, red {:?}, blue {:?}",
+                nir_1d.shape(),
+                red_1d.shape(),
+                blue_1d.shape()
+            )));
+        }
         enhanced_vegetation_index_1d(py, nir_1d, red_1d, blue_1d).map(|res| res.into_py(py))
     } else if let Ok(nir_2d) = nir.extract::<PyReadonlyArray2<f64>>() {
         let red_2d = red.extract::<PyReadonlyArray2<f64>>()?;
         let blue_2d = blue.extract::<PyReadonlyArray2<f64>>()?;
+        if nir_2d.shape() != red_2d.shape() || nir_2d.shape() != blue_2d.shape() {
+            return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                "Shape mismatch for 2D EVI inputs: nir {:?}, red {:?}, blue {:?}",
+                nir_2d.shape(),
+                red_2d.shape(),
+                blue_2d.shape()
+            )));
+        }
         enhanced_vegetation_index_2d(py, nir_2d, red_2d, blue_2d).map(|res| res.into_py(py))
     } else {
         Err(pyo3::exceptions::PyTypeError::new_err(
@@ -319,6 +447,101 @@ mod tests {
             assert_relative_eq!(result_array[[1, 0]], 1.0 / 3.0, epsilon = 1e-10);
             // (0.5 - 0.5) / (0.5 + 0.5) = 0.0 / 1.0 = 0.0
             assert_relative_eq!(result_array[[1, 1]], 0.0, epsilon = 1e-10);
+        });
+    }
+
+    #[test]
+    fn test_ndvi_wrapper_dispatch() {
+        let nir = Array1::from_vec(vec![0.8, 0.7, 0.6]);
+        let red = Array1::from_vec(vec![0.2, 0.1, 0.3]);
+        pyo3::prepare_freethreaded_python();
+        Python::with_gil(|py| {
+            let nir_py = nir.clone().into_pyarray(py);
+            let red_py = red.clone().into_pyarray(py);
+            let ndvi_obj = ndvi(py, nir_py, red_py).unwrap();
+            let ndvi_arr: &PyArray1<f64> = ndvi_obj.extract(py).unwrap();
+            let ndvi_read = ndvi_arr.readonly();
+            let ndvi_vals = ndvi_read.as_array();
+            assert_relative_eq!(ndvi_vals[0], 0.6, epsilon = 1e-10);
+            assert_relative_eq!(ndvi_vals[1], 0.75, epsilon = 1e-10);
+            assert_relative_eq!(ndvi_vals[2], 1.0 / 3.0, epsilon = 1e-10);
+        });
+    }
+
+    #[test]
+    fn test_ndwi_wrapper_dispatch() {
+        let green = Array1::from_vec(vec![0.4, 0.5, 0.6]);
+        let nir = Array1::from_vec(vec![0.2, 0.1, 0.3]);
+        pyo3::prepare_freethreaded_python();
+        Python::with_gil(|py| {
+            let green_py = green.clone().into_pyarray(py);
+            let nir_py = nir.clone().into_pyarray(py);
+            let ndwi_obj = ndwi(py, green_py, nir_py).unwrap();
+            let ndwi_arr: &PyArray1<f64> = ndwi_obj.extract(py).unwrap();
+            let ndwi_read = ndwi_arr.readonly();
+            let ndwi_vals = ndwi_read.as_array();
+            // (0.4-0.2)/(0.4+0.2)=0.2/0.6=0.333...
+            assert_relative_eq!(ndwi_vals[0], (0.4 - 0.2) / (0.4 + 0.2), epsilon = 1e-10);
+            // (0.5-0.1)/(0.5+0.1)=0.4/0.6=0.666...
+            assert_relative_eq!(ndwi_vals[1], (0.5 - 0.1) / (0.5 + 0.1), epsilon = 1e-10);
+            // (0.6-0.3)/(0.6+0.3)=0.3/0.9=0.333...
+            assert_relative_eq!(ndwi_vals[2], (0.6 - 0.3) / (0.6 + 0.3), epsilon = 1e-10);
+        });
+    }
+
+    #[test]
+    fn test_evi_1d() {
+        // Small synthetic example
+        let nir = Array1::from_vec(vec![0.6, 0.7]);
+        let red = Array1::from_vec(vec![0.3, 0.2]);
+        let blue = Array1::from_vec(vec![0.1, 0.05]);
+        const G: f64 = 2.5;
+        const C1: f64 = 6.0;
+        const C2: f64 = 7.5;
+        const L: f64 = 1.0;
+        pyo3::prepare_freethreaded_python();
+        Python::with_gil(|py| {
+            let nir_py = nir.clone().into_pyarray(py);
+            let red_py = red.clone().into_pyarray(py);
+            let blue_py = blue.clone().into_pyarray(py);
+            let evi_obj = enhanced_vegetation_index(py, nir_py, red_py, blue_py).unwrap();
+            let evi_arr: &PyArray1<f64> = evi_obj.extract(py).unwrap();
+            let evi_read = evi_arr.readonly();
+            let evi_vals = evi_read.as_array();
+            let expected0 = G * (0.6 - 0.3) / (0.6 + C1 * 0.3 - C2 * 0.1 + L);
+            let expected1 = G * (0.7 - 0.2) / (0.7 + C1 * 0.2 - C2 * 0.05 + L);
+            assert_relative_eq!(evi_vals[0], expected0, epsilon = 1e-12);
+            assert_relative_eq!(evi_vals[1], expected1, epsilon = 1e-12);
+        });
+    }
+
+    #[test]
+    fn test_evi_2d() {
+        let nir = Array2::from_shape_vec((2, 2), vec![0.6, 0.7, 0.2, 0.3]).unwrap();
+        let red = Array2::from_shape_vec((2, 2), vec![0.3, 0.2, 0.1, 0.15]).unwrap();
+        let blue = Array2::from_shape_vec((2, 2), vec![0.1, 0.05, 0.02, 0.03]).unwrap();
+        const G: f64 = 2.5;
+        const C1: f64 = 6.0;
+        const C2: f64 = 7.5;
+        const L: f64 = 1.0;
+        pyo3::prepare_freethreaded_python();
+        Python::with_gil(|py| {
+            let nir_py = nir.clone().into_pyarray(py);
+            let red_py = red.clone().into_pyarray(py);
+            let blue_py = blue.clone().into_pyarray(py);
+            let evi_obj = enhanced_vegetation_index(py, nir_py, red_py, blue_py).unwrap();
+            let evi_arr: &PyArray2<f64> = evi_obj.extract(py).unwrap();
+            let evi_read = evi_arr.readonly();
+            let evi_vals = evi_read.as_array();
+            for i in 0..2 {
+                for j in 0..2 {
+                    let nir_v = nir[[i, j]];
+                    let red_v = red[[i, j]];
+                    let blue_v = blue[[i, j]];
+                    let expected = G * (nir_v - red_v) / (nir_v + C1 * red_v - C2 * blue_v + L);
+                    assert_relative_eq!(evi_vals[[i, j]], expected, epsilon = 1e-12);
+                }
+            }
         });
     }
 }

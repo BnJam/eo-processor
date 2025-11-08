@@ -24,6 +24,7 @@ requires-python = ">=3.8"
 dependencies = [
     "maturin>=1.9.6",
     "numpy>=1.20.0",
+    "tox>=4.25.0",
 ]
 
 [project.optional-dependencies]

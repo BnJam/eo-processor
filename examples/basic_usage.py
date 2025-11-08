@@ -6,7 +6,7 @@ Earth Observation computations.
 """
 
 import numpy as np
-from eo_processor import ndvi, ndwi, normalized_difference
+from eo_processor import ndvi, ndwi, normalized_difference, enhanced_vegetation_index as evi
 
 # Example 1: Computing NDVI with 1D arrays
 print("Example 1: NDVI with 1D arrays")
@@ -44,8 +44,42 @@ print(f"NIR:   {nir}")
 print(f"NDWI:  {ndwi_result}")
 print()
 
-# Example 4: Generic normalized difference
-print("Example 4: Generic normalized difference")
+# Example 4: NDWI with 2D arrays
+print("Example 4: NDWI with 2D arrays (50x50)")
+print("-" * 40)
+green_2d = np.random.rand(50, 50) * 0.5 + 0.1   # Green between 0.1 and 0.6
+nir_2d = np.random.rand(50, 50) * 0.4 + 0.1     # NIR between 0.1 and 0.5
+ndwi_2d = ndwi(green_2d, nir_2d)
+print(f"NDWI shape: {ndwi_2d.shape}")
+print(f"NDWI stats -> min: {ndwi_2d.min():.4f} max: {ndwi_2d.max():.4f} mean: {ndwi_2d.mean():.4f}")
+print()
+
+# Example 5: Enhanced Vegetation Index (EVI) 1D
+print("Example 5: Enhanced Vegetation Index (EVI) 1D")
+print("-" * 40)
+nir_evi_1d = np.array([0.6, 0.7, 0.5])
+red_evi_1d = np.array([0.3, 0.2, 0.25])
+blue_evi_1d = np.array([0.1, 0.05, 0.08])
+evi_1d = evi(nir_evi_1d, red_evi_1d, blue_evi_1d)
+print(f"NIR: {nir_evi_1d}")
+print(f"Red: {red_evi_1d}")
+print(f"Blue:{blue_evi_1d}")
+print(f"EVI: {evi_1d}")
+print()
+
+# Example 6: Enhanced Vegetation Index (EVI) 2D
+print("Example 6: Enhanced Vegetation Index (EVI) 2D (60x60)")
+print("-" * 40)
+nir_evi_2d = np.random.rand(60, 60) * 0.6 + 0.2   # 0.2 - 0.8
+red_evi_2d = np.random.rand(60, 60) * 0.4 + 0.1   # 0.1 - 0.5
+blue_evi_2d = np.random.rand(60, 60) * 0.2 + 0.05 # 0.05 - 0.25
+evi_2d = evi(nir_evi_2d, red_evi_2d, blue_evi_2d)
+print(f"EVI shape: {evi_2d.shape}")
+print(f"EVI stats -> min: {evi_2d.min():.4f} max: {evi_2d.max():.4f} mean: {evi_2d.mean():.4f}")
+print()
+
+# Example 7: Generic normalized difference
+print("Example 7: Generic normalized difference")
 print("-" * 40)
 a = np.array([0.9, 0.8, 0.7])
 b = np.array([0.1, 0.2, 0.3])
@@ -55,8 +89,8 @@ print(f"B:  {b}")
 print(f"ND: {nd_result}")
 print()
 
-# Example 5: Performance comparison
-print("Example 5: Performance comparison (1000x1000 array)")
+# Example 8: Performance comparison
+print("Example 8: Performance comparison (1000x1000 array)")
 print("-" * 40)
 import time
 
