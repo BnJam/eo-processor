@@ -50,8 +50,8 @@ jobs:
         id: lint_step
         continue-on-error: false
         run: |
-          uv run ruff format python/eo_procesor/ tests/
-          uv run ruff check python/eo_procesor/ tests/ --fix --no-cache
+          uv run ruff format python/eo_processor/ tests/
+          uv run ruff check python/eo_processor/ tests/ --fix --no-cache
 
       # --- BUILD STEP (Changed to Maturin) ---
       - name: Install tox
