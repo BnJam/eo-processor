@@ -47,7 +47,7 @@ jobs:
       - name: Install Dependencies for version script
         run: |
           # Sync dev dependencies to ensure the version script's dependencies are met
-          uv pip install maturin ".[dev]"
+          uv pip install --system maturin ".[dev]"
 
       - name: Determine version increment, Commit, and Tag
         id: bump
