@@ -50,9 +50,8 @@ jobs:
         id: lint_step
         continue-on-error: false
         run: |
-          # Keeping paths as stac_mcp/, update this if your python source moves
-          uv run ruff format stac_mcp/ tests/
-          uv run ruff check stac_mcp/ tests/ --fix --no-cache
+          uv run ruff format python/eo_procesor/ tests/
+          uv run ruff check python/eo_procesor/ tests/ --fix --no-cache
 
       # --- BUILD STEP (Changed to Maturin) ---
       - name: Install tox
