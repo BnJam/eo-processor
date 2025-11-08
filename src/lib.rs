@@ -1,6 +1,4 @@
-// Bring in the functionality from sub-modules
 pub mod indices;
-// pub mod spatial; // For future spatial functions (e.g., median_filter)
 
 use pyo3::prelude::*;
 

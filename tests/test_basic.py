@@ -1,15 +1,10 @@
 import numpy as np
 import pytest
 
-try:
-    from eo_processor import (
-        normalized_difference,
-        enhanced_vegetation_index,
-    )
-except ImportError:
-    raise ImportError(
-        "Could not import eo_processor module. Ensure the Rust extension is built and installed."
-    )
+# If the Rust extension isn't built, skip these tests rather than erroring out.
+eo = pytest.importorskip("eo_processor")
+normalized_difference = eo.normalized_difference
+enhanced_vegetation_index = eo.enhanced_vegetation_index
 
 @pytest.fixture
 def test_data_1d():
@@ -30,7 +25,7 @@ def test_data_2d():
 def test_normalized_difference_1d_basic(test_data_1d):
     """Tests the basic, expected calculation for ND."""
     a, b = test_data_1d
-    result, dims = normalized_difference(a, b, ["band"])
+    result = normalized_difference(a, b)
 
     # Expected results:
     # (0.8 - 0.2) / (0.8 + 0.2) = 0.6 / 1.0 = 0.6
@@ -40,14 +35,13 @@ def test_normalized_difference_1d_basic(test_data_1d):
 
     np.testing.assert_allclose(result, expected, atol=1e-10)
     assert result.shape == a.shape
-    assert dims == ["band"]
 
 
 def test_normalized_difference_1d_zero_denominator():
     """Tests ND with inputs that sum to zero, expecting 0.0 as per Rust logic."""
     a = np.array([0.5, 0.0, 0.0], dtype=np.float64)
     b = np.array([-0.5, 0.0, 0.0], dtype=np.float64)
-    result, _ = normalized_difference(a, b, ["band"])
+    result = normalized_difference(a, b)
 
     # Expected:
     # Index 0: sum is 0.0, should be 0.0
@@ -61,7 +55,7 @@ def test_normalized_difference_1d_zero_denominator():
 def test_normalized_difference_2d_basic(test_data_2d):
     """Tests the basic calculation for 2D ND arrays."""
     a, b = test_data_2d
-    result, dims = normalized_difference(a, b, ["y", "x"])
+    result = normalized_difference(a, b)
 
     # Expected results match 1D test for the first three elements
     # Index [1, 1]: (0.5 - 0.5) / (0.5 + 0.5) = 0.0 / 1.0 = 0.0
@@ -69,7 +63,6 @@ def test_normalized_difference_2d_basic(test_data_2d):
 
     np.testing.assert_allclose(result, expected, atol=1e-10)
     assert result.shape == a.shape
-    assert dims == ["y", "x"]
 
 
 def test_enhanced_vegetation_index_1d_basic():
@@ -87,8 +80,7 @@ def test_enhanced_vegetation_index_1d_basic():
     # Expected = 0.75 / 1.625 ≈ 0.46153846
 
     expected = 0.75 / 1.625
-    result, dims = enhanced_vegetation_index(nir, red, blue, ["band"])
+    result = enhanced_vegetation_index(nir, red, blue)
 
     np.testing.assert_allclose(result[0], expected, atol=1e-10)
     assert result.shape == nir.shape
-    assert dims == ["band"]

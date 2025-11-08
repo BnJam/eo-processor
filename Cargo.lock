@@ -65,10 +65,10 @@ name = "eo-processor"
 version = "0.1.0"
 dependencies = [
  "approx",
- "labeledarray",
  "ndarray",
  "numpy",
  "pyo3",
+ "rayon",
 ]
 
 [[package]]
@@ -84,15 +84,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "79cf5c93f93228cf8efb3ba362535fb11199ac548a09ce117c9b1adc3030d706"
 dependencies = [
  "rustversion",
-]
-
-[[package]]
-name = "labeledarray"
-version = "0.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b40feebaeb3beee3882379cc8616cb248cfca40b8f4b89c66b5545bf9c5ee84b"
-dependencies = [
- "ndarray",
 ]
 
 [[package]]
