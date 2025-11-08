@@ -37,7 +37,7 @@ jobs:
 
       - name: Install uv and tools
         uses: astral-sh/setup-uv@v3
-        
+
       - name: Install tox and plugins
         # Install tox and the tox-gh-actions plugin into the base environment
         run: uv pip install --system tox tox-gh-actions
@@ -63,18 +63,14 @@ jobs:
         if: matrix.python-version == '3.12'
         id: coverage_step
         # This assumes the 'coverage' env generates 'coverage.xml' in the repository root.
-        run: tox -e coverage
-        
-      - name: 🖼️ Generate Coverage Badge
-        if: matrix.python-version == '3.12'
-        # Runs your script using the installed uv environment
-        run: uv run python scripts/generate_coverage_badge.py coverage.xml coverage-badge.svg
-
-      # Optional: Upload the badge as an artifact so you can download it from the CI run
-      - name: Upload Coverage Badge Artifact
-        if: matrix.python-version == '3.12'
-        uses: actions/upload-artifact@v4
-        with:
-          name: coverage-badge
-          path: coverage-badge.svg
-
+        run: |
+          tox -e coverage
+          # Output coverage percentage for logging
+          COVERAGE_PERCENT=$(coverage report | tail -n 1 | awk '{print $4}' | sed 's/%//')
+          echo "Coverage Percentage: $COVERAGE_PERCENT%"
+          # Fail the step if coverage is below threshold (e.g., 80%)
+          if (( $(echo "$COVERAGE_PERCENT < 80" | bc -l) )); then
+            echo "Code coverage $COVERAGE_PERCENT% is below the required threshold of 80%."
+            exit 1
+          fi
+          echo "coverage_percent=$COVERAGE_PERCENT" >> $GITHUB_OUTPUT
