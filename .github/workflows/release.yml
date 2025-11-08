@@ -3,9 +3,6 @@ name: Build and Publish Wheels
 on:
   pull_request:
     types: [closed]
-  push:
-    branches:
-      - main
 
 env:
   # The environment for PyPI publishing (used in the final publish step)
