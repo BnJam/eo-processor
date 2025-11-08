@@ -176,3 +176,62 @@ jobs:
 
             This release was automatically generated after a successful CI/CD pipeline.
           token: ${{ secrets.GITHUB_TOKEN }}
+
+  # ----------------------------------------------------
+  # Coverage Badge Update Job
+  # ----------------------------------------------------
+  update-coverage-badge:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      # --- COVERAGE & BADGE STEPS (Run once on 3.12) ---
+      - name: 📊 Run Coverage Threshold Check and generate XML (tox -e coverage)
+        if: matrix.python-version == '3.12'
+        id: coverage_step
+        # This assumes the 'coverage' env generates 'coverage.xml' in the repository root.
+        run: |
+          tox -e coverage
+          # Output coverage percentage for logging
+          COVERAGE_PERCENT=$(coverage report | tail -n 1 | awk '{print $4}' | sed 's/%//')
+          echo "Coverage Percentage: $COVERAGE_PERCENT%"
+          # Fail the step if coverage is below threshold (e.g., 80%)
+          if (( $(echo "$COVERAGE_PERCENT < 80" | bc -l) )); then
+            echo "Code coverage $COVERAGE_PERCENT% is below the required threshold of 80%."
+            exit 1
+          fi
+          echo "coverage_percent=$COVERAGE_PERCENT" >> $GITHUB_OUTPUT
+
+      - name: 🖼️ Generate Coverage Badge
+        if: matrix.python-version == '3.12'
+        # Runs your script using the installed uv environment
+        run: uv run python scripts/generate_coverage_badge.py coverage.xml coverage-badge.svg
+
+      # Optional: Upload the badge as an artifact so you can download it from the CI run
+      - name: Upload Coverage Badge Artifact
+        if: matrix.python-version == '3.12'
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-badge
+          path: |
+            coverage.xml
+            coverage-badge.svg
+
+      # --- COMMIT & PUSH BADGE IF CHANGED (Run once on 3.12) ---
+      - name: 📤 Commit and Push Coverage Badge if Changed
+        if: matrix.python-version == '3.12'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if git diff --quiet coverage-badge.svg 2>/dev/null; then
+            echo 'No badge changes'
+          else
+            git config user.name 'github-actions'
+            git config user.email 'actions@github.com'
+            git add coverage-badge.svg
+            git commit -m 'chore(ci): update coverage badge'
+            git pull --rebase --autostash origin main || (git fetch origin main && git rebase origin/main)
+            git push
+          fi
