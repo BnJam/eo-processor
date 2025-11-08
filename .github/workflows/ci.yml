@@ -40,7 +40,7 @@ jobs:
         
       - name: Install tox and plugins
         # Install tox and the tox-gh-actions plugin into the base environment
-        run: uv pip install tox tox-gh-actions
+        run: uv pip install --system tox tox-gh-actions
 
       # --- LINT & CLIPPY STEPS (Run once on 3.11) ---
       # Running static checks only on one version to save time
