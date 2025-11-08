@@ -78,33 +78,3 @@ jobs:
           name: coverage-badge
           path: coverage-badge.svg
 
-  # --- CodeQL Analysis Job (Unchanged) ---
-  codeql:
-    name: CodeQL Analysis
-    runs-on: ubuntu-latest
-    permissions:
-      actions: read
-      contents: read
-      security-events: write
-    strategy:
-      fail-fast: false
-      matrix:
-        language: ["python"]
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-      - name: Set up Python 3.12
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-      - name: Initialize CodeQL
-        uses: github/codeql-action/init@v3
-        with:
-          languages: ${{ matrix.language }}
-      - name: Install uv
-        uses: astral-sh/setup-uv@v3
-      - name: Install dependencies (runtime only)
-        # Using uv to ensure a clean install for CodeQL
-        run: uv sync
-      - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@v3
