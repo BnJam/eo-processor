@@ -24,6 +24,7 @@ requires-python = ">=3.8"
 dependencies = [
     "maturin>=1.9.6",
     "numpy>=1.20.0",
+    "tox>=4.25.0",
 ]
 
 [project.optional-dependencies]
@@ -44,6 +45,11 @@ features = ["pyo3/extension-module"]
 [build-system]
 requires = ["maturin>=1.9.6"]
 build-backend = "maturin"
+
+[dependency-groups]
+dev = [
+    "ruff>=0.14.4",
+]
 
 [tool.maturin.metadata]
 authors = ["Ben Smith"]

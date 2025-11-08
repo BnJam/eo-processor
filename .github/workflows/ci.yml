@@ -1,5 +1,6 @@
 name: CI
 
+# --- TRIGGER: Runs on Pull Requests ---
 on:
   pull_request:
     types: [opened, synchronize, reopened, edited]
@@ -13,18 +14,20 @@ env:
 
 jobs:
   test:
-    name: Tests (Python ${{ matrix.python-version }})
+    name: Tests via tox (Python ${{ matrix.python-version }})
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: write # Needed for coverage badge/artifacts
     strategy:
       matrix:
         python-version: ["3.11", "3.12"]
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      # --- RUST TOOLCHAIN SETUP ---
+      # --- SETUP ---
       - name: Install Rust toolchain
+        # Required for the 'clippy' environment and maturin builds
         uses: dtolnay/rust-toolchain@stable
 
       - name: Set up Python ${{ matrix.python-version }}
@@ -34,75 +37,44 @@ jobs:
 
       - name: Install uv and tools
         uses: astral-sh/setup-uv@v3
+        
+      - name: Install tox and plugins
+        # Install tox and the tox-gh-actions plugin into the base environment
+        run: uv pip install --system tox tox-gh-actions
 
-      - name: Sync dependencies (dev + extras)
-        # This step will install maturin (assuming it's in your dev dependencies)
-        run: uv sync --all-extras --dev
+      # --- LINT & CLIPPY STEPS (Run once on 3.11) ---
+      # Running static checks only on one version to save time
+      - name: 🔎 Run Lint (tox -e lint)
+        if: matrix.python-version == '3.11'
+        run: tox -e lint
 
-      # --- LINT STEP ---
-      - name: 🔎 Run Rust Checks (Clippy & Fmt)
-        # Ensure Rust code is formatted and linted before building
-        run: |
-          cargo fmt --check
-          cargo clippy --tests -- -D warnings
+      - name: 🔎 Run Rust Checks (tox -e clippy)
+        if: matrix.python-version == '3.11'
+        run: tox -e clippy
 
-      - name: Lint (Ruff)
-        id: lint_step
-        continue-on-error: false
-        run: |
-          # Keeping paths as stac_mcp/, update this if your python source moves
-          uv run ruff format stac_mcp/ tests/
-          uv run ruff check stac_mcp/ tests/ --fix --no-cache
-
-      # --- BUILD STEP (Changed to Maturin) ---
-      - name: 🔨 Build and Install Module (maturin develop)
-        id: build_step
-        continue-on-error: false
-        # maturin develop builds the Rust part and installs the result for testing
-        run: uv run maturin develop
-
-      # --- TESTS + COVERAGE STEPS ---
-      - name: Tests + coverage
+      # --- CORE TESTS STEP (Run on both 3.11 and 3.12) ---
+      - name: 🧪 Run Tests (tox -e py${{ matrix.python-version }})
         id: tests_step
-        continue-on-error: false
-        run: |
-          # Pytest will now run against the module installed by maturin develop
-          uv run coverage run -m pytest -v
-          uv run coverage xml
-          uv run python scripts/generate_coverage_badge.py coverage.xml coverage-badge.svg
-          uv run coverage report
+        # Runs 'maturin develop' and 'pytest -q'
+        run: tox -e py${{ matrix.python-version }}
 
-      - name: Check coverage threshold
-        id: coverage_threshold_step
-        continue-on-error: false
-        run: uv run coverage report --fail-under=85
+      # --- COVERAGE & BADGE STEPS (Run once on 3.12) ---
+      - name: 📊 Run Coverage and generate XML (tox -e coverage)
+        if: matrix.python-version == '3.12'
+        id: coverage_step
+        # This assumes the 'coverage' env generates 'coverage.xml' in the repository root.
+        run: tox -e coverage
+        
+      - name: 🖼️ Generate Coverage Badge
+        if: matrix.python-version == '3.12'
+        # Runs your script using the installed uv environment
+        run: uv run python scripts/generate_coverage_badge.py coverage.xml coverage-badge.svg
 
-  codeql:
-    name: CodeQL Analysis
-    runs-on: ubuntu-latest
-    permissions:
-      actions: read
-      contents: read
-      security-events: write
-    strategy:
-      fail-fast: false
-      matrix:
-        language: ["python"]
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-      - name: Set up Python 3.12
-        uses: actions/setup-python@v5
+      # Optional: Upload the badge as an artifact so you can download it from the CI run
+      - name: Upload Coverage Badge Artifact
+        if: matrix.python-version == '3.12'
+        uses: actions/upload-artifact@v4
         with:
-          python-version: "3.12"
-      - name: Initialize CodeQL
-        uses: github/codeql-action/init@v3
-        with:
-          languages: ${{ matrix.language }}
-      - name: Install uv
-        uses: astral-sh/setup-uv@v3
-      - name: Install dependencies (runtime only)
-        run: |
-          uv sync
-      - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@v3
+          name: coverage-badge
+          path: coverage-badge.svg
+

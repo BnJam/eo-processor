@@ -54,6 +54,9 @@ red = np.array([0.2, 0.1, 0.3])
 ndvi_result = ndvi(nir, red)
 print(ndvi_result)  # [0.6, 0.75, 0.33333333]
 
+# Note: the functions in `eo_processor` now return NumPy arrays directly.
+# They no longer return a (array, dims) tuple or any dims metadata.
+
 # Works with 2D arrays (images)
 nir_image = np.random.rand(1000, 1000)
 red_image = np.random.rand(1000, 1000)

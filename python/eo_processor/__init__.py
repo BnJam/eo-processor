@@ -6,10 +6,10 @@ computations that can be used within XArray/Dask workflows to bypass Python's GI
 """
 
 from ._core import (
-    normalized_difference,
-    ndvi,
-    ndwi,
-    enhanced_vegetation_index,
+    normalized_difference as _normalized_difference,
+    ndvi as _ndvi,
+    ndwi as _ndwi,
+    enhanced_vegetation_index as _enhanced_vegetation_index,
 )
 
 __version__ = "0.1.0"
@@ -19,4 +19,38 @@ __all__ = [
     "ndvi",
     "ndwi",
     "enhanced_vegetation_index",
+    "evi",
 ]
+
+
+def normalized_difference(a, b):
+    """
+    Compute normalized difference (a - b) / (a + b) using the Rust core.
+    Supports 1D or 2D numpy float arrays; dimensional dispatch occurs in Rust.
+    """
+    return _normalized_difference(a, b)
+
+
+def ndvi(nir, red):
+    """
+    Compute NDVI = (NIR - Red) / (NIR + Red) via Rust core (1D or 2D).
+    """
+    return _ndvi(nir, red)
+
+
+def ndwi(green, nir):
+    """
+    Compute NDWI = (Green - NIR) / (Green + NIR) via Rust core (1D or 2D).
+    """
+    return _ndwi(green, nir)
+
+
+def enhanced_vegetation_index(nir, red, blue):
+    """
+    Compute EVI = 2.5 * (NIR - Red) / (NIR + 6*Red - 7.5*Blue + 1) via Rust core (1D or 2D).
+    """
+    return _enhanced_vegetation_index(nir, red, blue)
+
+
+# Alias
+evi = enhanced_vegetation_index
