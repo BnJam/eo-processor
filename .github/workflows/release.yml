@@ -1,8 +1,8 @@
 name: Build and Publish Wheels
 
 on:
-  push:
-    branches: [main]
+  pull_request:
+    types: [closed]
 
 env:
   # The environment for PyPI publishing (used in the final publish step)
@@ -17,10 +17,10 @@ jobs:
   # JOB 1: VERSION BUMP, COMMIT, AND TAG
   # ----------------------------------------------------
   version-bump:
+    if: github.event.pull_request.merged == true && github.event.pull_request.base.ref == 'main'
     runs-on: ubuntu-latest
     permissions:
       contents: write # Required to push commits and tags
-      pull-requests: read # Required to read PR labels via gh CLI
     outputs:
       new_version: ${{ steps.bump.outputs.new_version }}
       version_changed: ${{ steps.bump.outputs.version_changed }}
@@ -37,11 +37,9 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Install uv and GitHub CLI
+      - name: Install uv
         run: |
           pip install uv
-          # Install gh CLI for interacting with PR data
-          sudo apt-get update && sudo apt-get install -y gh
 
       - name: Install Dependencies for version script
         run: |
@@ -55,21 +53,12 @@ jobs:
         # otherwise maturin will build with the old version number!
         # Assuming your script now handles both: pyproject.toml and Cargo.toml
         run: |
-          # The logic below is identical to your existing script
-          # -------------------------------------------------------
-          MERGE_MSG=$(git log -1 --pretty=format:"%s")
-          echo "Merge message: $MERGE_MSG"
-          PR_NUM=$(echo "$MERGE_MSG" | grep -oP "Merge pull request #\K\d+" || echo "")
+          # Use github.event context to get PR information
+          PR_NUM=${{ github.event.pull_request.number }}
+          BRANCH_NAME=${{ github.event.pull_request.head.ref }}
+          LABELS=$(echo '${{ toJSON(github.event.pull_request.labels.*.name) }}' | tr -d '[]"' | sed 's/,/ /g')
 
-          if [ -z "$PR_NUM" ]; then
-            echo "No PR number found in merge commit, skipping version bump"
-            echo "version_changed=false" >> $GITHUB_OUTPUT
-            exit 0
-          fi
-
-          echo "Found PR #$PR_NUM"
-          BRANCH_NAME=$(gh pr view $PR_NUM --json headRefName --jq '.headRefName')
-          LABELS=$(gh pr view $PR_NUM --json labels --jq '.labels[].name' | tr '\n' ' ')
+          echo "PR #$PR_NUM"
           echo "Branch name: $BRANCH_NAME"
           echo "PR labels: $LABELS"
 
@@ -169,11 +158,11 @@ jobs:
   # JOB 3: CREATE GITHUB RELEASE
   # ----------------------------------------------------
   github-release:
+    if: github.event.pull_request.merged == true && github.event.pull_request.base.ref == 'main' && needs.version-bump.outputs.version_changed == 'true'
     runs-on: ubuntu-latest
     needs: [version-bump, pypi-publish] # Wait for both version bump and PyPI publish to ensure everything is ready
     permissions:
       contents: write
-    if: needs.version-bump.outputs.version_changed == 'true'
     steps:
       - name: Create Release
         uses: ncipollo/release-action@v1
