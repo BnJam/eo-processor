@@ -3,11 +3,9 @@
 # ==============================================================================
 
 # The default virtual environment directory for uv
-
 VENV_DIR = .venv
 
 # Use direct commands, assuming the virtual environment is manually activated
-
 PYTHON_RUN = python
 PYTEST_RUN = pytest
 
