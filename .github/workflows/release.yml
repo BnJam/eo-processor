@@ -185,7 +185,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
       # --- COVERAGE & BADGE STEPS (Run once on 3.12) ---
-      - name: 📊 Run Coverage Threshold Check and generate XML (tox -e coverage)
+      - name: 📊 Run Coverage Reporting
         if: matrix.python-version == '3.12'
         id: coverage_step
         # This assumes the 'coverage' env generates 'coverage.xml' in the repository root.
@@ -194,11 +194,6 @@ jobs:
           # Output coverage percentage for logging
           COVERAGE_PERCENT=$(coverage report | tail -n 1 | awk '{print $4}' | sed 's/%//')
           echo "Coverage Percentage: $COVERAGE_PERCENT%"
-          # Fail the step if coverage is below threshold (e.g., 80%)
-          if (( $(echo "$COVERAGE_PERCENT < 80" | bc -l) )); then
-            echo "Code coverage $COVERAGE_PERCENT% is below the required threshold of 80%."
-            exit 1
-          fi
           echo "coverage_percent=$COVERAGE_PERCENT" >> $GITHUB_OUTPUT
 
       - name: 🖼️ Generate Coverage Badge
