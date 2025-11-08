@@ -188,7 +188,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
       # --- COVERAGE & BADGE STEPS (Run once on 3.12) ---
-      - name: 📊 Run Coverage and generate XML (tox -e coverage)
+      - name: 📊 Run Coverage Threshold Check
         if: matrix.python-version == '3.12'
         id: coverage_step
         # This assumes the 'coverage' env generates 'coverage.xml' in the repository root.
