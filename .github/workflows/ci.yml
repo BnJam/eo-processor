@@ -13,7 +13,7 @@ env:
 
 jobs:
   test:
-    name: Tests (Python ${{ matrix.python-version }})
+    name: Tests via tox (Python ${{ matrix.python-version }})
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -55,22 +55,26 @@ jobs:
           uv run ruff check stac_mcp/ tests/ --fix --no-cache
 
       # --- BUILD STEP (Changed to Maturin) ---
-      - name: 🔨 Build and Install Module (maturin develop)
-        id: build_step
-        continue-on-error: false
-        # maturin develop builds the Rust part and installs the result for testing
-        run: uv run maturin develop
+      - name: Install tox
+        run: pip install tox tox-gh-actions
 
       # --- TESTS + COVERAGE STEPS ---
-      - name: Tests + coverage
-        id: tests_step
-        continue-on-error: false
+      - name: Run lint (tox)
+        run: tox -e lint
+      - name: Run Rust clippy (tox)
+        run: tox -e clippy || echo "Clippy env optional; ensure Rust toolchain installed."
+      - name: Run tests (tox)
+        run: tox -e py${{ matrix.python-version }}
+      - name: Generate coverage (only on 3.12)
+        if: matrix.python-version == '3.12'
         run: |
-          # Pytest will now run against the module installed by maturin develop
-          uv run coverage run -m pytest -v
-          uv run coverage xml
-          uv run python scripts/generate_coverage_badge.py coverage.xml coverage-badge.svg
-          uv run coverage report
+          pip install coverage
+          coverage run -m pytest -q
+          coverage report
+          coverage xml
+      - name: Check coverage threshold
+        if: matrix.python-version == '3.12'
+        run: coverage report --fail-under=85
 
       - name: Check coverage threshold
         id: coverage_threshold_step

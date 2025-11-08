@@ -1,31 +1,6 @@
-import os
-import sys
 import numpy as np
 import pytest
 
-# Robust import: allow running tests before installation (editable build or local source),
-# otherwise skip cleanly if the extension module is not built for this interpreter.
-# try:
-#     from eo_processor import (
-#         ndvi,
-#         ndwi,
-#         normalized_difference,
-#         enhanced_vegetation_index as evi,
-#     )
-# except ModuleNotFoundError:  # pragma: no cover
-#     root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-#     python_src = os.path.join(root, "python")
-#     if python_src not in sys.path:
-#         sys.path.insert(0, python_src)
-#     try:
-#         from eo_processor import (
-#             ndvi,
-#             ndwi,
-#             normalized_difference,
-#             enhanced_vegetation_index as evi,
-#         )
-#     except ModuleNotFoundError:
-#         pytest.skip("eo_processor extension module not built. Run `maturin develop` before tests.", allow_module_level=True)
 from eo_processor import (
     ndvi,
     ndwi,
