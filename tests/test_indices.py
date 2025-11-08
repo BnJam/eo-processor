@@ -179,7 +179,7 @@ def test_ndvi_random_bounds_property():
 
 
 def test_evi_zero_denominator_safeguard():
-    G, C1, C2, L = 2.5, 6.0, 7.5, 1.0
+    C2, L = 7.5, 1.0
     nir = np.array([0.0])
     red = np.array([0.0])
     blue = np.array([L / C2])  # makes denominator ~ 0
