@@ -1,5 +1,6 @@
 Name: CI
 
+# --- TRIGGER: Runs on Pull Requests ---
 on:
   pull_request:
     types: [opened, synchronize, reopened, edited]
@@ -16,15 +17,17 @@ jobs:
     name: Tests via tox (Python ${{ matrix.python-version }})
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: write # Needed for coverage badge/artifacts
     strategy:
       matrix:
         python-version: ["3.11", "3.12"]
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      # --- RUST TOOLCHAIN SETUP ---
+      # --- SETUP ---
       - name: Install Rust toolchain
+        # Required for the 'clippy' environment and maturin builds
         uses: dtolnay/rust-toolchain@stable
 
       - name: Set up Python ${{ matrix.python-version }}
@@ -36,11 +39,11 @@ jobs:
         uses: astral-sh/setup-uv@v3
         
       - name: Install tox and plugins
-        # Use uv to install tox and the tox-gh-actions plugin
+        # Install tox and the tox-gh-actions plugin into the base environment
         run: uv pip install tox tox-gh-actions
 
-      # --- LINT & CLIPPY STEPS ---
-      # Run static checks once on the lowest Python version in the matrix (3.11)
+      # --- LINT & CLIPPY STEPS (Run once on 3.11) ---
+      # Running static checks only on one version to save time
       - name: 🔎 Run Lint (tox -e lint)
         if: matrix.python-version == '3.11'
         run: tox -e lint
@@ -49,23 +52,59 @@ jobs:
         if: matrix.python-version == '3.11'
         run: tox -e clippy
 
-      # --- CORE TESTS STEP ---
+      # --- CORE TESTS STEP (Run on both 3.11 and 3.12) ---
       - name: 🧪 Run Tests (tox -e py${{ matrix.python-version }})
         id: tests_step
+        # Runs 'maturin develop' and 'pytest -q'
         run: tox -e py${{ matrix.python-version }}
 
-      # --- COVERAGE STEPS (Run only on 3.12) ---
+      # --- COVERAGE & BADGE STEPS (Run once on 3.12) ---
       - name: 📊 Run Coverage and generate XML (tox -e coverage)
         if: matrix.python-version == '3.12'
         id: coverage_step
-        # This assumes the required tools (coverage, pytest-cov) are in the 'coverage' env
-        # and it generates the coverage.xml file in the root directory.
+        # This assumes the 'coverage' env generates 'coverage.xml' in the repository root.
         run: tox -e coverage
         
       - name: 🖼️ Generate Coverage Badge
         if: matrix.python-version == '3.12'
-        # Assumes generate_coverage_badge.py and necessary tools (like coverage) 
-        # are available in the uv-managed dependencies.
-        run: |
-          uv run python scripts/generate_coverage_badge.py coverage.xml coverage-badge.svg
+        # Runs your script using the installed uv environment
+        run: uv run python scripts/generate_coverage_badge.py coverage.xml coverage-badge.svg
 
+      # Optional: Upload the badge as an artifact so you can download it from the CI run
+      - name: Upload Coverage Badge Artifact
+        if: matrix.python-version == '3.12'
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-badge
+          path: coverage-badge.svg
+
+  # --- CodeQL Analysis Job (Unchanged) ---
+  codeql:
+    name: CodeQL Analysis
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+    strategy:
+      fail-fast: false
+      matrix:
+        language: ["python"]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ matrix.language }}
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+      - name: Install dependencies (runtime only)
+        # Using uv to ensure a clean install for CodeQL
+        run: uv sync
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
