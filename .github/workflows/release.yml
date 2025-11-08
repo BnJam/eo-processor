@@ -3,6 +3,9 @@ name: Build and Publish Wheels
 on:
   pull_request:
     types: [closed]
+  push:
+    branches:
+      - main
 
 env:
   # The environment for PyPI publishing (used in the final publish step)
@@ -67,16 +70,16 @@ jobs:
             INCREMENT_TYPE=""
           elif echo "$LABELS" | grep -q "bump:major\|bump:release"; then
             INCREMENT_TYPE="major"
+          elif echo "$LABELS" | grep -q "bump:major\|bump:major"; then
+            INCREMENT_TYPE="major"
           elif echo "$LABELS" | grep -q "bump:minor\|bump:feature"; then
+            INCREMENT_TYPE="minor"
+          elif echo "$LABELS" | grep -q "bump:minor\|bump:minor"; then
             INCREMENT_TYPE="minor"
           elif echo "$LABELS" | grep -q "bump:patch\|bump:hotfix"; then
             INCREMENT_TYPE="patch"
-          elif [[ "$BRANCH_NAME" == hotfix/* ]] || [[ "$BRANCH_NAME" == copilot/fix-* ]] || [[ "$BRANCH_NAME" == copilot/hotfix/* ]] || [[ "$BRANCH_NAME" == fix/* ]]; then
+          elif echo "$LABELS" | grep -q "bump:patch\|bump:patch"; then
             INCREMENT_TYPE="patch"
-          elif [[ "$BRANCH_NAME" == feature/* ]] || [[ "$BRANCH_NAME" == copilot/feature/* ]]; then
-            INCREMENT_TYPE="minor"
-          elif [[ "$BRANCH_NAME" == release/* ]] || [[ "$BRANCH_NAME" == copilot/release/* ]]; then
-            INCREMENT_TYPE="major"
           fi
 
           if [ -z "$INCREMENT_TYPE" ]; then
@@ -152,7 +155,7 @@ jobs:
 
       - name: 🚀 Publish to PyPI
         # Uses maturin's built-in publishing command with OIDC (OpenID Connect)
-        run: maturin publish --skip-existing
+        run: maturin publish --skip-existing --repository testpypi
 
   # ----------------------------------------------------
   # JOB 3: CREATE GITHUB RELEASE
