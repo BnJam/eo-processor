@@ -51,7 +51,6 @@ jobs:
         continue-on-error: false
         run: |
           echo "Running Ruff Linting and Formatting..."
-          echo "${pwd}"
           uv run ruff format python/eo_processor/ tests/
           uv run ruff check python/eo_processor/ tests/ --fix --no-cache
 
