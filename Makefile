@@ -57,15 +57,13 @@ clean: ## Clean up build artifacts
 	# Remove the virtual environment
 	rm -rf $(VENV_DIR)
 
-test: ## Run tests (assuming you use pytest)
+test: ## Run tests with tox
 	@echo "🧪 Running tests..."
-	$(PYTEST_RUN)
+	tox
 
 lint: ## Run linters (customize with your preferred uv-managed tools)
 	@echo "🔍 Running linters..."
-	# Example: ruff format stac_mcp/ tests/
-	# Example: ruff check stac_mcp/ tests/ --fix --no-cache
-	# Add your actual lint commands here
+	tox -e lint
 
 # ==============================================================================
 # Help Target
