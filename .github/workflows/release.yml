@@ -187,9 +187,16 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install uv and tools
+        uses: astral-sh/setup-uv@v3
+      - name: Sync dependencies (dev + extras)
+        run: uv sync --all-extras --dev
       # --- COVERAGE & BADGE STEPS (Run once on 3.12) ---
       - name: 📊 Run Coverage Reporting
-        if: matrix.python-version == '3.12'
         id: coverage_step
         # This assumes the 'coverage' env generates 'coverage.xml' in the repository root.
         run: |
@@ -200,13 +207,11 @@ jobs:
           echo "coverage_percent=$COVERAGE_PERCENT" >> $GITHUB_OUTPUT
 
       - name: 🖼️ Generate Coverage Badge
-        if: matrix.python-version == '3.12'
         # Runs your script using the installed uv environment
         run: uv run python scripts/generate_coverage_badge.py coverage.xml coverage-badge.svg
 
       # Optional: Upload the badge as an artifact so you can download it from the CI run
       - name: Upload Coverage Badge Artifact
-        if: matrix.python-version == '3.12'
         uses: actions/upload-artifact@v4
         with:
           name: coverage-badge
@@ -216,7 +221,6 @@ jobs:
 
       # --- COMMIT & PUSH BADGE IF CHANGED (Run once on 3.12) ---
       - name: 📤 Commit and Push Coverage Badge if Changed
-        if: matrix.python-version == '3.12'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
