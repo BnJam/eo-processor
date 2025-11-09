@@ -10,6 +10,7 @@ from ._core import (
     ndvi as _ndvi,
     ndwi as _ndwi,
     enhanced_vegetation_index as _enhanced_vegetation_index,
+    median_composite as _median_composite,
 )
 
 __version__ = "0.1.0"
@@ -20,6 +21,7 @@ __all__ = [
     "ndwi",
     "enhanced_vegetation_index",
     "evi",
+    "median_composite",
 ]
 
 
@@ -54,3 +56,18 @@ def enhanced_vegetation_index(nir, red, blue):
 
 # Alias
 evi = enhanced_vegetation_index
+
+
+def median_composite(arr, skip_na=True):
+    """
+    Compute median composite over the time axis of a 3D or 4D array.
+
+    Parameters
+    ----------
+    arr : numpy.ndarray
+        Input array.
+    skip_na : bool, optional
+        Whether to skip NaN values, by default True. If False, the median
+        of any pixel containing a NaN will be NaN.
+    """
+    return _median_composite(arr, skip_na=skip_na)

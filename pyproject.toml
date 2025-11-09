@@ -49,6 +49,7 @@ build-backend = "maturin"
 [dependency-groups]
 dev = [
     "ruff>=0.14.4",
+    "pytest>=7.0",
 ]
 
 [tool.maturin.metadata]

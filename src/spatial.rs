@@ -1,8 +1,108 @@
-use ndarray::Array2;
-use numpy::{IntoPyArray, PyArray2, PyReadonlyArray2};
+use ndarray::{s, Array2, Array3};
+use numpy::{
+    IntoPyArray, PyArray2, PyArray3, PyReadonlyArray2, PyReadonlyArray3, PyReadonlyArray4,
+};
 use pyo3::prelude::*;
+use rayon::prelude::*;
 
 /// Spatial processing functions for Earth Observation data.
+
+/// Dispatches median composite to 3D or 4D implementation based on array dimensions.
+#[pyfunction]
+#[pyo3(signature = (arr, skip_na=true))]
+pub fn median_composite(py: Python<'_>, arr: &PyAny, skip_na: bool) -> PyResult<PyObject> {
+    if let Ok(arr3d) = arr.downcast::<numpy::PyArray3<f64>>() {
+        Ok(median_composite_3d(py, arr3d.readonly(), skip_na).into_py(py))
+    } else if let Ok(arr4d) = arr.downcast::<numpy::PyArray4<f64>>() {
+        Ok(median_composite_4d(py, arr4d.readonly(), skip_na).into_py(py))
+    } else {
+        Err(pyo3::exceptions::PyTypeError::new_err(
+            "Expected a 3D or 4D NumPy array.",
+        ))
+    }
+}
+
+/// Computes the median composite for a 3D array (time, y, x).
+fn median_composite_3d<'py>(
+    py: Python<'py>,
+    arr: PyReadonlyArray3<f64>,
+    skip_na: bool,
+) -> &'py PyArray2<f64> {
+    let array = arr.as_array();
+    let shape = array.shape();
+    let (height, width) = (shape[1], shape[2]);
+    let mut result = Array2::<f64>::zeros((height, width));
+
+    result
+        .indexed_iter_mut()
+        .par_bridge()
+        .for_each(|((r, c), pixel)| {
+            let mut series: Vec<f64> = array.slice(s![.., r, c]).to_vec();
+            if series.iter().any(|v| v.is_nan()) {
+                if skip_na {
+                    series.retain(|v| !v.is_nan());
+                } else {
+                    *pixel = f64::NAN;
+                    return;
+                }
+            }
+
+            if series.is_empty() {
+                *pixel = f64::NAN;
+            } else {
+                series.sort_by(|a, b| a.total_cmp(b));
+                let mid = series.len() / 2;
+                *pixel = if series.len() % 2 == 0 {
+                    (series[mid - 1] + series[mid]) / 2.0
+                } else {
+                    series[mid]
+                };
+            }
+        });
+
+    result.into_pyarray(py)
+}
+
+/// Computes the median composite for a 4D array (time, band, y, x).
+fn median_composite_4d<'py>(
+    py: Python<'py>,
+    arr: PyReadonlyArray4<f64>,
+    skip_na: bool,
+) -> &'py PyArray3<f64> {
+    let array = arr.as_array();
+    let shape = array.shape();
+    let (num_bands, height, width) = (shape[1], shape[2], shape[3]);
+    let mut result = Array3::<f64>::zeros((num_bands, height, width));
+
+    result
+        .indexed_iter_mut()
+        .par_bridge()
+        .for_each(|((b, r, c), pixel)| {
+            let mut series: Vec<f64> = array.slice(s![.., b, r, c]).to_vec();
+            if series.iter().any(|v| v.is_nan()) {
+                if skip_na {
+                    series.retain(|v| !v.is_nan());
+                } else {
+                    *pixel = f64::NAN;
+                    return;
+                }
+            }
+
+            if series.is_empty() {
+                *pixel = f64::NAN;
+            } else {
+                series.sort_by(|a, b| a.total_cmp(b));
+                let mid = series.len() / 2;
+                *pixel = if series.len() % 2 == 0 {
+                    (series[mid - 1] + series[mid]) / 2.0
+                } else {
+                    series[mid]
+                };
+            }
+        });
+
+    result.into_pyarray(py)
+}
 
 /// 1. Euclidean Distance
 #[pyfunction]

@@ -19,6 +19,7 @@ fn _core(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(spatial::euclidean_distance, m)?)?;
     m.add_function(wrap_pyfunction!(spatial::manhattan_distance, m)?)?;
     m.add_function(wrap_pyfunction!(spatial::chebyshev_distance, m)?)?;
+    m.add_function(wrap_pyfunction!(spatial::median_composite, m)?)?;
 
     Ok(())
 }
