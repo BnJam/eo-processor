@@ -146,7 +146,7 @@ jobs:
 
       - name: 🏗️ Build All Wheels and Source Distribution
         # maturin builds for all major platforms (Linux/macOS/Windows) and Python versions
-        run: maturin build --release --manylinux auto
+        run: maturin build --release
 
       - name: 🚀 Publish to PyPI
         # Uses maturin's built-in publishing command with OIDC (OpenID Connect)
