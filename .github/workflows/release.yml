@@ -153,7 +153,7 @@ jobs:
           # Using the PYPI_ENVIRONMENT defined in the workflow env
           MATURIN_PYPI_TOKEN: ${{ secrets.MATURIN_PYPI_TOKEN }}
         # Uses maturin's built-in publishing command with OIDC (OpenID Connect)
-        run: maturin publish --skip-existing --repository testpypi --username __token__ --password ${{ secrets.MATURIN_PYPI_TOKEN }}
+        run: maturin publish --skip-existing --repository pypi --username __token__ --password ${{ secrets.MATURIN_PYPI_TOKEN }}
 
   # ----------------------------------------------------
   # JOB 3: CREATE GITHUB RELEASE
