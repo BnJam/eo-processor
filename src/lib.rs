@@ -1,4 +1,5 @@
 pub mod indices;
+pub mod spatial;
 
 use pyo3::prelude::*;
 
@@ -15,7 +16,6 @@ fn _core(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(indices::enhanced_vegetation_index, m)?)?;
 
     // --- Spatial Functions (Future) ---
-    // m.add_function(wrap_pyfunction!(spatial::median_filter_2d, m)?)?;
 
     Ok(())
 }
