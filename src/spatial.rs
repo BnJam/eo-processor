@@ -6,7 +6,6 @@ use pyo3::prelude::*;
 use rayon::prelude::*;
 
 /// Spatial processing functions for Earth Observation data.
-
 /// Dispatches median composite to 3D or 4D implementation based on array dimensions.
 #[pyfunction]
 #[pyo3(signature = (arr, skip_na=true))]
@@ -52,7 +51,7 @@ fn median_composite_3d<'py>(
             } else {
                 series.sort_by(|a, b| a.total_cmp(b));
                 let mid = series.len() / 2;
-                *pixel = if series.len() % 2 == 0 {
+                *pixel = if series.len().is_multiple_of(2) {
                     (series[mid - 1] + series[mid]) / 2.0
                 } else {
                     series[mid]
@@ -93,7 +92,7 @@ fn median_composite_4d<'py>(
             } else {
                 series.sort_by(|a, b| a.total_cmp(b));
                 let mid = series.len() / 2;
-                *pixel = if series.len() % 2 == 0 {
+                *pixel = if series.len().is_multiple_of(2) {
                     (series[mid - 1] + series[mid]) / 2.0
                 } else {
                     series[mid]
@@ -191,7 +190,6 @@ fn euclidean_distance_2d(
 }
 
 /// Computes the Manhattan distance between two sets of points.
-////
 /// # Arguments
 /// * `points_a` - A 2D array of shape (N, D) representing N points in D dimensions.
 /// * `points_b` - A 2D array of shape (M, D) representing M points in D dimensions.
@@ -223,7 +221,7 @@ pub fn manhattan_distance(
 }
 
 /// Computes the Chebyshev distance between two sets of points.
-//// # Arguments
+/// # Arguments
 /// * `points_a` - A 2D array of shape (N, D) representing N points in D dimensions.
 /// * `points_b` - A 2D array of shape (M, D) representing M points in D dimensions.
 /// # Returns
@@ -246,7 +244,7 @@ pub fn chebyshev_distance(
                 .iter()
                 .zip(b.row(j).iter())
                 .map(|(x, y)| (x - y).abs())
-                .fold(0. / 0., f64::max); // max of absolute differences
+                .fold(f64::NAN, f64::max); // max of absolute differences
             distances[[i, j]] = dist;
         }
     }
@@ -254,7 +252,7 @@ pub fn chebyshev_distance(
 }
 
 /// Computes the Minkowski distance between two sets of points.
-//// # Arguments
+/// # Arguments
 /// * `points_a` - A 2D array of shape (N, D) representing N points in D dimensions.
 /// * `points_b` - A 2D array of shape (M, D) representing M points in D dimensions.
 /// * `p` - The order of the norm (p >= 1).
