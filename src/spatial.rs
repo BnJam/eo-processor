@@ -6,14 +6,14 @@ use pyo3::prelude::*;
 use rayon::prelude::*;
 
 /// Spatial processing functions for Earth Observation data.
-/// Dispatches median composite to 3D or 4D implementation based on array dimensions.
+/// Dispatches median to 3D or 4D implementation based on array dimensions.
 #[pyfunction]
 #[pyo3(signature = (arr, skip_na=true))]
-pub fn median_composite(py: Python<'_>, arr: &PyAny, skip_na: bool) -> PyResult<PyObject> {
+pub fn median(py: Python<'_>, arr: &PyAny, skip_na: bool) -> PyResult<PyObject> {
     if let Ok(arr3d) = arr.downcast::<numpy::PyArray3<f64>>() {
-        Ok(median_composite_3d(py, arr3d.readonly(), skip_na).into_py(py))
+        Ok(median_3d(py, arr3d.readonly(), skip_na).into_py(py))
     } else if let Ok(arr4d) = arr.downcast::<numpy::PyArray4<f64>>() {
-        Ok(median_composite_4d(py, arr4d.readonly(), skip_na).into_py(py))
+        Ok(median_4d(py, arr4d.readonly(), skip_na).into_py(py))
     } else {
         Err(pyo3::exceptions::PyTypeError::new_err(
             "Expected a 3D or 4D NumPy array.",
@@ -21,8 +21,8 @@ pub fn median_composite(py: Python<'_>, arr: &PyAny, skip_na: bool) -> PyResult<
     }
 }
 
-/// Computes the median composite for a 3D array (time, y, x).
-fn median_composite_3d<'py>(
+/// Computes the median for a 3D array (time, y, x).
+fn median_3d<'py>(
     py: Python<'py>,
     arr: PyReadonlyArray3<f64>,
     skip_na: bool,
@@ -62,8 +62,8 @@ fn median_composite_3d<'py>(
     result.into_pyarray(py)
 }
 
-/// Computes the median composite for a 4D array (time, band, y, x).
-fn median_composite_4d<'py>(
+/// Computes the median for a 4D array (time, band, y, x).
+fn median_4d<'py>(
     py: Python<'py>,
     arr: PyReadonlyArray4<f64>,
     skip_na: bool,
