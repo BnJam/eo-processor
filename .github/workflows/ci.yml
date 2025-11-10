@@ -11,6 +11,7 @@ concurrency:
 
 env:
   CARGO_TERM_COLOR: always
+  RUN_BENCHMARKS: false
 
 jobs:
   test:
@@ -66,3 +67,32 @@ jobs:
         run: |
           set -euo pipefail
           tox -e coverage
+          python scripts/generate_coverage_badge.py coverage.xml coverage-badge.svg || echo "Badge generation skipped"
+
+      - name: 🚀 Run Example Scripts (Smoke Tests)
+        if: matrix.python-version == '3.12'
+        run: |
+          set -e
+          echo "Running smoke-test examples..."
+          python examples/basic_usage.py
+          python examples/temporal_operations.py
+          python examples/spatial_distances.py
+          # Optional dependencies may not be installed in minimal CI; tolerate failure.
+          python examples/xarray_dask_usage.py || echo "xarray/dask example skipped (optional deps missing)"
+          python examples/map_blocks.py || echo "map_blocks example skipped (optional deps missing)"
+
+      - name: 🏁 Benchmark (Optional)
+        if: matrix.python-version == '3.12' && env.RUN_BENCHMARKS == 'true'
+        run: |
+          set -e
+          echo "Running benchmark suite (with NumPy baseline comparisons)..."
+          python scripts/benchmark.py --group all --height 1024 --width 1024 --time 8 --points-a 500 --points-b 500 --point-dim 8 --loops 2 --warmups 1 --compare-numpy --json-out benchmark-results.json --quiet
+          echo "Benchmark JSON generated: benchmark-results.json"
+      - name: 📦 Upload Benchmark Artifact
+        if: matrix.python-version == '3.12' && env.RUN_BENCHMARKS == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-results
+          path: benchmark-results.json
+          if-no-files-found: warn
+          retention-days: 7

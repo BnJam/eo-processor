@@ -6,7 +6,7 @@ and compares their performance to NumPy.
 
 import numpy as np
 import time
-from eo_processor import temporal_mean, temporal_std
+from eo_processor import temporal_mean, temporal_std, median, composite
 
 # Example 1: Temporal mean with a 3D array (time, y, x)
 print("Example 1: Temporal mean with a 3D array")
@@ -67,3 +67,24 @@ time_numpy = time.time() - start_numpy
 print(f"Rust implementation:  {time_rust*1000:.2f} ms")
 print(f"NumPy implementation: {time_numpy*1000:.2f} ms")
 print(f"Speedup: {time_numpy/time_rust:.2f}x")
+
+# Example 5: NaN handling & temporal composite (median)
+print("Example 5: NaN handling & temporal composite")
+print("-" * 40)
+# Build a (time, y, x) cube with some NaNs
+nan_cube = np.random.rand(6, 32, 32).astype(np.float64)
+mask = np.random.rand(6, 32, 32) < 0.15
+nan_cube[mask] = np.nan
+
+mean_skip = temporal_mean(nan_cube, skip_na=True)
+mean_strict = temporal_mean(nan_cube, skip_na=False)
+std_skip = temporal_std(nan_cube, skip_na=True)
+median_comp = median(nan_cube)
+composite_median = composite(nan_cube, method="median")
+
+print(f"skip_na mean NaN count: {np.isnan(mean_skip).sum()}")
+print(f"strict mean NaN count:  {np.isnan(mean_strict).sum()}")
+print(f"std skip_na NaN count:  {np.isnan(std_skip).sum()}")
+print(f"median == composite(median): {np.allclose(median_comp, composite_median, equal_nan=True)}")
+print(f"median range: [{np.nanmin(median_comp):.4f}, {np.nanmax(median_comp):.4f}]")
+print()

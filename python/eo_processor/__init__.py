@@ -9,24 +9,42 @@ from ._core import (
     normalized_difference as _normalized_difference,
     ndvi as _ndvi,
     ndwi as _ndwi,
+    savi as _savi,
+    nbr as _nbr,
+    ndmi as _ndmi,
+    nbr2 as _nbr2,
+    gci as _gci,
     enhanced_vegetation_index as _enhanced_vegetation_index,
     median as _median,
     temporal_mean as _temporal_mean,
     temporal_std as _temporal_std,
+    euclidean_distance as _euclidean_distance,
+    manhattan_distance as _manhattan_distance,
+    chebyshev_distance as _chebyshev_distance,
+    minkowski_distance as _minkowski_distance,
 )
 
-__version__ = "0.1.0"
+__version__ = "0.3.0"
 
 __all__ = [
     "normalized_difference",
     "ndvi",
     "ndwi",
+    "savi",
+    "nbr",
+    "ndmi",
+    "nbr2",
+    "gci",
     "enhanced_vegetation_index",
     "evi",
     "median",
     "composite",
     "temporal_mean",
     "temporal_std",
+    "euclidean_distance",
+    "manhattan_distance",
+    "chebyshev_distance",
+    "minkowski_distance",
 ]
 
 
@@ -50,6 +68,129 @@ def ndwi(green, nir):
     Compute NDWI = (Green - NIR) / (Green + NIR) via Rust core (1D or 2D).
     """
     return _ndwi(green, nir)
+
+
+def savi(nir, red, L=0.5, **kwargs):
+    """
+    Compute Soil Adjusted Vegetation Index (SAVI).
+
+    SAVI = (NIR - Red) / (NIR + Red + L) * (1 + L)
+
+    Parameters
+    ----------
+    nir : numpy.ndarray
+        Near-infrared band.
+    red : numpy.ndarray
+        Red band.
+    L : float, optional
+        Soil brightness correction factor (default 0.5). Typical range 0–1.
+        Larger L reduces soil background influence.
+    **kwargs :
+        May contain 'l' to specify the soil adjustment factor instead of 'L'.
+
+    Returns
+    -------
+    numpy.ndarray
+        SAVI values with same shape as inputs.
+
+    Notes
+    -----
+    You can call as:
+        savi(nir, red)              # uses L=0.5
+        savi(nir, red, L=0.25)      # custom L
+        savi(nir, red, l=0.25)      # alternative keyword
+    If both L and l are provided, 'l' takes precedence.
+    """
+    l_val = kwargs.get("l", L)
+    return _savi(nir, red, l_val)
+
+
+def ndmi(nir, swir1):
+    """
+    Normalized Difference Moisture Index (NDMI)
+
+    NDMI = (NIR - SWIR1) / (NIR + SWIR1)
+
+    Parameters
+    ----------
+    nir : numpy.ndarray
+        Near-infrared band.
+    swir1 : numpy.ndarray
+        Short-wave infrared 1 band.
+
+    Returns
+    -------
+    numpy.ndarray
+        NDMI values (-1 .. 1).
+    """
+    return _ndmi(nir, swir1)
+
+
+def nbr2(swir1, swir2):
+    """
+    Normalized Burn Ratio 2 (NBR2)
+
+    NBR2 = (SWIR1 - SWIR2) / (SWIR1 + SWIR2)
+
+    Parameters
+    ----------
+    swir1 : numpy.ndarray
+        Short-wave infrared 1 band.
+    swir2 : numpy.ndarray
+        Short-wave infrared 2 band.
+
+    Returns
+    -------
+    numpy.ndarray
+        NBR2 values (-1 .. 1).
+    """
+    return _nbr2(swir1, swir2)
+
+
+def gci(nir, green):
+    """
+    Green Chlorophyll Index (GCI)
+
+    GCI = (NIR / Green) - 1
+
+    Parameters
+    ----------
+    nir : numpy.ndarray
+        Near-infrared band.
+    green : numpy.ndarray
+        Green band.
+
+    Returns
+    -------
+    numpy.ndarray
+        GCI values (unbounded; typical vegetation > 0).
+
+    Notes
+    -----
+    Division-by-near-zero guarded; returns 0 where Green is ~0.
+    """
+    return _gci(nir, green)
+
+
+def nbr(nir, swir2):
+    """
+    Compute Normalized Burn Ratio (NBR).
+
+    NBR = (NIR - SWIR2) / (NIR + SWIR2)
+
+    Parameters
+    ----------
+    nir : numpy.ndarray
+        Near-infrared band.
+    swir2 : numpy.ndarray
+        Short-wave infrared (SWIR2) band.
+
+    Returns
+    -------
+    numpy.ndarray
+        NBR values with same shape as inputs.
+    """
+    return _nbr(nir, swir2)
 
 
 def enhanced_vegetation_index(nir, red, blue):
@@ -122,3 +263,63 @@ def temporal_std(arr, skip_na=True):
         of any pixel containing a NaN will be NaN.
     """
     return _temporal_std(arr, skip_na=skip_na)
+
+
+def euclidean_distance(points_a, points_b):
+    """
+    Compute pairwise Euclidean distances between two point sets.
+
+    Parameters
+    ----------
+    points_a : numpy.ndarray (N, D)
+    points_b : numpy.ndarray (M, D)
+
+    Returns
+    -------
+    numpy.ndarray (N, M)
+        Distance matrix where element (i, j) is distance between
+        points_a[i] and points_b[j].
+    """
+    return _euclidean_distance(points_a, points_b)
+
+
+def manhattan_distance(points_a, points_b):
+    """
+    Compute pairwise Manhattan (L1) distances between two point sets.
+    See `euclidean_distance` for shape conventions.
+    """
+    return _manhattan_distance(points_a, points_b)
+
+
+def chebyshev_distance(points_a, points_b):
+    """
+    Compute pairwise Chebyshev (L∞) distances between two point sets.
+    """
+    return _chebyshev_distance(points_a, points_b)
+
+
+def minkowski_distance(points_a, points_b, p):
+    """
+    Compute pairwise Minkowski distances (order `p`) between two point sets.
+
+    Parameters
+    ----------
+    points_a : numpy.ndarray (N, D)
+        First point set.
+    points_b : numpy.ndarray (M, D)
+        Second point set.
+    p : float
+        Norm order (must be >= 1). p=1 → Manhattan, p=2 → Euclidean,
+        large p → approximates Chebyshev (L∞).
+
+    Returns
+    -------
+    numpy.ndarray (N, M)
+        Distance matrix.
+
+    Raises
+    ------
+    ValueError
+        If p < 1.0 (propagated from the Rust implementation).
+    """
+    return _minkowski_distance(points_a, points_b, p)

@@ -180,59 +180,59 @@ jobs:
   # ----------------------------------------------------
   # Coverage Badge Update Job
   # ----------------------------------------------------
-  update-coverage-badge:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-      - name: Install uv and tools
-        uses: astral-sh/setup-uv@v3
-      - name: Sync dependencies (dev + extras)
-        run: |
-          uv sync --all-extras --dev
-          uv pip install --system tox coverage pytest-cov
-      # --- COVERAGE & BADGE STEPS (Run once on 3.12) ---
-      - name: 📊 Run Coverage Reporting
-        id: coverage_step
-        # This assumes the 'coverage' env generates 'coverage.xml' in the repository root.
-        run: |
-          tox -e coverage
-          # Output coverage percentage for logging
-          COVERAGE_PERCENT=$(coverage report | tail -n 1 | awk '{print $4}' | sed 's/%//')
-          echo "Coverage Percentage: $COVERAGE_PERCENT%"
-          echo "coverage_percent=$COVERAGE_PERCENT" >> $GITHUB_OUTPUT
+  # update-coverage-badge:
+  #   runs-on: ubuntu-latest
+  #   permissions:
+  #     contents: write
+  #   steps:
+  #     - name: Checkout repository
+  #       uses: actions/checkout@v4
+  #     - name: Set up Python
+  #       uses: actions/setup-python@v5
+  #       with:
+  #         python-version: "3.12"
+  #     - name: Install uv and tools
+  #       uses: astral-sh/setup-uv@v3
+  #     - name: Sync dependencies (dev + extras)
+  #       run: |
+  #         uv sync --all-extras --dev
+  #         uv pip install --system tox coverage pytest-cov
+  #     # --- COVERAGE & BADGE STEPS (Run once on 3.12) ---
+  #     - name: 📊 Run Coverage Reporting
+  #       id: coverage_step
+  #       # This assumes the 'coverage' env generates 'coverage.xml' in the repository root.
+  #       run: |
+  #         tox -e coverage
+  #         # Output coverage percentage for logging
+  #         COVERAGE_PERCENT=$(coverage report | tail -n 1 | awk '{print $4}' | sed 's/%//')
+  #         echo "Coverage Percentage: $COVERAGE_PERCENT%"
+  #         echo "coverage_percent=$COVERAGE_PERCENT" >> $GITHUB_OUTPUT
 
-      - name: 🖼️ Generate Coverage Badge
-        # Runs your script using the installed uv environment
-        run: uv run python scripts/generate_coverage_badge.py coverage.xml coverage-badge.svg
+  #     - name: 🖼️ Generate Coverage Badge
+  #       # Runs your script using the installed uv environment
+  #       run: uv run python scripts/generate_coverage_badge.py coverage.xml coverage-badge.svg
 
-      # Optional: Upload the badge as an artifact so you can download it from the CI run
-      - name: Upload Coverage Badge Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: coverage-badge
-          path: |
-            coverage.xml
-            coverage-badge.svg
+  #     # Optional: Upload the badge as an artifact so you can download it from the CI run
+  #     - name: Upload Coverage Badge Artifact
+  #       uses: actions/upload-artifact@v4
+  #       with:
+  #         name: coverage-badge
+  #         path: |
+  #           coverage.xml
+  #           coverage-badge.svg
 
-      # --- COMMIT & PUSH BADGE IF CHANGED (Run once on 3.12) ---
-      - name: 📤 Commit and Push Coverage Badge if Changed
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          if git diff --quiet coverage-badge.svg 2>/dev/null; then
-            echo 'No badge changes'
-          else
-            git config user.name 'github-actions'
-            git config user.email 'actions@github.com'
-            git add coverage-badge.svg
-            git commit -m 'chore(ci): update coverage badge'
-            git pull --rebase --autostash origin main || (git fetch origin main && git rebase origin/main)
-            git push
-          fi
+  #     # --- COMMIT & PUSH BADGE IF CHANGED (Run once on 3.12) ---
+  #     - name: 📤 Commit and Push Coverage Badge if Changed
+  #       env:
+  #         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  #       run: |
+  #         if git diff --quiet coverage-badge.svg 2>/dev/null; then
+  #           echo 'No badge changes'
+  #         else
+  #           git config user.name 'github-actions'
+  #           git config user.email 'actions@github.com'
+  #           git add coverage-badge.svg
+  #           git commit -m 'chore(ci): update coverage badge'
+  #           git pull --rebase --autostash origin main || (git fetch origin main && git rebase origin/main)
+  #           git push
+  #         fi

@@ -6,6 +6,11 @@ from eo_processor import (
     ndwi,
     normalized_difference,
     enhanced_vegetation_index as evi,
+    savi,
+    nbr,
+    ndmi,
+    nbr2,
+    gci,
 )
 
 
@@ -185,6 +190,151 @@ def test_evi_zero_denominator_safeguard():
     blue = np.array([L / C2])  # makes denominator ~ 0
     out = evi(nir, red, blue)
     assert np.isclose(out[0], 0.0, atol=1e-12)
+
+
+def test_savi_1d():
+    nir = np.array([0.7, 0.6, 0.5], dtype=np.float64)
+    red = np.array([0.2, 0.3, 0.1], dtype=np.float64)
+    out = savi(nir, red)
+    assert out.shape == nir.shape
+    L = 0.5
+    expected = (nir - red) / (nir + red + L) * (1.0 + L)
+    # Zero denom safeguard (unlikely here, but keep logic consistent)
+    mask = np.isclose(nir + red + L, 0.0, atol=1e-10)
+    expected[mask] = 0.0
+    assert np.allclose(out, expected, rtol=1e-12, atol=0.0)
+
+
+def test_savi_2d():
+    nir = np.array([[0.6, 0.7], [0.5, 0.4]], dtype=np.float64)
+    red = np.array([[0.2, 0.3], [0.1, 0.2]], dtype=np.float64)
+    out = savi(nir, red)
+    assert out.shape == nir.shape
+    L = 0.5
+    expected = (nir - red) / (nir + red + L) * (1.0 + L)
+    mask = np.isclose(nir + red + L, 0.0, atol=1e-10)
+    expected[mask] = 0.0
+    assert np.allclose(out, expected, rtol=1e-12, atol=0.0)
+
+
+def test_savi_shape_mismatch():
+    nir = np.array([0.7, 0.6], dtype=np.float64)
+    red = np.array([0.2], dtype=np.float64)
+    with pytest.raises(ValueError):
+        savi(nir, red)
+
+
+def test_nbr_1d():
+    nir = np.array([0.8, 0.6, 0.5], dtype=np.float64)
+    swir2 = np.array([0.3, 0.2, 0.1], dtype=np.float64)
+    out = nbr(nir, swir2)
+    assert out.shape == nir.shape
+    denom = nir + swir2
+    expected = (nir - swir2) / denom
+    mask = np.isclose(denom, 0.0, atol=1e-10)
+    expected[mask] = 0.0
+    assert np.allclose(out, expected, rtol=1e-12)
+
+
+def test_nbr_2d():
+    nir = np.array([[0.8, 0.7], [0.6, 0.5]], dtype=np.float64)
+    swir2 = np.array([[0.3, 0.25], [0.2, 0.15]], dtype=np.float64)
+    out = nbr(nir, swir2)
+    assert out.shape == nir.shape
+    denom = nir + swir2
+    expected = (nir - swir2) / denom
+    mask = np.isclose(denom, 0.0, atol=1e-10)
+    expected[mask] = 0.0
+    assert np.allclose(out, expected, rtol=1e-12)
+
+
+def test_nbr_shape_mismatch():
+    nir = np.array([0.8, 0.7], dtype=np.float64)
+    swir2 = np.array([0.3], dtype=np.float64)
+    with pytest.raises(ValueError):
+        nbr(nir, swir2)
+
+
+def test_savi_variable_L():
+    nir = np.array([0.7, 0.6], dtype=np.float64)
+    red = np.array([0.2, 0.3], dtype=np.float64)
+    for L in [0.0, 0.25, 0.5, 1.0]:
+        out = savi(nir, red, l=L)
+        expected = (nir - red) / (nir + red + L) * (1.0 + L)
+        mask = np.isclose(nir + red + L, 0.0, atol=1e-10)
+        expected[mask] = 0.0
+        assert np.allclose(out, expected, rtol=1e-12, atol=0.0)
+
+def test_savi_l_precedence_over_L():
+    """
+    When both L and l are passed, the wrapper should prioritize 'l'.
+    """
+    nir = np.array([0.7, 0.6], dtype=np.float64)
+    red = np.array([0.2, 0.3], dtype=np.float64)
+    out_explicit_l = savi(nir, red, L=0.0, l=0.25)  # L ignored, l used
+    expected = (nir - red) / (nir + red + 0.25) * (1.0 + 0.25)
+    mask = np.isclose(nir + red + 0.25, 0.0, atol=1e-10)
+    expected[mask] = 0.0
+    assert np.allclose(out_explicit_l, expected, rtol=1e-12, atol=0.0)
+
+def test_ndmi_1d():
+    nir = np.array([0.8, 0.6, 0.4], dtype=np.float64)
+    swir1 = np.array([0.3, 0.2, 0.1], dtype=np.float64)
+    out = ndmi(nir, swir1)
+    denom = nir + swir1
+    expected = (nir - swir1) / denom
+    mask = np.isclose(denom, 0.0, atol=1e-10)
+    expected[mask] = 0.0
+    assert np.allclose(out, expected, rtol=1e-12)
+
+def test_ndmi_2d():
+    nir = np.array([[0.8, 0.7], [0.6, 0.5]], dtype=np.float64)
+    swir1 = np.array([[0.3, 0.25], [0.2, 0.15]], dtype=np.float64)
+    out = ndmi(nir, swir1)
+    denom = nir + swir1
+    expected = (nir - swir1) / denom
+    mask = np.isclose(denom, 0.0, atol=1e-10)
+    expected[mask] = 0.0
+    assert np.allclose(out, expected, rtol=1e-12)
+
+def test_nbr2_1d():
+    swir1 = np.array([0.4, 0.5, 0.45], dtype=np.float64)
+    swir2 = np.array([0.3, 0.25, 0.2], dtype=np.float64)
+    out = nbr2(swir1, swir2)
+    denom = swir1 + swir2
+    expected = (swir1 - swir2) / denom
+    mask = np.isclose(denom, 0.0, atol=1e-10)
+    expected[mask] = 0.0
+    assert np.allclose(out, expected, rtol=1e-12)
+
+def test_nbr2_2d():
+    swir1 = np.array([[0.4, 0.5], [0.45, 0.55]], dtype=np.float64)
+    swir2 = np.array([[0.3, 0.25], [0.2, 0.15]], dtype=np.float64)
+    out = nbr2(swir1, swir2)
+    denom = swir1 + swir2
+    expected = (swir1 - swir2) / denom
+    mask = np.isclose(denom, 0.0, atol=1e-10)
+    expected[mask] = 0.0
+    assert np.allclose(out, expected, rtol=1e-12)
+
+def test_gci_1d():
+    nir = np.array([0.8, 0.9, 0.7], dtype=np.float64)
+    green = np.array([0.4, 0.45, 0.35], dtype=np.float64)
+    out = gci(nir, green)
+    expected = (nir / green) - 1.0
+    # Guard near-zero
+    mask = np.isclose(green, 0.0, atol=1e-12)
+    expected[mask] = 0.0
+    assert np.allclose(out, expected, rtol=1e-12)
+
+def test_gci_2d():
+    nir = np.array([[0.8, 0.9], [0.7, 0.75]], dtype=np.float64)
+    green = np.array([[0.4, 0.45], [0.35, 0.42]], dtype=np.float64)
+    out = gci(nir, green)
+    expected = (nir / green) - 1.0
+    mask = np.isclose(green, 0.0, atol=1e-12)
+    expected[mask] = 0.0
+    assert np.allclose(out, expected, rtol=1e-12)
 
 
 if __name__ == "__main__":  # pragma: no cover
