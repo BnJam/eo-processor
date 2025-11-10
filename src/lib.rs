@@ -1,5 +1,6 @@
 pub mod indices;
 pub mod spatial;
+pub mod temporal;
 
 use pyo3::prelude::*;
 
@@ -20,6 +21,10 @@ fn _core(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(spatial::manhattan_distance, m)?)?;
     m.add_function(wrap_pyfunction!(spatial::chebyshev_distance, m)?)?;
     m.add_function(wrap_pyfunction!(spatial::median, m)?)?;
+
+    // --- Temporal Functions ---
+    m.add_function(wrap_pyfunction!(temporal::temporal_mean, m)?)?;
+    m.add_function(wrap_pyfunction!(temporal::temporal_std, m)?)?;
 
     Ok(())
 }

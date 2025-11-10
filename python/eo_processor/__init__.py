@@ -11,6 +11,8 @@ from ._core import (
     ndwi as _ndwi,
     enhanced_vegetation_index as _enhanced_vegetation_index,
     median as _median,
+    temporal_mean as _temporal_mean,
+    temporal_std as _temporal_std,
 )
 
 __version__ = "0.1.0"
@@ -23,6 +25,8 @@ __all__ = [
     "evi",
     "median",
     "composite",
+    "temporal_mean",
+    "temporal_std",
 ]
 
 
@@ -91,3 +95,30 @@ def composite(arr, method="median", **kwargs):
         return median(arr, **kwargs)
     else:
         raise ValueError(f"Unknown composite method: {method}")
+
+def temporal_mean(arr, skip_na=True):
+    """
+    Compute mean over the time axis of a 1D, 2D, 3D, or 4D array.
+    Parameters
+    ----------
+    arr : numpy.ndarray
+        Input array.
+    skip_na : bool, optional
+        Whether to skip NaN values, by default True. If False, the mean
+        of any pixel containing a NaN will be NaN.
+    """
+    return _temporal_mean(arr, skip_na=skip_na)
+
+
+def temporal_std(arr, skip_na=True):
+    """
+    Compute standard deviation over the time axis of a 1D, 2D, 3D, or 4D array.
+    Parameters
+    ----------
+    arr : numpy.ndarray
+        Input array.
+    skip_na : bool, optional
+        Whether to skip NaN values, by default True. If False, the std
+        of any pixel containing a NaN will be NaN.
+    """
+    return _temporal_std(arr, skip_na=skip_na)
