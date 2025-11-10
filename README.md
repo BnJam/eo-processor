@@ -1,5 +1,6 @@
 # eo-processor
 
+[![PyPI Downloads](https://static.pepy.tech/personalized-badge/eo-processor?period=total&units=INTERNATIONAL_SYSTEM&left_color=BLACK&right_color=GREEN&left_text=downloads)](https://pepy.tech/projects/eo-processor)
 [![Coverage](./coverage-badge.svg)](#test-coverage)
 
 High-performance Rust UDFs for Earth Observation (EO) processing with Python bindings.
