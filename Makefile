@@ -7,7 +7,7 @@ VENV_DIR = .venv
 
 # Use direct commands, assuming the virtual environment is manually activated
 PYTHON_RUN = python
-PYTEST_RUN = pytest
+PYTEST_RUN = $(VENV_DIR)/bin/pytest
 
 # ==============================================================================
 # Default and Setup Targets
