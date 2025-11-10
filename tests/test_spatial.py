@@ -50,3 +50,18 @@ def test_composite_median():
     result = composite(arr, method="median")
     expected = np.array([[3.0, 4.0], [5.0, 6.0]])
     np.testing.assert_array_equal(result, expected)
+
+def test_median_1d():
+    arr = np.array([1.0, 5.0, 3.0, 4.0, 2.0])
+    result = median(arr)
+    expected = 3.0
+    assert result == expected
+
+def test_median_2d():
+    arr = np.array([
+        [1.0, 5.0, 3.0],
+        [4.0, 2.0, 6.0],
+    ])
+    result = median(arr)
+    expected = np.array([2.5, 3.5, 4.5])
+    np.testing.assert_array_equal(result, expected)

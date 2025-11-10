@@ -1,6 +1,7 @@
-use ndarray::{s, Array2, Array3};
+use ndarray::{s, Array1, Array2, Array3};
 use numpy::{
-    IntoPyArray, PyArray2, PyArray3, PyReadonlyArray2, PyReadonlyArray3, PyReadonlyArray4,
+    IntoPyArray, PyArray1, PyArray2, PyArray3, PyReadonlyArray1, PyReadonlyArray2,
+    PyReadonlyArray3, PyReadonlyArray4,
 };
 use pyo3::prelude::*;
 use rayon::prelude::*;
@@ -10,13 +11,17 @@ use rayon::prelude::*;
 #[pyfunction]
 #[pyo3(signature = (arr, skip_na=true))]
 pub fn median(py: Python<'_>, arr: &PyAny, skip_na: bool) -> PyResult<PyObject> {
-    if let Ok(arr3d) = arr.downcast::<numpy::PyArray3<f64>>() {
+    if let Ok(arr1d) = arr.downcast::<numpy::PyArray1<f64>>() {
+        Ok(median_1d(arr1d.readonly(), skip_na).into_py(py))
+    } else if let Ok(arr2d) = arr.downcast::<numpy::PyArray2<f64>>() {
+        Ok(median_2d(py, arr2d.readonly(), skip_na).into_py(py))
+    } else if let Ok(arr3d) = arr.downcast::<numpy::PyArray3<f64>>() {
         Ok(median_3d(py, arr3d.readonly(), skip_na).into_py(py))
     } else if let Ok(arr4d) = arr.downcast::<numpy::PyArray4<f64>>() {
         Ok(median_4d(py, arr4d.readonly(), skip_na).into_py(py))
     } else {
         Err(pyo3::exceptions::PyTypeError::new_err(
-            "Expected a 3D or 4D NumPy array.",
+            "Expected a 1D, 2D, 3D, or 4D NumPy array.",
         ))
     }
 }
@@ -58,6 +63,68 @@ fn median_3d<'py>(
                 };
             }
         });
+
+    result.into_pyarray(py)
+}
+
+/// Computes the median for a 1D array.
+fn median_1d(arr: PyReadonlyArray1<f64>, skip_na: bool) -> f64 {
+    let mut series: Vec<f64> = arr.as_array().to_vec();
+    if series.iter().any(|v| v.is_nan()) {
+        if skip_na {
+            series.retain(|v| !v.is_nan());
+        } else {
+            return f64::NAN;
+        }
+    }
+
+    if series.is_empty() {
+        f64::NAN
+    } else {
+        series.sort_by(|a, b| a.total_cmp(b));
+        let mid = series.len() / 2;
+        if series.len().is_multiple_of(2) {
+            (series[mid - 1] + series[mid]) / 2.0
+        } else {
+            series[mid]
+        }
+    }
+}
+
+/// Computes the median for a 2D array (time, band).
+fn median_2d<'py>(
+    py: Python<'py>,
+    arr: PyReadonlyArray2<f64>,
+    skip_na: bool,
+) -> &'py PyArray1<f64> {
+    let array = arr.as_array();
+    let shape = array.shape();
+    let num_bands = shape[1];
+    let mut result = Array1::<f64>::zeros(num_bands);
+
+    for i in 0..num_bands {
+        let mut series: Vec<f64> = array.column(i).to_vec();
+        if series.iter().any(|v| v.is_nan()) {
+            if skip_na {
+                series.retain(|v| !v.is_nan());
+            } else {
+                result[i] = f64::NAN;
+                continue;
+            }
+        }
+
+        if series.is_empty() {
+            result[i] = f64::NAN;
+        } else {
+            series.sort_by(|a, b| a.total_cmp(b));
+            let mid = series.len() / 2;
+            result[i] = if series.len().is_multiple_of(2) {
+                (series[mid - 1] + series[mid]) / 2.0
+            } else {
+                series[mid]
+            };
+        }
+    }
 
     result.into_pyarray(py)
 }

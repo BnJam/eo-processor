@@ -61,7 +61,7 @@ evi = enhanced_vegetation_index
 
 def median(arr, skip_na=True):
     """
-    Compute median over the time axis of a 3D or 4D array.
+    Compute median over the time axis of a 1D, 2D, 3D, or 4D array.
 
     Parameters
     ----------
@@ -76,7 +76,7 @@ def median(arr, skip_na=True):
 
 def composite(arr, method="median", **kwargs):
     """
-    Compute a composite over the time axis of a 3D or 4D array.
+    Compute a composite over the time axis of a 1D, 2D, 3D, or 4D array.
 
     Parameters
     ----------
