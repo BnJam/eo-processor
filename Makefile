@@ -29,7 +29,7 @@ sync: ## Sync dependencies (install/update packages)
 develop: sync ## Install the Rust code as a Python module for development
 	@echo "🔨 Installing native extension in development mode..."
 	# NOTE: This target assumes the virtual environment is manually activated (e.g., source .venv/bin/activate)
-	maturin develop
+	uv run maturin develop
 
 # ==============================================================================
 # Build, Clean, and Utility Targets
@@ -38,7 +38,7 @@ develop: sync ## Install the Rust code as a Python module for development
 build: sync ## Build the release wheels for distribution
 	@echo "⚙️ Building release wheels..."
 	# NOTE: This target assumes the virtual environment is manually activated
-	maturin build --release --out dist
+	uv run maturin build --release --out dist
 
 install: build ## Install the project from the built wheel
 	@echo "📦 Installing built wheel into environment..."
@@ -60,6 +60,7 @@ clean: ## Clean up build artifacts
 test: ## Run tests with tox
 	@echo "🧪 Running tests..."
 	tox
+
 
 lint: ## Run linters (customize with your preferred uv-managed tools)
 	@echo "🔍 Running linters..."
