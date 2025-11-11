@@ -73,6 +73,13 @@ jobs:
         if: matrix.python-version == '3.12'
         run: |
           set -e
+          if [[ -z ".venv" ]]; then
+            uv venv
+            source .venv/bin/activate
+          else
+            echo "Using virtual environment at .venv"
+            source .venv/bin/activate
+          fi
           echo "Running smoke-test examples..."
           python examples/basic_usage.py
           python examples/temporal_operations.py
