@@ -242,11 +242,27 @@ These delta indices also accept any numeric dtype; values are coerced to float64
 
 ### CLI Usage
 
-A command-line helper is available (`scripts/eo_cli.py`) to batch compute indices from .npy band files:
+A command-line helper is available (`scripts/eo_cli.py`) to batch compute indices from .npy band files.
+You can now also invoke the packaged CLI directly (added in 0.4.0), either as a module or via the installed console script.
 
-Single index:
+Single index (script form):
 ```
 python scripts/eo_cli.py --index ndvi --nir data/nir.npy --red data/red.npy --out outputs/ndvi.npy
+```
+
+Single index (package module form):
+```
+python -m eo_processor.cli --index ndvi --nir data/nir.npy --red data/red.npy --out outputs/ndvi.npy
+```
+
+Single index (console script after installation):
+```
+eo-processor --index ndvi --nir data/nir.npy --red data/red.npy --out outputs/ndvi.npy
+```
+
+List supported indices:
+```
+eo-processor --list
 ```
 
 Multiple indices:
@@ -256,7 +272,7 @@ python scripts/eo_cli.py --index ndvi savi ndmi nbr --nir data/nir.npy --red dat
 
 Change detection:
 ```
-python scripts/eo_cli.py --index delta_nbr \
+python -m eo_processor.cli --index delta_nbr \
   --pre-nir pre/nir.npy --pre-swir2 pre/swir2.npy \
   --post-nir post/nir.npy --post-swir2 post/swir2.npy \
   --out outputs/delta_nbr.npy
@@ -264,15 +280,15 @@ python scripts/eo_cli.py --index delta_nbr \
 
 Cloud mask (0=cloud, 1=clear):
 ```
-python scripts/eo_cli.py --index ndvi --nir data/nir.npy --red data/red.npy --mask data/cloudmask.npy --out outputs/ndvi_masked.npy
+eo-processor --index ndvi --nir data/nir.npy --red data/red.npy --mask data/cloudmask.npy --out outputs/ndvi_masked.npy
 ```
 
 PNG preview:
 ```
-python scripts/eo_cli.py --index ndvi --nir data/nir.npy --red data/red.npy --out outputs/ndvi.npy --png-preview outputs/ndvi.png
+eo-processor --index ndvi --nir data/nir.npy --red data/red.npy --out outputs/ndvi.npy --png-preview outputs/ndvi.png
 ```
 
-Use `--savi-l` to adjust soil factor for SAVI; use `--clamp MIN MAX` to restrict output range before saving; `--allow-missing` skips indices lacking required bands.
+Use `--savi-l` to adjust soil factor for SAVI; use `--clamp MIN MAX` to restrict output range before saving; `--allow-missing` skips indices lacking required bands. The module and console-script invocations accept the same arguments as the original `scripts/eo_cli.py`.
 
 ---
 

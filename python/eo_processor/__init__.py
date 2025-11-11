@@ -29,8 +29,9 @@ from ._core import (
     delta_ndvi as _delta_ndvi,
     delta_nbr as _delta_nbr,
 )
+from . import cli
 
-__version__ = "0.3.0"
+__version__ = "0.4.0"
 
 __all__ = [
     "normalized_difference",
@@ -53,6 +54,7 @@ __all__ = [
     "manhattan_distance",
     "chebyshev_distance",
     "minkowski_distance",
+    "cli",
 ]
 
 

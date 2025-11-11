@@ -27,6 +27,10 @@ dependencies = [
     "tox>=4.25.0",
 ]
 
+[project.scripts]
+eo-processor = "eo_processor.cli:cli"
+
+
 [project.optional-dependencies]
 dev = [
     "pytest>=7.0",
