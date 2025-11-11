@@ -288,7 +288,7 @@ PNG preview:
 eo-processor --index ndvi --nir data/nir.npy --red data/red.npy --out outputs/ndvi.npy --png-preview outputs/ndvi.png
 ```
 
-Use `--savi-l` to adjust soil factor for SAVI; use `--clamp MIN MAX` to restrict output range before saving; `--allow-missing` skips indices lacking required bands. The module and console-script invocations accept the same arguments as the original `scripts/eo_cli.py`.
+Use `--savi-l` to adjust soil factor for SAVI; use `--clamp MIN MAX` to restrict output range before saving; `--allow-missing` skips indices lacking required bands. The module and console-script invocations accept the same arguments as the original `scripts/eo_cli.py`. Note: In 0.4.0 a circular import encountered when invoking the console script was resolved by removing the CLI import from `__init__`. Invoke the CLI via the installed `eo-processor` command or `python -m eo_processor.cli`—both now load without circular import issues.
 
 ---
 

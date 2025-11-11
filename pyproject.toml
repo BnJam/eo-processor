@@ -28,7 +28,7 @@ dependencies = [
 ]
 
 [project.scripts]
-eo-processor = "eo_processor.cli:cli"
+eo-processor = "eo_processor.cli:cli"  # invokes module-level cli() directly (no __init__ indirection)
 
 
 [project.optional-dependencies]
