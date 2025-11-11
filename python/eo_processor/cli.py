@@ -119,8 +119,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument(
         "--index",
         nargs="+",
-        required=True,
-        help="One or more index names. Use --list to see supported indices.",
+        help="One or more index names. Use --list to see supported indices. (Either --index or --list is required.)",
     )
     # Standard bands
     p.add_argument("--nir")
@@ -165,9 +164,9 @@ def build_parser() -> argparse.ArgumentParser:
     )
     p.add_argument(
         "--dtype",
-        default="float32",
+        default="float64",
         choices=["float32", "float64"],
-        help="Output dtype for saved arrays (default float32).",
+        help="Output dtype for saved arrays (default float64).",
     )
     p.add_argument(
         "--clamp",
@@ -306,6 +305,9 @@ def cli(argv: Optional[List[str]] = None) -> int:
         list_indices()
         return 0
 
+    if not args.index:
+        parser.error("either --index or --list is required")
+
     indices: List[str] = args.index
     multi = len(indices) > 1
 
@@ -343,7 +345,11 @@ def cli(argv: Optional[List[str]] = None) -> int:
         "post_swir2": args.post_swir2,
     }
 
-    required = _gather_required_bands(indices)
+    try:
+        required = _gather_required_bands(indices)
+    except KeyError as e:
+        print(f"[ERROR] Unsupported index '{e.args[0]}'", file=sys.stderr)
+        return 1
     loaded: Dict[str, np.ndarray] = {}
 
     for band in required:
