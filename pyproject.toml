@@ -35,6 +35,8 @@ dev = [
 dask = [
     "dask[array]>=2023.0.0",
     "xarray>=2023.0.0",
+    # PyArrow dropped support for Python 3.8 in version 18.0.0
+    "pyarrow>=17.0.0"
 ]
 
 [tool.maturin]

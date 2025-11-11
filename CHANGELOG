@@ -1,0 +1,122 @@
+# Changelog
+All notable changes to this project will be documented in this file.
+
+The format loosely follows Keep a Changelog and Semantic Versioning (SemVer).
+Categories: Added | Changed | Fixed | Removed | Performance | Docs | Internal.
+
+---
+
+## [0.4.0] - 2025-11-10
+Minor release (new non-breaking features).
+
+### Added
+- Change detection (delta) spectral indices:
+  - `delta_ndvi(pre_nir, pre_red, post_nir, post_red)`
+  - `delta_nbr(pre_nir, pre_swir2, post_nir, post_swir2)`
+  Implemented in Rust with 1D/2D shape dispatch and Python bindings.
+- Integrated `delta_ndvi` and `delta_nbr` into the benchmark harness (spectral group, NumPy baseline formulas included).
+- Markdown + JSON benchmark reporting now includes new indices automatically.
+- Type stub expansion:
+  - Introduced `NumericArray` alias so all index & temporal function inputs accept any numeric dtype (int/uint/float); outputs remain `float64`.
+- Baseline NumPy implementations for delta indices in benchmarking to report Rust speedups.
+
+### Changed
+- Broadened stubs (`__init__.pyi`) from strict `NDArray[np.float64]` inputs to generic numeric arrays (reflecting runtime coercion).
+- Benchmark script refactored for clearer function set resolution and throughput accounting for new functions.
+
+### Fixed
+- Minor layout / alignment adjustments in coverage badge pipeline (ensuring consistent rendering when regenerated).
+- Static analysis noise reduced in benchmark harness (broader callable typing).
+
+### Docs
+- README: Added delta index formulas and interpretation notes; clarified dtype coercion note.
+- Extended API summary table with change detection indices.
+
+### Internal
+- Added synthetic pre/post event generation paths in benchmark harness (seed offset technique) for deterministic delta benchmarking.
+
+---
+
+## [0.3.0]
+Minor release (feature expansion & robustness).
+
+### Added
+- New spectral indices: `savi` (variable L), `ndmi`, `nbr2`, `gci`.
+- Spatial distance functions (pairwise matrices): `euclidean_distance`, `manhattan_distance`, `chebyshev_distance`, `minkowski_distance` (parallelized internally for large workloads).
+- Command-line tool `scripts/eo_cli.py` for batch index computation (supports masking, PNG previews, and multi-index runs).
+- Comprehensive dtype coercion: all spectral & temporal functions now accept any numeric NumPy dtype (coerced to float64 internally).
+- Expanded temporal utilities: `median`, `temporal_mean`, `temporal_std`, plus `composite` convenience wrapper (median).
+- Initial benchmark harness (spectral, temporal, distance groups) with optional NumPy baseline comparison.
+- Coverage badge generation script integration in CI.
+
+### Changed
+- Unified error handling with clearer shape mismatch messages.
+- Improved internal shape dispatch for 1D/2D spectral kernels.
+- Streamlined README structure (formulas, typical value ranges, interpretation guidance).
+
+### Docs
+- Added formula reference section for new indices.
+- Usage examples for CLI, XArray/Dask integration, and performance notes.
+
+### Tests
+- Added tests for new indices, dtype coercion paths, and edge cases (near-zero denominators, shape validation).
+
+---
+
+## [0.2.0]
+Minor release (extended analytics & performance groundwork).
+
+### Added
+- Enhanced Vegetation Index: `enhanced_vegetation_index` (alias `evi`).
+- Normalized Burn Ratio: `nbr`.
+- Temporal statistics: initial implementations of median / mean / std across leading time axis.
+- Convenience `normalized_difference` generalized function.
+- Early performance benchmarking script (spectral focus).
+- Initial documentation of typical spectral index ranges.
+
+### Changed
+- Refined Rust module layout for clearer separation of spectral vs temporal kernels.
+- Improved denominator guarding logic for stability.
+
+### Docs
+- Added interpretation ranges (e.g., NDVI vegetation thresholds).
+- Quick start examples expanded.
+
+### Tests
+- Added property-style tests to ensure outputs remain within expected numeric bounds (-1..1 where applicable).
+
+---
+
+## [0.1.0]
+Initial public release.
+
+### Added
+- Core Rust + PyO3 packaging & build pipeline.
+- Spectral indices: `ndvi`, `ndwi`.
+- Generic normalized difference pattern embedded in early kernels.
+- Basic temporal dimension handling groundwork.
+- Initial test suite (shape correctness, basic numerical validation).
+- Continuous Integration: build & test matrix; wheel build scaffolding.
+- README with installation instructions and quick start.
+
+---
+
+## Future (Unreleased / Roadmap)
+(Subject to discussion; not yet scheduled)
+- Additional indices (e.g., SAVI variants with adaptive L, more chlorophyll / moisture metrics).
+- Auto-tuning of parallel distance threshold.
+- Cloud masking + compositing higher-level helper.
+- Extended change detection suite (delta for additional indices).
+- Optional benchmark automation in CI with historical trend tracking.
+
+---
+
+## Versioning Notes
+- Patch versions reserved for bug fixes / internal refactors.
+- Minor versions introduce new backward-compatible functions or performance improvements.
+- Major versions will be used for any breaking API changes (renames, signature alterations).
+
+---
+
+## Attribution
+See repository history and commit messages for detailed authorship and rationale behind each change.

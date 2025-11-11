@@ -15,11 +15,21 @@ fn _core(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(indices::ndvi, m)?)?;
     m.add_function(wrap_pyfunction!(indices::ndwi, m)?)?;
     m.add_function(wrap_pyfunction!(indices::enhanced_vegetation_index, m)?)?;
+    m.add_function(wrap_pyfunction!(indices::savi, m)?)?;
+    m.add_function(wrap_pyfunction!(indices::nbr, m)?)?;
+    // Additional spectral indices
+    m.add_function(wrap_pyfunction!(indices::ndmi, m)?)?;
+    m.add_function(wrap_pyfunction!(indices::nbr2, m)?)?;
+    m.add_function(wrap_pyfunction!(indices::gci, m)?)?;
+    // --- Change Detection Indices ---
+    m.add_function(wrap_pyfunction!(indices::delta_ndvi, m)?)?;
+    m.add_function(wrap_pyfunction!(indices::delta_nbr, m)?)?;
 
-    // --- Spatial Functions (Future) ---
+    // --- Spatial Distance & Aggregation Functions ---
     m.add_function(wrap_pyfunction!(spatial::euclidean_distance, m)?)?;
     m.add_function(wrap_pyfunction!(spatial::manhattan_distance, m)?)?;
     m.add_function(wrap_pyfunction!(spatial::chebyshev_distance, m)?)?;
+    m.add_function(wrap_pyfunction!(spatial::minkowski_distance, m)?)?;
     m.add_function(wrap_pyfunction!(spatial::median, m)?)?;
 
     // --- Temporal Functions ---

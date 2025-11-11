@@ -1,4 +1,4 @@
-use ndarray::{s, Array1, Array2, Array3};
+use ndarray::{s, Array1, Array2, Array3, Axis};
 use numpy::{
     IntoPyArray, PyArray1, PyArray2, PyArray3, PyReadonlyArray1, PyReadonlyArray2,
     PyReadonlyArray3, PyReadonlyArray4,
@@ -171,28 +171,15 @@ fn median_4d<'py>(
 }
 
 /// 1. Euclidean Distance
+/// Computes pairwise Euclidean distances between two 2D point sets.
+/// Always returns a 2D (N, M) matrix even when N == 1 or M == 1 to keep
+/// shape semantics consistent with other distance functions.
 #[pyfunction]
 pub fn euclidean_distance(
     py: Python<'_>,
     points_a: &PyAny,
     points_b: &PyAny,
 ) -> PyResult<PyObject> {
-    if let Ok(points_a_shape) = points_a.getattr("shape") {
-        if let Ok(shape) = points_a_shape.extract::<(usize, usize)>() {
-            if shape.0 == 1 {
-                // Single point in points_a
-                let point_a = points_a
-                    .downcast::<PyArray2<f64>>()
-                    .expect("points_a should be a 2D array");
-                let point_b = points_b
-                    .downcast::<PyArray2<f64>>()
-                    .expect("points_b should be a 2D array");
-                let dist = euclidean_distance_single(point_a.readonly(), point_b.readonly());
-                return Ok(dist.into_py(py));
-            }
-        }
-    }
-    // Otherwise, treat as 2D arrays of points
     let points_a_array = points_a
         .downcast::<PyArray2<f64>>()
         .expect("points_a should be a 2D array");
@@ -201,26 +188,6 @@ pub fn euclidean_distance(
         .expect("points_b should be a 2D array");
     let result = euclidean_distance_2d(py, points_a_array.readonly(), points_b_array.readonly());
     Ok(result.into_py(py))
-}
-
-/// euclidian distance for a single pair of points
-/// Computes the Euclidean distance between two points.
-/// # Arguments
-/// * `point_a` - A 1D array representing a point in D dimensions.
-/// * `point_b` - A 1D array representing a point in D dimensions.
-/// # Returns
-/// The Euclidean distance between point_a and point_b.
-fn euclidean_distance_single(
-    point_a: PyReadonlyArray2<f64>,
-    point_b: PyReadonlyArray2<f64>,
-) -> f64 {
-    let a = point_a.as_array();
-    let b = point_b.as_array();
-    a.iter()
-        .zip(b.iter())
-        .map(|(x, y)| (x - y).powi(2))
-        .sum::<f64>()
-        .sqrt()
 }
 
 /// Computes the Euclidean distance between two sets of points arrays.
@@ -241,16 +208,36 @@ fn euclidean_distance_2d(
     let n = a.shape()[0];
     let m = b.shape()[0];
     let mut distances = Array2::<f64>::zeros((n, m));
-    for i in 0..n {
-        for j in 0..m {
-            let dist = a
-                .row(i)
-                .iter()
-                .zip(b.row(j).iter())
-                .map(|(x, y)| (x - y).powi(2))
-                .sum::<f64>()
-                .sqrt();
-            distances[[i, j]] = dist;
+    let threshold = 10_000;
+    if n * m > threshold {
+        distances
+            .axis_iter_mut(Axis(0))
+            .into_par_iter()
+            .enumerate()
+            .for_each(|(i, mut row)| {
+                for j in 0..m {
+                    let dist = a
+                        .row(i)
+                        .iter()
+                        .zip(b.row(j).iter())
+                        .map(|(x, y)| (x - y).powi(2))
+                        .sum::<f64>()
+                        .sqrt();
+                    row[j] = dist;
+                }
+            });
+    } else {
+        for i in 0..n {
+            for j in 0..m {
+                let dist = a
+                    .row(i)
+                    .iter()
+                    .zip(b.row(j).iter())
+                    .map(|(x, y)| (x - y).powi(2))
+                    .sum::<f64>()
+                    .sqrt();
+                distances[[i, j]] = dist;
+            }
         }
     }
     distances.into_pyarray(py).to_owned()
@@ -273,15 +260,34 @@ pub fn manhattan_distance(
     let n = a.shape()[0];
     let m = b.shape()[0];
     let mut distances = Array2::<f64>::zeros((n, m));
-    for i in 0..n {
-        for j in 0..m {
-            let dist = a
-                .row(i)
-                .iter()
-                .zip(b.row(j).iter())
-                .map(|(x, y)| (x - y).abs())
-                .sum::<f64>();
-            distances[[i, j]] = dist;
+    let threshold = 10_000;
+    if n * m > threshold {
+        distances
+            .axis_iter_mut(Axis(0))
+            .into_par_iter()
+            .enumerate()
+            .for_each(|(i, mut row)| {
+                for j in 0..m {
+                    let dist = a
+                        .row(i)
+                        .iter()
+                        .zip(b.row(j).iter())
+                        .map(|(x, y)| (x - y).abs())
+                        .sum::<f64>();
+                    row[j] = dist;
+                }
+            });
+    } else {
+        for i in 0..n {
+            for j in 0..m {
+                let dist = a
+                    .row(i)
+                    .iter()
+                    .zip(b.row(j).iter())
+                    .map(|(x, y)| (x - y).abs())
+                    .sum::<f64>();
+                distances[[i, j]] = dist;
+            }
         }
     }
     distances.into_pyarray(py).to_owned()
@@ -304,15 +310,34 @@ pub fn chebyshev_distance(
     let n = a.shape()[0];
     let m = b.shape()[0];
     let mut distances = Array2::<f64>::zeros((n, m));
-    for i in 0..n {
-        for j in 0..m {
-            let dist = a
-                .row(i)
-                .iter()
-                .zip(b.row(j).iter())
-                .map(|(x, y)| (x - y).abs())
-                .fold(f64::NAN, f64::max); // max of absolute differences
-            distances[[i, j]] = dist;
+    let threshold = 10_000;
+    if n * m > threshold {
+        distances
+            .axis_iter_mut(Axis(0))
+            .into_par_iter()
+            .enumerate()
+            .for_each(|(i, mut row)| {
+                for j in 0..m {
+                    let dist = a
+                        .row(i)
+                        .iter()
+                        .zip(b.row(j).iter())
+                        .map(|(x, y)| (x - y).abs())
+                        .fold(f64::NAN, f64::max);
+                    row[j] = dist;
+                }
+            });
+    } else {
+        for i in 0..n {
+            for j in 0..m {
+                let dist = a
+                    .row(i)
+                    .iter()
+                    .zip(b.row(j).iter())
+                    .map(|(x, y)| (x - y).abs())
+                    .fold(f64::NAN, f64::max); // max of absolute differences
+                distances[[i, j]] = dist;
+            }
         }
     }
     distances.into_pyarray(py).to_owned()
@@ -331,25 +356,51 @@ pub fn minkowski_distance(
     points_a: PyReadonlyArray2<f64>,
     points_b: PyReadonlyArray2<f64>,
     p: f64,
-) -> Py<PyArray2<f64>> {
+) -> PyResult<Py<PyArray2<f64>>> {
+    if p < 1.0 {
+        return Err(pyo3::exceptions::PyValueError::new_err(format!(
+            "p must be >= 1.0, got {}",
+            p
+        )));
+    }
     let a = points_a.as_array();
     let b = points_b.as_array();
     let n = a.shape()[0];
     let m = b.shape()[0];
     let mut distances = Array2::<f64>::zeros((n, m));
-    for i in 0..n {
-        for j in 0..m {
-            let dist = a
-                .row(i)
-                .iter()
-                .zip(b.row(j).iter())
-                .map(|(x, y)| (x - y).abs().powf(p))
-                .sum::<f64>()
-                .powf(1.0 / p);
-            distances[[i, j]] = dist;
+    let threshold = 10_000;
+    if n * m > threshold {
+        distances
+            .axis_iter_mut(Axis(0))
+            .into_par_iter()
+            .enumerate()
+            .for_each(|(i, mut row)| {
+                for j in 0..m {
+                    let dist = a
+                        .row(i)
+                        .iter()
+                        .zip(b.row(j).iter())
+                        .map(|(x, y)| (x - y).abs().powf(p))
+                        .sum::<f64>()
+                        .powf(1.0 / p);
+                    row[j] = dist;
+                }
+            });
+    } else {
+        for i in 0..n {
+            for j in 0..m {
+                let dist = a
+                    .row(i)
+                    .iter()
+                    .zip(b.row(j).iter())
+                    .map(|(x, y)| (x - y).abs().powf(p))
+                    .sum::<f64>()
+                    .powf(1.0 / p);
+                distances[[i, j]] = dist;
+            }
         }
     }
-    distances.into_pyarray(py).to_owned()
+    Ok(distances.into_pyarray(py).to_owned())
 }
 
 #[cfg(test)]

@@ -9,8 +9,9 @@ const EPSILON: f64 = 1e-10;
 /// Acts as a wrapper to expose both 1D and 2D versions.
 #[pyfunction]
 pub fn normalized_difference(py: Python<'_>, a: &PyAny, b: &PyAny) -> PyResult<PyObject> {
-    if let Ok(a_1d) = a.extract::<PyReadonlyArray1<f64>>() {
-        let b_1d = b.extract::<PyReadonlyArray1<f64>>()?;
+    // Attempt direct float64 extraction first; if that fails, coerce dtype to float64.
+    if let Ok(a_1d) = try_coerce_array1(a) {
+        let b_1d = try_coerce_array1(b)?;
         if a_1d.shape() != b_1d.shape() {
             return Err(pyo3::exceptions::PyValueError::new_err(format!(
                 "Shape mismatch for 1D arrays: a {:?} vs b {:?}",
@@ -19,8 +20,8 @@ pub fn normalized_difference(py: Python<'_>, a: &PyAny, b: &PyAny) -> PyResult<P
             )));
         }
         normalized_difference_1d(py, a_1d, b_1d).map(|res| res.into_py(py))
-    } else if let Ok(a_2d) = a.extract::<PyReadonlyArray2<f64>>() {
-        let b_2d = b.extract::<PyReadonlyArray2<f64>>()?;
+    } else if let Ok(a_2d) = try_coerce_array2(a) {
+        let b_2d = try_coerce_array2(b)?;
         if a_2d.shape() != b_2d.shape() {
             return Err(pyo3::exceptions::PyValueError::new_err(format!(
                 "Shape mismatch for 2D arrays: a {:?} vs b {:?}",
@@ -31,8 +32,133 @@ pub fn normalized_difference(py: Python<'_>, a: &PyAny, b: &PyAny) -> PyResult<P
         normalized_difference_2d(py, a_2d, b_2d).map(|res| res.into_py(py))
     } else {
         Err(pyo3::exceptions::PyTypeError::new_err(
-            "Input arrays must be either 1D or 2D numpy arrays of type float64.",
+            "Inputs must be numeric 1D or 2D numpy arrays (will be coerced to float64).",
         ))
+    }
+}
+
+/// Coerce a Python object to a readonly 1D float64 NumPy array.
+/// Tries direct extraction; on failure, attempts `.astype("float64")`.
+fn try_coerce_array1<'py>(obj: &'py PyAny) -> PyResult<PyReadonlyArray1<'py, f64>> {
+    if let Ok(arr) = obj.extract::<PyReadonlyArray1<f64>>() {
+        return Ok(arr);
+    }
+    let coerced = obj.call_method1("astype", ("float64",))?;
+    let coerced_arr = coerced.extract::<PyReadonlyArray1<f64>>()?;
+    Ok(coerced_arr)
+}
+
+/// Coerce a Python object to a readonly 2D float64 NumPy array.
+/// Tries direct extraction; on failure, attempts `.astype("float64")`.
+fn try_coerce_array2<'py>(obj: &'py PyAny) -> PyResult<PyReadonlyArray2<'py, f64>> {
+    if let Ok(arr) = obj.extract::<PyReadonlyArray2<f64>>() {
+        return Ok(arr);
+    }
+    let coerced = obj.call_method1("astype", ("float64",))?;
+    let coerced_arr = coerced.extract::<PyReadonlyArray2<f64>>()?;
+    Ok(coerced_arr)
+}
+
+/// Delta NDVI (pre - post) for change detection.
+/// Accepts any numeric dtype; coerces to float64.
+#[pyfunction]
+pub fn delta_ndvi(
+    py: Python<'_>,
+    pre_nir: &PyAny,
+    pre_red: &PyAny,
+    post_nir: &PyAny,
+    post_red: &PyAny,
+) -> PyResult<PyObject> {
+    // Use normalized_difference for coercion & computation
+    let pre = normalized_difference(py, pre_nir, pre_red)?;
+    let post = normalized_difference(py, post_nir, post_red)?;
+    // Attempt 1D extract first, else 2D
+    if let Ok(pre1) = pre.extract::<&PyArray1<f64>>(py) {
+        let post1 = post.extract::<&PyArray1<f64>>(py)?;
+        if pre1.len() != post1.len() {
+            return Err(pyo3::exceptions::PyValueError::new_err(
+                "Shape mismatch in delta_ndvi (1D)",
+            ));
+        }
+        let pre_view = pre1.readonly();
+        let post_view = post1.readonly();
+        let a = pre_view.as_array();
+        let b = post_view.as_array();
+        let mut out = Array1::<f64>::zeros(a.len());
+        Zip::from(&mut out)
+            .and(a)
+            .and(b)
+            .for_each(|r, &p, &q| *r = p - q);
+        Ok(out.into_pyarray(py).into_py(py))
+    } else {
+        let pre2 = pre.extract::<&PyArray2<f64>>(py)?;
+        let post2 = post.extract::<&PyArray2<f64>>(py)?;
+        if pre2.shape() != post2.shape() {
+            return Err(pyo3::exceptions::PyValueError::new_err(
+                "Shape mismatch in delta_ndvi (2D)",
+            ));
+        }
+        let pre_view = pre2.readonly();
+        let post_view = post2.readonly();
+        let a = pre_view.as_array();
+        let b = post_view.as_array();
+        let shape = a.dim();
+        let mut out = Array2::<f64>::zeros(shape);
+        Zip::from(&mut out)
+            .and(a)
+            .and(b)
+            .for_each(|r, &p, &q| *r = p - q);
+        Ok(out.into_pyarray(py).into_py(py))
+    }
+}
+
+/// Delta NBR (pre - post) for burn severity change detection.
+#[pyfunction]
+pub fn delta_nbr(
+    py: Python<'_>,
+    pre_nir: &PyAny,
+    pre_swir2: &PyAny,
+    post_nir: &PyAny,
+    post_swir2: &PyAny,
+) -> PyResult<PyObject> {
+    let pre = normalized_difference(py, pre_nir, pre_swir2)?;
+    let post = normalized_difference(py, post_nir, post_swir2)?;
+    if let Ok(pre1) = pre.extract::<&PyArray1<f64>>(py) {
+        let post1 = post.extract::<&PyArray1<f64>>(py)?;
+        if pre1.len() != post1.len() {
+            return Err(pyo3::exceptions::PyValueError::new_err(
+                "Shape mismatch in delta_nbr (1D)",
+            ));
+        }
+        let pre_view = pre1.readonly();
+        let post_view = post1.readonly();
+        let a = pre_view.as_array();
+        let b = post_view.as_array();
+        let mut out = Array1::<f64>::zeros(a.len());
+        Zip::from(&mut out)
+            .and(a)
+            .and(b)
+            .for_each(|r, &p, &q| *r = p - q);
+        Ok(out.into_pyarray(py).into_py(py))
+    } else {
+        let pre2 = pre.extract::<&PyArray2<f64>>(py)?;
+        let post2 = post.extract::<&PyArray2<f64>>(py)?;
+        if pre2.shape() != post2.shape() {
+            return Err(pyo3::exceptions::PyValueError::new_err(
+                "Shape mismatch in delta_nbr (2D)",
+            ));
+        }
+        let pre_view = pre2.readonly();
+        let post_view = post2.readonly();
+        let a = pre_view.as_array();
+        let b = post_view.as_array();
+        let shape = a.dim();
+        let mut out = Array2::<f64>::zeros(shape);
+        Zip::from(&mut out)
+            .and(a)
+            .and(b)
+            .for_each(|r, &p, &q| *r = p - q);
+        Ok(out.into_pyarray(py).into_py(py))
     }
 }
 
@@ -217,6 +343,181 @@ pub fn ndwi(py: Python<'_>, green: &PyAny, nir: &PyAny) -> PyResult<PyObject> {
     normalized_difference(py, green, nir)
 }
 
+//
+// Soil Adjusted Vegetation Index (SAVI)
+// Formula: SAVI = (NIR - Red) / (NIR + Red + L) * (1 + L)
+// Default L = 0.5 but user may supply alternative (0 <= L <= 1 usually).
+// Zero-denominator safeguard using EPSILON similar to other indices.
+//
+#[pyfunction(signature = (nir, red, l=0.5))]
+pub fn savi(py: Python<'_>, nir: &PyAny, red: &PyAny, l: f64) -> PyResult<PyObject> {
+    if l < 0.0 {
+        return Err(pyo3::exceptions::PyValueError::new_err(format!(
+            "SAVI L must be non-negative, got {}",
+            l
+        )));
+    }
+    if let Ok(nir_1d) = nir.extract::<PyReadonlyArray1<f64>>() {
+        let red_1d = red.extract::<PyReadonlyArray1<f64>>()?;
+        if nir_1d.shape() != red_1d.shape() {
+            return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                "Shape mismatch for 1D SAVI inputs: nir {:?}, red {:?}",
+                nir_1d.shape(),
+                red_1d.shape()
+            )));
+        }
+        savi_1d(py, nir_1d, red_1d, l).map(|res| res.into_py(py))
+    } else if let Ok(nir_2d) = nir.extract::<PyReadonlyArray2<f64>>() {
+        let red_2d = red.extract::<PyReadonlyArray2<f64>>()?;
+        if nir_2d.shape() != red_2d.shape() {
+            return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                "Shape mismatch for 2D SAVI inputs: nir {:?}, red {:?}",
+                nir_2d.shape(),
+                red_2d.shape()
+            )));
+        }
+        savi_2d(py, nir_2d, red_2d, l).map(|res| res.into_py(py))
+    } else {
+        Err(pyo3::exceptions::PyTypeError::new_err(
+            "Input arrays must be either 1D or 2D numpy arrays of type float64 for SAVI.",
+        ))
+    }
+}
+
+fn savi_1d<'py>(
+    py: Python<'py>,
+    nir: PyReadonlyArray1<f64>,
+    red: PyReadonlyArray1<f64>,
+    l: f64,
+) -> PyResult<&'py PyArray1<f64>> {
+    let nir = nir.as_array();
+    let red = red.as_array();
+    let mut result = Array1::<f64>::zeros(nir.len());
+
+    Zip::from(&mut result)
+        .and(&nir)
+        .and(&red)
+        .for_each(|r, &nir_v, &red_v| {
+            let denom = nir_v + red_v + l;
+            *r = if denom.abs() < EPSILON {
+                0.0
+            } else {
+                (nir_v - red_v) / denom * (1.0 + l)
+            };
+        });
+
+    Ok(result.into_pyarray(py))
+}
+
+fn savi_2d<'py>(
+    py: Python<'py>,
+    nir: PyReadonlyArray2<f64>,
+    red: PyReadonlyArray2<f64>,
+    l: f64,
+) -> PyResult<&'py PyArray2<f64>> {
+    let nir = nir.as_array();
+    let red = red.as_array();
+    let shape = nir.dim();
+    let mut result = Array2::<f64>::zeros(shape);
+
+    Zip::from(&mut result)
+        .and(&nir)
+        .and(&red)
+        .for_each(|r, &nir_v, &red_v| {
+            let denom = nir_v + red_v + l;
+            *r = if denom.abs() < EPSILON {
+                0.0
+            } else {
+                (nir_v - red_v) / denom * (1.0 + l)
+            };
+        });
+
+    Ok(result.into_pyarray(py))
+}
+
+//
+// Normalized Burn Ratio (NBR) already defined; below we add:
+// NDMI: (NIR - SWIR1) / (NIR + SWIR1)
+// NBR2: (SWIR1 - SWIR2) / (SWIR1 + SWIR2)
+// GCI:  (NIR / Green) - 1
+//
+
+#[pyfunction]
+pub fn ndmi(py: Python<'_>, nir: &PyAny, swir1: &PyAny) -> PyResult<PyObject> {
+    normalized_difference(py, nir, swir1)
+}
+
+#[pyfunction]
+pub fn nbr2(py: Python<'_>, swir1: &PyAny, swir2: &PyAny) -> PyResult<PyObject> {
+    normalized_difference(py, swir1, swir2)
+}
+
+#[pyfunction]
+pub fn gci(py: Python<'_>, nir: &PyAny, green: &PyAny) -> PyResult<PyObject> {
+    if let Ok(nir_1d) = nir.extract::<PyReadonlyArray1<f64>>() {
+        let green_1d = green.extract::<PyReadonlyArray1<f64>>()?;
+        if nir_1d.shape() != green_1d.shape() {
+            return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                "Shape mismatch for 1D GCI inputs: nir {:?}, green {:?}",
+                nir_1d.shape(),
+                green_1d.shape()
+            )));
+        }
+        let nir_arr = nir_1d.as_array();
+        let green_arr = green_1d.as_array();
+        let mut out = Array1::<f64>::zeros(nir_arr.len());
+        Zip::from(&mut out)
+            .and(&nir_arr)
+            .and(&green_arr)
+            .for_each(|r, &n, &g| {
+                *r = if g.abs() < EPSILON {
+                    0.0
+                } else {
+                    (n / g) - 1.0
+                };
+            });
+        Ok(out.into_pyarray(py).into_py(py))
+    } else if let Ok(nir_2d) = nir.extract::<PyReadonlyArray2<f64>>() {
+        let green_2d = green.extract::<PyReadonlyArray2<f64>>()?;
+        if nir_2d.shape() != green_2d.shape() {
+            return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                "Shape mismatch for 2D GCI inputs: nir {:?}, green {:?}",
+                nir_2d.shape(),
+                green_2d.shape()
+            )));
+        }
+        let nir_arr = nir_2d.as_array();
+        let green_arr = green_2d.as_array();
+        let shape = nir_arr.dim();
+        let mut out = Array2::<f64>::zeros(shape);
+        Zip::from(&mut out)
+            .and(&nir_arr)
+            .and(&green_arr)
+            .for_each(|r, &n, &g| {
+                *r = if g.abs() < EPSILON {
+                    0.0
+                } else {
+                    (n / g) - 1.0
+                };
+            });
+        Ok(out.into_pyarray(py).into_py(py))
+    } else {
+        Err(pyo3::exceptions::PyTypeError::new_err(
+            "Input arrays must be 1D or 2D numpy float64 arrays for GCI.",
+        ))
+    }
+}
+
+//
+// Normalized Burn Ratio (NBR)
+// Formula: NBR = (NIR - SWIR2) / (NIR + SWIR2)
+// Implemented as a thin wrapper around normalized_difference.
+//
+#[pyfunction]
+pub fn nbr(py: Python<'_>, nir: &PyAny, swir2: &PyAny) -> PyResult<PyObject> {
+    normalized_difference(py, nir, swir2)
+}
+
 /// Compute Enhanced Vegetation Index (EVI).
 ///
 /// Formula:
@@ -370,6 +671,166 @@ fn enhanced_vegetation_index_2d<'py>(
     Ok(result.into_pyarray(py))
 }
 
+#[cfg(test)]
+mod savi_nbr_tests {
+    use super::*;
+    use numpy::{PyArray1, PyArray2};
+    use pyo3::Python;
+
+    #[test]
+    fn test_savi_1d() {
+        Python::with_gil(|py| {
+            let nir = PyArray1::from_vec(py, vec![0.7_f64, 0.6_f64]);
+            let red = PyArray1::from_vec(py, vec![0.2_f64, 0.3_f64]);
+            let out = savi(py, nir, red, 0.5).expect("SAVI 1D failed");
+            let arr = out
+                .as_ref(py)
+                .downcast::<PyArray1<f64>>()
+                .unwrap()
+                .to_owned_array();
+            let l = 0.5;
+            let expected: Vec<f64> = nir
+                .readonly()
+                .as_array()
+                .iter()
+                .zip(red.readonly().as_array().iter())
+                .map(|(&n, &r)| {
+                    let denom = n + r + l;
+                    if denom.abs() < EPSILON {
+                        0.0
+                    } else {
+                        (n - r) / denom * (1.0 + l)
+                    }
+                })
+                .collect();
+            for (i, v) in expected.iter().enumerate() {
+                assert!((arr[i] - v).abs() < 1e-12);
+            }
+        });
+    }
+
+    #[test]
+    fn test_savi_2d() {
+        Python::with_gil(|py| {
+            let nir_vals = vec![vec![0.6_f64, 0.7_f64], vec![0.5_f64, 0.4_f64]];
+            let red_vals = vec![vec![0.2_f64, 0.3_f64], vec![0.1_f64, 0.2_f64]];
+            let nir = PyArray2::from_vec2(py, &nir_vals).unwrap();
+            let red = PyArray2::from_vec2(py, &red_vals).unwrap();
+            let out = savi(py, nir, red, 0.5).expect("SAVI 2D failed");
+            let arr = out
+                .as_ref(py)
+                .downcast::<PyArray2<f64>>()
+                .unwrap()
+                .to_owned_array();
+            assert_eq!(arr.shape(), &[2, 2]);
+            let l = 0.5;
+            for r in 0..2 {
+                for c in 0..2 {
+                    let n = nir.readonly().as_array()[[r, c]];
+                    let rd = red.readonly().as_array()[[r, c]];
+                    let denom = n + rd + l;
+                    let expected = if denom.abs() < EPSILON {
+                        0.0
+                    } else {
+                        (n - rd) / denom * (1.0 + l)
+                    };
+                    assert!((arr[[r, c]] - expected).abs() < 1e-12);
+                }
+            }
+        });
+    }
+
+    #[test]
+    fn test_savi_shape_mismatch() {
+        Python::with_gil(|py| {
+            let nir = PyArray1::from_vec(py, vec![0.7_f64, 0.6_f64]);
+            let red = PyArray1::from_vec(py, vec![0.2_f64]);
+            let err = savi(py, nir, red, 0.5).unwrap_err();
+            assert!(err.to_string().contains("Shape mismatch"));
+        });
+    }
+
+    #[test]
+    fn test_savi_zero_denominator() {
+        // Choose values so nir + red + L == 0 (nir=-0.25, red=-0.25, L=0.5)
+        Python::with_gil(|py| {
+            let nir = PyArray1::from_vec(py, vec![-0.25_f64]);
+            let red = PyArray1::from_vec(py, vec![-0.25_f64]);
+            let out = savi(py, nir, red, 0.5).unwrap();
+            let arr = out
+                .as_ref(py)
+                .downcast::<PyArray1<f64>>()
+                .unwrap()
+                .to_owned_array();
+            assert!((arr[0] - 0.0).abs() < 1e-12);
+        });
+    }
+
+    #[test]
+    fn test_nbr_1d() {
+        Python::with_gil(|py| {
+            let nir = PyArray1::from_vec(py, vec![0.8_f64, 0.6_f64]);
+            let swir2 = PyArray1::from_vec(py, vec![0.3_f64, 0.2_f64]);
+            let out = nbr(py, nir, swir2).unwrap();
+            let arr = out
+                .as_ref(py)
+                .downcast::<PyArray1<f64>>()
+                .unwrap()
+                .to_owned_array();
+            for i in 0..arr.len() {
+                let n = nir.readonly().as_array()[i];
+                let s = swir2.readonly().as_array()[i];
+                let denom = n + s;
+                let expected = if denom.abs() < EPSILON {
+                    0.0
+                } else {
+                    (n - s) / denom
+                };
+                assert!((arr[i] - expected).abs() < 1e-12);
+            }
+        });
+    }
+
+    #[test]
+    fn test_nbr_2d() {
+        Python::with_gil(|py| {
+            let nir_vals = vec![vec![0.8_f64, 0.7_f64], vec![0.6_f64, 0.5_f64]];
+            let swir_vals = vec![vec![0.3_f64, 0.25_f64], vec![0.2_f64, 0.15_f64]];
+            let nir = PyArray2::from_vec2(py, &nir_vals).unwrap();
+            let swir2 = PyArray2::from_vec2(py, &swir_vals).unwrap();
+            let out = nbr(py, nir, swir2).unwrap();
+            let arr = out
+                .as_ref(py)
+                .downcast::<PyArray2<f64>>()
+                .unwrap()
+                .to_owned_array();
+            assert_eq!(arr.shape(), &[2, 2]);
+            for r in 0..2 {
+                for c in 0..2 {
+                    let n = nir.readonly().as_array()[[r, c]];
+                    let s = swir2.readonly().as_array()[[r, c]];
+                    let denom = n + s;
+                    let expected = if denom.abs() < EPSILON {
+                        0.0
+                    } else {
+                        (n - s) / denom
+                    };
+                    assert!((arr[[r, c]] - expected).abs() < 1e-12);
+                }
+            }
+        });
+    }
+
+    #[test]
+    fn test_nbr_shape_mismatch() {
+        Python::with_gil(|py| {
+            let nir = PyArray1::from_vec(py, vec![0.8_f64, 0.7_f64]);
+            let swir2 = PyArray1::from_vec(py, vec![0.3_f64]);
+            let err = nbr(py, nir, swir2).unwrap_err();
+            assert!(err.to_string().contains("Shape mismatch"));
+        });
+    }
+}
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -6,7 +6,16 @@ Earth Observation computations.
 """
 
 import numpy as np
-from eo_processor import ndvi, ndwi, normalized_difference, enhanced_vegetation_index as evi
+from eo_processor import (
+    ndvi,
+    ndwi,
+    normalized_difference,
+    enhanced_vegetation_index as evi,
+    temporal_mean,
+    temporal_std,
+    median,
+    composite,
+)
 
 # Example 1: Computing NDVI with 1D arrays
 print("Example 1: NDVI with 1D arrays")
@@ -89,27 +98,36 @@ print(f"B:  {b}")
 print(f"ND: {nd_result}")
 print()
 
-# Example 8: Performance comparison
-print("Example 8: Performance comparison (1000x1000 array)")
+# Example 8: Performance comparison (streamlined)
+print("Example 8: Performance (1000x1000 NDVI)")
 print("-" * 40)
 import time
-
-# Large arrays for performance testing
 size = 1000
 nir_large = np.random.rand(size, size)
 red_large = np.random.rand(size, size)
 
-# Rust implementation
-start_rust = time.time()
+t0 = time.time()
 ndvi_rust = ndvi(nir_large, red_large)
-time_rust = time.time() - start_rust
+t_rust = time.time() - t0
 
-# Pure Python/NumPy implementation
-start_numpy = time.time()
+t0 = time.time()
 ndvi_numpy = (nir_large - red_large) / (nir_large + red_large)
-time_numpy = time.time() - start_numpy
+t_numpy = time.time() - t0
 
-print(f"Rust implementation:  {time_rust*1000:.2f} ms")
-print(f"NumPy implementation: {time_numpy*1000:.2f} ms")
-print(f"Speedup: {time_numpy/time_rust:.2f}x")
-print(f"Results match: {np.allclose(ndvi_rust, ndvi_numpy, rtol=1e-10)}")
+print(f"Rust:  {t_rust*1000:.2f} ms  NumPy: {t_numpy*1000:.2f} ms  Speedup: {t_numpy/t_rust:.2f}x  Match: {np.allclose(ndvi_rust, ndvi_numpy, rtol=1e-10)}")
+print()
+
+# Example 9: Temporal statistics & median composite
+print("Example 9: Temporal statistics & composite (time,y,x = 12,128,128)")
+print("-" * 40)
+ts = np.random.rand(12, 128, 128)
+mean_img = temporal_mean(ts)
+std_img = temporal_std(ts)
+median_img = median(ts)
+composite_img = composite(ts, method="median")
+
+print(f"mean shape:    {mean_img.shape}, std shape: {std_img.shape}")
+print(f"median shape:  {median_img.shape}, composite (median) identical: {np.allclose(median_img, composite_img)}")
+print(f"mean range:    [{mean_img.min():.4f}, {mean_img.max():.4f}]")
+print(f"std range:     [{std_img.min():.4f}, {std_img.max():.4f}]")
+print(f"median range:  [{median_img.min():.4f}, {median_img.max():.4f}]")

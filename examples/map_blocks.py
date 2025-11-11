@@ -119,7 +119,9 @@ def example_map_blocks_vs_apply_ufunc():
         nir_block = darr_chunk.data[0]
         red_block = darr_chunk.data[1]
         # Call the Rust-accelerated ndvi function
-        return ndvi(nir_block, red_block)
+        res_arr = ndvi(nir_block, red_block)
+        # Wrap back to XArray
+        return xr.DataArray(res_arr, dims=("y", "x"))
 
     # Provide a template so xarray knows the shape/dtype of output blocks.
     # template should represent a single-block (chunk) result, with dims y,x.
@@ -158,7 +160,9 @@ def example_map_blocks_vs_apply_ufunc():
     print("Timing: dask.array.map_blocks ...")
     def dask_block_ndvi(nir_block, red_block):
         # this will be called with numpy arrays per block
-        return ndvi(nir_block, red_block)
+        res_arr = ndvi(nir_block, red_block)
+        # Wrap back to XArray if needed (here we just return numpy array)
+        return xr.DataArray(res_arr, dims=("y", "x"))
 
     start = time.time()
     ndvi_dask_mapblocks = da.map_blocks(
