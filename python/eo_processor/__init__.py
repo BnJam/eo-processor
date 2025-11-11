@@ -3,6 +3,10 @@ High-performance Earth Observation processing library.
 
 This library provides Rust-accelerated functions for common EO/geospatial
 computations that can be used within XArray/Dask workflows to bypass Python's GIL.
+
+NOTE: All public spectral and temporal functions accept any numeric NumPy dtype
+(int, uint, float32, float64, etc.). Inputs are automatically coerced to float64
+in the Rust layer for consistent and stable computation.
 """
 
 from ._core import (
@@ -22,6 +26,8 @@ from ._core import (
     manhattan_distance as _manhattan_distance,
     chebyshev_distance as _chebyshev_distance,
     minkowski_distance as _minkowski_distance,
+    delta_ndvi as _delta_ndvi,
+    delta_nbr as _delta_nbr,
 )
 
 __version__ = "0.3.0"
@@ -37,6 +43,8 @@ __all__ = [
     "gci",
     "enhanced_vegetation_index",
     "evi",
+    "delta_ndvi",
+    "delta_nbr",
     "median",
     "composite",
     "temporal_mean",
@@ -156,9 +164,9 @@ def gci(nir, green):
     Parameters
     ----------
     nir : numpy.ndarray
-        Near-infrared band.
+        Near-infrared band (any numeric dtype; auto-coerced to float64).
     green : numpy.ndarray
-        Green band.
+        Green band (any numeric dtype).
 
     Returns
     -------
@@ -170,6 +178,52 @@ def gci(nir, green):
     Division-by-near-zero guarded; returns 0 where Green is ~0.
     """
     return _gci(nir, green)
+
+
+def delta_ndvi(pre_nir, pre_red, post_nir, post_red):
+    """
+    Change in NDVI (pre - post).
+
+    Parameters
+    ----------
+    pre_nir, pre_red : numpy.ndarray
+        Pre-event near-infrared and red bands.
+    post_nir, post_red : numpy.ndarray
+        Post-event near-infrared and red bands.
+
+    Returns
+    -------
+    numpy.ndarray
+        ΔNDVI array (same shape as inputs), positive values often indicate vegetation loss.
+
+    Notes
+    -----
+    Inputs may be any numeric dtype; values are coerced to float64 internally.
+    """
+    return _delta_ndvi(pre_nir, pre_red, post_nir, post_red)
+
+
+def delta_nbr(pre_nir, pre_swir2, post_nir, post_swir2):
+    """
+    Change in NBR (pre - post) for burn severity analysis.
+
+    Parameters
+    ----------
+    pre_nir, pre_swir2 : numpy.ndarray
+        Pre-event NIR and SWIR2 bands.
+    post_nir, post_swir2 : numpy.ndarray
+        Post-event NIR and SWIR2 bands.
+
+    Returns
+    -------
+    numpy.ndarray
+        ΔNBR array (same shape as inputs). Larger positive values generally indicate higher burn severity.
+
+    Notes
+    -----
+    Inputs may be any numeric dtype; internal coercion to float64.
+    """
+    return _delta_nbr(pre_nir, pre_swir2, post_nir, post_swir2)
 
 
 def nbr(nir, swir2):

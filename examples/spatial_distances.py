@@ -37,6 +37,46 @@ import numpy as np
 # Import internal core module (distance functions live here)
 from eo_processor import _core
 
+def demo_point_to_point_distance():
+    print("Demo 0a: Distance from single point to single point")
+    print("-" * 40)
+    point_a = np.array([[1.0, 2.0]], dtype=np.float64)  # Single point (1, D)
+    point_b = np.array([[4.0, 6.0]], dtype=np.float64)  # Single point (1, D)
+
+    dist_euclid = _core.euclidean_distance(point_a, point_b)
+    dist_manhat = _core.manhattan_distance(point_a, point_b)
+    dist_cheby = _core.chebyshev_distance(point_a, point_b)
+
+    print("point_a:\n", point_a)
+    print("point_b:\n", point_b)
+    print("Euclidean distance:\n", dist_euclid)
+    print("Manhattan distance:\n", dist_manhat)
+    print("Chebyshev distance:\n", dist_cheby)
+    print()
+
+def demo_point_to_array_distance():
+    print("Demo 0: Distance from single point to array of points")
+    print("-" * 40)
+    point = np.array([[0.0, 0.0]], dtype=np.float64)  # Single point (1, D)
+    points_b = np.array(
+        [
+            [1.0, 0.0],
+            [0.0, 1.0],
+            [3.0, 4.0],
+        ],
+        dtype=np.float64,
+    )  # Multiple points (M, D)
+
+    dist_euclid = _core.euclidean_distance(point, points_b)
+    dist_manhat = _core.manhattan_distance(point, points_b)
+    dist_cheby = _core.chebyshev_distance(point, points_b)
+
+    print("point:\n", point)
+    print("points_b:\n", points_b)
+    print("Euclidean distances:\n", dist_euclid)
+    print("Manhattan distances:\n", dist_manhat)
+    print("Chebyshev distances:\n", dist_cheby)
+    print()
 
 def demo_small_points():
     print("Demo 1: Small 2D point sets")
@@ -172,6 +212,8 @@ def main():
     print("=" * 60)
     print()
 
+    demo_point_to_point_distance()
+    demo_point_to_array_distance()
     demo_small_points()
     demo_random_points()
     demo_high_dimension()

@@ -119,8 +119,11 @@ Top-level Python exports (via `eo_processor`):
 | `ndmi(nir, swir1)` | Normalized Difference Moisture Index: (NIR - SWIR1)/(NIR + SWIR1) |
 | `nbr2(swir1, swir2)` | Normalized Burn Ratio 2: (SWIR1 - SWIR2)/(SWIR1 + SWIR2) |
 | `gci(nir, green)` | Green Chlorophyll Index: (NIR / Green) - 1 (division guarded) |
+| `delta_ndvi(pre_nir, pre_red, post_nir, post_red)` | Change in NDVI (pre - post); vegetation loss (positive values often indicate decrease in post-event NDVI) |
+| `delta_nbr(pre_nir, pre_swir2, post_nir, post_swir2)` | Change in NBR (pre - post); burn severity (higher positive change suggests more severe burn) |
 
-Spatial distance functions (pairwise distance matrices; now exported at the top level — note O(N*M) memory/time for large point sets). Formulas (a, b ∈ ℝ^D):
+Spatial distance functions (pairwise distance matrices; now exported at the top level — note O(N*M) memory/time for large point sets). Formulas (a, b ∈ ℝ^D).
+All spectral/temporal index functions accept any numeric NumPy dtype (int, uint, float32, float64, etc.); inputs are automatically coerced to float64 internally for consistency:
 - Euclidean: √(∑ᵢ (aᵢ - bᵢ)²)
 - Manhattan (L₁): ∑ᵢ |aᵢ - bᵢ|
 - Chebyshev (L_∞): maxᵢ |aᵢ - bᵢ|
@@ -220,6 +223,56 @@ Typical interpretation:
 Absolute ranges vary with sensor, atmospheric correction, and reflectance scaling—use relative comparisons or time-series trends.
 
 All indices auto-dispatch between 1D and 2D input arrays; shapes must match.
+
+### Change Detection Indices
+
+Change detection indices operate on “pre” and “post” event imagery (e.g., before vs after fire, storm, harvest):
+
+Formulae:
+`ΔNDVI = NDVI(pre) - NDVI(post)`
+`ΔNBR  = NBR(pre)  - NBR(post)`
+
+Typical interpretation:
+- Positive ΔNDVI: vegetation loss / canopy degradation.
+- Near-zero ΔNDVI: minimal change.
+- Positive ΔNBR: higher burn severity (consult study-specific threshold tables).
+- Use masks (cloud, snow, shadow) to set unreliable pre/post pixels to NaN before computing deltas.
+
+These delta indices also accept any numeric dtype; values are coerced to float64.
+
+### CLI Usage
+
+A command-line helper is available (`scripts/eo_cli.py`) to batch compute indices from .npy band files:
+
+Single index:
+```
+python scripts/eo_cli.py --index ndvi --nir data/nir.npy --red data/red.npy --out outputs/ndvi.npy
+```
+
+Multiple indices:
+```
+python scripts/eo_cli.py --index ndvi savi ndmi nbr --nir data/nir.npy --red data/red.npy --swir1 data/swir1.npy --swir2 data/swir2.npy --out-dir outputs/
+```
+
+Change detection:
+```
+python scripts/eo_cli.py --index delta_nbr \
+  --pre-nir pre/nir.npy --pre-swir2 pre/swir2.npy \
+  --post-nir post/nir.npy --post-swir2 post/swir2.npy \
+  --out outputs/delta_nbr.npy
+```
+
+Cloud mask (0=cloud, 1=clear):
+```
+python scripts/eo_cli.py --index ndvi --nir data/nir.npy --red data/red.npy --mask data/cloudmask.npy --out outputs/ndvi_masked.npy
+```
+
+PNG preview:
+```
+python scripts/eo_cli.py --index ndvi --nir data/nir.npy --red data/red.npy --out outputs/ndvi.npy --png-preview outputs/ndvi.png
+```
+
+Use `--savi-l` to adjust soil factor for SAVI; use `--clamp MIN MAX` to restrict output range before saving; `--allow-missing` skips indices lacking required bands.
 
 ---
 

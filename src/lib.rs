@@ -21,6 +21,9 @@ fn _core(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(indices::ndmi, m)?)?;
     m.add_function(wrap_pyfunction!(indices::nbr2, m)?)?;
     m.add_function(wrap_pyfunction!(indices::gci, m)?)?;
+    // --- Change Detection Indices ---
+    m.add_function(wrap_pyfunction!(indices::delta_ndvi, m)?)?;
+    m.add_function(wrap_pyfunction!(indices::delta_nbr, m)?)?;
 
     // --- Spatial Distance & Aggregation Functions ---
     m.add_function(wrap_pyfunction!(spatial::euclidean_distance, m)?)?;

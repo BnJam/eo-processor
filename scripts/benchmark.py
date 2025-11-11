@@ -7,7 +7,7 @@ against representative synthetic data shapes. It reports elapsed time, throughpu
 and (optionally) JSON output for downstream analysis.
 
 Supported benchmark targets:
-  - spectral: ndvi, ndwi, evi, savi, nbr, ndmi, nbr2, gci, normalized_difference
+  - spectral: ndvi, ndwi, evi, savi, nbr, ndmi, nbr2, gci, delta_ndvi, delta_nbr, normalized_difference
   - temporal: temporal_mean, temporal_std, median
   - spatial distances: euclidean_distance, manhattan_distance,
                        chebyshev_distance, minkowski_distance
@@ -49,14 +49,13 @@ from __future__ import annotations
 
 import argparse
 import json
-import math
 import os
 import platform
 import statistics
 import sys
 import time
 from dataclasses import dataclass, asdict
-from typing import Callable, Dict, List, Optional, Sequence, Tuple
+from typing import Any, Callable, List, Optional, Sequence, Tuple
 
 try:
     import numpy as np
@@ -77,6 +76,13 @@ try:
         ndvi,
         ndwi,
         evi,
+        savi,
+        nbr,
+        ndmi,
+        nbr2,
+        gci,
+        delta_ndvi,
+        delta_nbr,
         normalized_difference,
         temporal_mean,
         temporal_std,
@@ -136,17 +142,29 @@ def current_memory_mb() -> Optional[float]:
     return process.memory_info().rss / (1024 * 1024)
 
 
-def time_call(fn: Callable[[], None]) -> float:
+def time_call(fn: Callable[[], Any]) -> float:
     t0 = time.perf_counter()
     fn()
     return time.perf_counter() - t0
 
 
-def compute_elements(func_name: str, shape_info: Dict[str, int]) -> Optional[int]:
+def compute_elements(func_name: str, shape_info: dict[str, int]) -> Optional[int]:
     """
     Estimate number of elements processed for throughput metrics.
     """
-    if func_name in {"ndvi", "ndwi", "evi", "normalized_difference"}:
+    if func_name in {
+        "ndvi",
+        "ndwi",
+        "evi",
+        "savi",
+        "nbr",
+        "ndmi",
+        "nbr2",
+        "gci",
+        "delta_ndvi",
+        "delta_nbr",
+        "normalized_difference",
+    }:
         h, w = shape_info["height"], shape_info["width"]
         return h * w
     if func_name in {"temporal_mean", "temporal_std", "median"}:
@@ -193,13 +211,32 @@ def run_single_benchmark(
     func_name: str,
     loops: int,
     warmups: int,
-    shape_info: Dict[str, int],
+    shape_info: dict[str, int],
     minkowski_p: float,
     seed: int,
     compare_numpy: bool = False,
 ) -> BenchmarkResult:
+    # Predeclare delta arrays to satisfy static type checkers (overwritten when used).
+    pre_nir: np.ndarray = np.empty((0, 0))
+    pre_red: np.ndarray = np.empty((0, 0))
+    post_nir: np.ndarray = np.empty((0, 0))
+    post_red: np.ndarray = np.empty((0, 0))
+    pre_swir2: np.ndarray = np.empty((0, 0))
+    post_swir2: np.ndarray = np.empty((0, 0))
     # Prepare inputs
-    if func_name in {"ndvi", "ndwi", "evi", "normalized_difference"}:
+    if func_name in {
+        "ndvi",
+        "ndwi",
+        "evi",
+        "savi",
+        "nbr",
+        "ndmi",
+        "nbr2",
+        "gci",
+        "delta_ndvi",
+        "delta_nbr",
+        "normalized_difference",
+    }:
         nir, red, blue = make_spectral_inputs(shape_info["height"], shape_info["width"], seed)
         if func_name == "ndvi":
             call = lambda: ndvi(nir, red)
@@ -207,6 +244,28 @@ def run_single_benchmark(
             call = lambda: ndwi(nir, red)  # using nir as second arg as green is first logically
         elif func_name == "evi":
             call = lambda: evi(nir, red, blue)
+        elif func_name == "savi":
+            call = lambda: savi(nir, red, L=0.5)
+        elif func_name == "nbr":
+            swir2 = blue  # using blue as placeholder for swir2
+            call = lambda: nbr(nir, swir2)
+        elif func_name == "ndmi":
+            swir1 = blue  # using blue as placeholder for swir1
+            call = lambda: ndmi(nir, swir1)
+        elif func_name == "nbr2":
+            swir1 = red  # using red as placeholder for swir1
+            swir2 = blue  # using blue as placeholder for swir2
+            call = lambda: nbr2(swir1, swir2)
+        elif func_name == "gci":
+            call = lambda: gci(nir, red)
+        elif func_name == "delta_ndvi":
+            pre_nir, pre_red, _ = make_spectral_inputs(shape_info["height"], shape_info["width"], seed)
+            post_nir, post_red, _ = make_spectral_inputs(shape_info["height"], shape_info["width"], seed + 1)
+            call = lambda: delta_ndvi(pre_nir, pre_red, post_nir, post_red)
+        elif func_name == "delta_nbr":
+            pre_nir, _, pre_swir2 = make_spectral_inputs(shape_info["height"], shape_info["width"], seed)
+            post_nir, _, post_swir2 = make_spectral_inputs(shape_info["height"], shape_info["width"], seed + 1)
+            call = lambda: delta_nbr(pre_nir, pre_swir2, post_nir, post_swir2)
         else:  # normalized_difference
             call = lambda: normalized_difference(nir, red)
         shape_desc = f"{shape_info['height']}x{shape_info['width']}"
@@ -249,7 +308,7 @@ def run_single_benchmark(
 
     baseline_timings: List[float] = []
     supports_baseline = False
-    baseline_fn: Optional[Callable[[], None]] = None
+    baseline_fn: Optional[Callable[[], Any]] = None
 
     if compare_numpy:
         # Provide NumPy baseline implementations where feasible
@@ -263,6 +322,32 @@ def run_single_benchmark(
             supports_baseline = True
             G, C1, C2, L = 2.5, 6.0, 7.5, 1.0
             baseline_fn = lambda: G * (nir - red) / (nir + C1 * red - C2 * blue + L)
+        elif func_name == "savi":
+            supports_baseline = True
+            L = 0.5
+            baseline_fn = lambda: (1 + L) * (nir - red) / (nir + red + L)
+        elif func_name == "nbr":
+            supports_baseline = True
+            swir2 = blue  # using blue as placeholder for swir2
+            baseline_fn = lambda: (nir - swir2) / (nir + swir2)
+        elif func_name == "ndmi":
+            supports_baseline = True
+            swir1 = blue  # using blue as placeholder for swir1
+            baseline_fn = lambda: (nir - swir1) / (nir + swir1)
+        elif func_name == "nbr2":
+            supports_baseline = True
+            swir1 = red  # using red as placeholder for swir1
+            swir2 = blue  # using blue as placeholder for swir2
+            baseline_fn = lambda: (swir1 - swir2) / (swir1 + swir2)
+        elif func_name == "gci":
+            supports_baseline = True
+            baseline_fn = lambda: (nir / red) - 1.0
+        elif func_name == "delta_ndvi":
+            supports_baseline = True
+            baseline_fn = lambda: ((pre_nir - pre_red) / (pre_nir + pre_red)) - ((post_nir - post_red) / (post_nir + post_red))
+        elif func_name == "delta_nbr":
+            supports_baseline = True
+            baseline_fn = lambda: ((pre_nir - pre_swir2) / (pre_nir + pre_swir2)) - ((post_nir - post_swir2) / (post_nir + post_swir2))
         elif func_name == "normalized_difference":
             supports_baseline = True
             baseline_fn = lambda: (nir - red) / (nir + red)
@@ -413,7 +498,19 @@ def resolve_functions(group: str, explicit: Optional[List[str]]) -> List[str]:
     if explicit:
         return explicit
     if group == "spectral":
-        return ["ndvi", "ndwi", "evi", "savi", "nbr", "ndmi", "nbr2", "gci", "normalized_difference"]
+        return [
+            "ndvi",
+            "ndwi",
+            "evi",
+            "savi",
+            "nbr",
+            "ndmi",
+            "nbr2",
+            "gci",
+            "delta_ndvi",
+            "delta_nbr",
+            "normalized_difference",
+        ]
     if group == "temporal":
         return ["temporal_mean", "temporal_std", "median"]
     if group == "distances":
@@ -428,6 +525,13 @@ def resolve_functions(group: str, explicit: Optional[List[str]]) -> List[str]:
             "ndvi",
             "ndwi",
             "evi",
+            "savi",
+            "nbr",
+            "ndmi",
+            "nbr2",
+            "gci",
+            "delta_ndvi",
+            "delta_nbr",
             "normalized_difference",
             "temporal_mean",
             "temporal_std",

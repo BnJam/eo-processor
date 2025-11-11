@@ -171,28 +171,15 @@ fn median_4d<'py>(
 }
 
 /// 1. Euclidean Distance
+/// Computes pairwise Euclidean distances between two 2D point sets.
+/// Always returns a 2D (N, M) matrix even when N == 1 or M == 1 to keep
+/// shape semantics consistent with other distance functions.
 #[pyfunction]
 pub fn euclidean_distance(
     py: Python<'_>,
     points_a: &PyAny,
     points_b: &PyAny,
 ) -> PyResult<PyObject> {
-    if let Ok(points_a_shape) = points_a.getattr("shape") {
-        if let Ok(shape) = points_a_shape.extract::<(usize, usize)>() {
-            if shape.0 == 1 {
-                // Single point in points_a
-                let point_a = points_a
-                    .downcast::<PyArray2<f64>>()
-                    .expect("points_a should be a 2D array");
-                let point_b = points_b
-                    .downcast::<PyArray2<f64>>()
-                    .expect("points_b should be a 2D array");
-                let dist = euclidean_distance_single(point_a.readonly(), point_b.readonly());
-                return Ok(dist.into_py(py));
-            }
-        }
-    }
-    // Otherwise, treat as 2D arrays of points
     let points_a_array = points_a
         .downcast::<PyArray2<f64>>()
         .expect("points_a should be a 2D array");
@@ -201,26 +188,6 @@ pub fn euclidean_distance(
         .expect("points_b should be a 2D array");
     let result = euclidean_distance_2d(py, points_a_array.readonly(), points_b_array.readonly());
     Ok(result.into_py(py))
-}
-
-/// euclidian distance for a single pair of points
-/// Computes the Euclidean distance between two points.
-/// # Arguments
-/// * `point_a` - A 1D array representing a point in D dimensions.
-/// * `point_b` - A 1D array representing a point in D dimensions.
-/// # Returns
-/// The Euclidean distance between point_a and point_b.
-fn euclidean_distance_single(
-    point_a: PyReadonlyArray2<f64>,
-    point_b: PyReadonlyArray2<f64>,
-) -> f64 {
-    let a = point_a.as_array();
-    let b = point_b.as_array();
-    a.iter()
-        .zip(b.iter())
-        .map(|(x, y)| (x - y).powi(2))
-        .sum::<f64>()
-        .sqrt()
 }
 
 /// Computes the Euclidean distance between two sets of points arrays.

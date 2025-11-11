@@ -9,8 +9,9 @@ const EPSILON: f64 = 1e-10;
 /// Acts as a wrapper to expose both 1D and 2D versions.
 #[pyfunction]
 pub fn normalized_difference(py: Python<'_>, a: &PyAny, b: &PyAny) -> PyResult<PyObject> {
-    if let Ok(a_1d) = a.extract::<PyReadonlyArray1<f64>>() {
-        let b_1d = b.extract::<PyReadonlyArray1<f64>>()?;
+    // Attempt direct float64 extraction first; if that fails, coerce dtype to float64.
+    if let Ok(a_1d) = try_coerce_array1(a) {
+        let b_1d = try_coerce_array1(b)?;
         if a_1d.shape() != b_1d.shape() {
             return Err(pyo3::exceptions::PyValueError::new_err(format!(
                 "Shape mismatch for 1D arrays: a {:?} vs b {:?}",
@@ -19,8 +20,8 @@ pub fn normalized_difference(py: Python<'_>, a: &PyAny, b: &PyAny) -> PyResult<P
             )));
         }
         normalized_difference_1d(py, a_1d, b_1d).map(|res| res.into_py(py))
-    } else if let Ok(a_2d) = a.extract::<PyReadonlyArray2<f64>>() {
-        let b_2d = b.extract::<PyReadonlyArray2<f64>>()?;
+    } else if let Ok(a_2d) = try_coerce_array2(a) {
+        let b_2d = try_coerce_array2(b)?;
         if a_2d.shape() != b_2d.shape() {
             return Err(pyo3::exceptions::PyValueError::new_err(format!(
                 "Shape mismatch for 2D arrays: a {:?} vs b {:?}",
@@ -31,8 +32,133 @@ pub fn normalized_difference(py: Python<'_>, a: &PyAny, b: &PyAny) -> PyResult<P
         normalized_difference_2d(py, a_2d, b_2d).map(|res| res.into_py(py))
     } else {
         Err(pyo3::exceptions::PyTypeError::new_err(
-            "Input arrays must be either 1D or 2D numpy arrays of type float64.",
+            "Inputs must be numeric 1D or 2D numpy arrays (will be coerced to float64).",
         ))
+    }
+}
+
+/// Coerce a Python object to a readonly 1D float64 NumPy array.
+/// Tries direct extraction; on failure, attempts `.astype("float64")`.
+fn try_coerce_array1<'py>(obj: &'py PyAny) -> PyResult<PyReadonlyArray1<'py, f64>> {
+    if let Ok(arr) = obj.extract::<PyReadonlyArray1<f64>>() {
+        return Ok(arr);
+    }
+    let coerced = obj.call_method1("astype", ("float64",))?;
+    let coerced_arr = coerced.extract::<PyReadonlyArray1<f64>>()?;
+    Ok(coerced_arr)
+}
+
+/// Coerce a Python object to a readonly 2D float64 NumPy array.
+/// Tries direct extraction; on failure, attempts `.astype("float64")`.
+fn try_coerce_array2<'py>(obj: &'py PyAny) -> PyResult<PyReadonlyArray2<'py, f64>> {
+    if let Ok(arr) = obj.extract::<PyReadonlyArray2<f64>>() {
+        return Ok(arr);
+    }
+    let coerced = obj.call_method1("astype", ("float64",))?;
+    let coerced_arr = coerced.extract::<PyReadonlyArray2<f64>>()?;
+    Ok(coerced_arr)
+}
+
+/// Delta NDVI (pre - post) for change detection.
+/// Accepts any numeric dtype; coerces to float64.
+#[pyfunction]
+pub fn delta_ndvi(
+    py: Python<'_>,
+    pre_nir: &PyAny,
+    pre_red: &PyAny,
+    post_nir: &PyAny,
+    post_red: &PyAny,
+) -> PyResult<PyObject> {
+    // Use normalized_difference for coercion & computation
+    let pre = normalized_difference(py, pre_nir, pre_red)?;
+    let post = normalized_difference(py, post_nir, post_red)?;
+    // Attempt 1D extract first, else 2D
+    if let Ok(pre1) = pre.extract::<&PyArray1<f64>>(py) {
+        let post1 = post.extract::<&PyArray1<f64>>(py)?;
+        if pre1.len() != post1.len() {
+            return Err(pyo3::exceptions::PyValueError::new_err(
+                "Shape mismatch in delta_ndvi (1D)",
+            ));
+        }
+        let pre_view = pre1.readonly();
+        let post_view = post1.readonly();
+        let a = pre_view.as_array();
+        let b = post_view.as_array();
+        let mut out = Array1::<f64>::zeros(a.len());
+        Zip::from(&mut out)
+            .and(a)
+            .and(b)
+            .for_each(|r, &p, &q| *r = p - q);
+        Ok(out.into_pyarray(py).into_py(py))
+    } else {
+        let pre2 = pre.extract::<&PyArray2<f64>>(py)?;
+        let post2 = post.extract::<&PyArray2<f64>>(py)?;
+        if pre2.shape() != post2.shape() {
+            return Err(pyo3::exceptions::PyValueError::new_err(
+                "Shape mismatch in delta_ndvi (2D)",
+            ));
+        }
+        let pre_view = pre2.readonly();
+        let post_view = post2.readonly();
+        let a = pre_view.as_array();
+        let b = post_view.as_array();
+        let shape = a.dim();
+        let mut out = Array2::<f64>::zeros(shape);
+        Zip::from(&mut out)
+            .and(a)
+            .and(b)
+            .for_each(|r, &p, &q| *r = p - q);
+        Ok(out.into_pyarray(py).into_py(py))
+    }
+}
+
+/// Delta NBR (pre - post) for burn severity change detection.
+#[pyfunction]
+pub fn delta_nbr(
+    py: Python<'_>,
+    pre_nir: &PyAny,
+    pre_swir2: &PyAny,
+    post_nir: &PyAny,
+    post_swir2: &PyAny,
+) -> PyResult<PyObject> {
+    let pre = normalized_difference(py, pre_nir, pre_swir2)?;
+    let post = normalized_difference(py, post_nir, post_swir2)?;
+    if let Ok(pre1) = pre.extract::<&PyArray1<f64>>(py) {
+        let post1 = post.extract::<&PyArray1<f64>>(py)?;
+        if pre1.len() != post1.len() {
+            return Err(pyo3::exceptions::PyValueError::new_err(
+                "Shape mismatch in delta_nbr (1D)",
+            ));
+        }
+        let pre_view = pre1.readonly();
+        let post_view = post1.readonly();
+        let a = pre_view.as_array();
+        let b = post_view.as_array();
+        let mut out = Array1::<f64>::zeros(a.len());
+        Zip::from(&mut out)
+            .and(a)
+            .and(b)
+            .for_each(|r, &p, &q| *r = p - q);
+        Ok(out.into_pyarray(py).into_py(py))
+    } else {
+        let pre2 = pre.extract::<&PyArray2<f64>>(py)?;
+        let post2 = post.extract::<&PyArray2<f64>>(py)?;
+        if pre2.shape() != post2.shape() {
+            return Err(pyo3::exceptions::PyValueError::new_err(
+                "Shape mismatch in delta_nbr (2D)",
+            ));
+        }
+        let pre_view = pre2.readonly();
+        let post_view = post2.readonly();
+        let a = pre_view.as_array();
+        let b = post_view.as_array();
+        let shape = a.dim();
+        let mut out = Array2::<f64>::zeros(shape);
+        Zip::from(&mut out)
+            .and(a)
+            .and(b)
+            .for_each(|r, &p, &q| *r = p - q);
+        Ok(out.into_pyarray(py).into_py(py))
     }
 }
 
