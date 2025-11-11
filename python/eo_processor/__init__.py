@@ -292,6 +292,7 @@ def composite(arr, method="median", **kwargs):
     else:
         raise ValueError(f"Unknown composite method: {method}")
 
+
 def temporal_mean(arr, skip_na=True):
     """
     Compute mean over the time axis of a 1D, 2D, 3D, or 4D array.

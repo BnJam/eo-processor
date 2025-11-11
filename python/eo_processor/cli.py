@@ -28,6 +28,7 @@ Exit Codes:
 NOTE: This file is intentionally self-contained (no import of scripts/eo_cli.py)
 to avoid relying on non-package paths when installed from a wheel.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -234,9 +235,9 @@ def save_png(path: str, arr: np.ndarray, clamp: Optional[List[float]]):
         print("[WARN] All values NaN; PNG skipped.", file=sys.stderr)
         return
     if clamp:
-       lo, hi = clamp
-       data = np.clip(data, lo, hi)
-       finite = data[np.isfinite(data)]
+        lo, hi = clamp
+        data = np.clip(data, lo, hi)
+        finite = data[np.isfinite(data)]
     mn, mx = float(finite.min()), float(finite.max())
     if mx == mn:
         scaled = np.zeros_like(data, dtype=np.uint8)
@@ -247,7 +248,9 @@ def save_png(path: str, arr: np.ndarray, clamp: Optional[List[float]]):
     img.save(path)
 
 
-def compute(spec: IndexSpec, bands: Mapping[str, np.ndarray], savi_l: float) -> np.ndarray:
+def compute(
+    spec: IndexSpec, bands: Mapping[str, np.ndarray], savi_l: float
+) -> np.ndarray:
     # Dispatch based on spec.name (explicit to keep signature clarity)
     name = spec.name
     f = spec.func
@@ -367,7 +370,9 @@ def cli(argv: Optional[List[str]] = None) -> int:
                 arr = apply_mask(arr, mask_arr)
             loaded[band] = arr
         except Exception as exc:
-            print(f"[ERROR] Failed loading '{band}' from {path}: {exc}", file=sys.stderr)
+            print(
+                f"[ERROR] Failed loading '{band}' from {path}: {exc}", file=sys.stderr
+            )
             return 1
 
     results: Dict[str, np.ndarray] = {}
