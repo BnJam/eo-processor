@@ -29,7 +29,7 @@ sync: ## Sync dependencies (install/update packages)
 develop: sync ## Install the Rust code as a Python module for development
 	@echo "🔨 Installing native extension in development mode..."
 	# NOTE: This target assumes the virtual environment is manually activated (e.g., source .venv/bin/activate)
-	uv run maturin develop
+	maturin develop
 
 # ==============================================================================
 # Build, Clean, and Utility Targets

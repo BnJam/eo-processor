@@ -82,8 +82,8 @@ def example_map_blocks_vs_apply_ufunc():
 
     # 2) xarray + dask arrays, then xr.apply_ufunc (dask='parallelized')
     print("Preparing xarray + dask arrays (for apply_ufunc)...")
-    nir_dask = da.from_array(nir_np, chunks=(chunk_y, chunk_x))
-    red_dask = da.from_array(red_np, chunks=(chunk_y, chunk_x))
+    nir_dask = da.from_array(nir_np)
+    red_dask = da.from_array(red_np)
 
     nir_xr = xr.DataArray(nir_dask, dims=("y", "x"), coords={"y": np.arange(size), "x": np.arange(size)})
     red_xr = xr.DataArray(red_dask, dims=("y", "x"), coords={"y": np.arange(size), "x": np.arange(size)})

@@ -1,4 +1,5 @@
 pub mod indices;
+pub mod masking;
 pub mod spatial;
 pub mod temporal;
 
@@ -35,6 +36,13 @@ fn _core(_py: Python, m: &PyModule) -> PyResult<()> {
     // --- Temporal Functions ---
     m.add_function(wrap_pyfunction!(temporal::temporal_mean, m)?)?;
     m.add_function(wrap_pyfunction!(temporal::temporal_std, m)?)?;
+    // --- Masking Functions ---
+    m.add_function(wrap_pyfunction!(masking::mask_vals, m)?)?;
+    m.add_function(wrap_pyfunction!(masking::replace_nans, m)?)?;
+    m.add_function(wrap_pyfunction!(masking::mask_out_range, m)?)?;
+    m.add_function(wrap_pyfunction!(masking::mask_invalid, m)?)?;
+    m.add_function(wrap_pyfunction!(masking::mask_in_range, m)?)?;
+    m.add_function(wrap_pyfunction!(masking::mask_scl, m)?)?;
 
     Ok(())
 }

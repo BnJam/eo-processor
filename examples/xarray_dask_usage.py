@@ -68,14 +68,14 @@ def example_xarray_basic():
 
     # Compute indices (eager, small arrays)
     indices = {
-        "NDVI": ndvi(nir, red),
-        "NDWI": ndwi(green, nir),
-        "EVI": evi(nir, red, blue),
-        "SAVI": savi(nir, red, L=0.5),
-        "NBR": nbr(nir, swir2),
-        "NDMI": ndmi(nir, swir1),
-        "NBR2": nbr2(swir1, swir2),
-        "GCI": gci(nir, green),
+        "NDVI": ndvi(nir.data, red.data),
+        "NDWI": ndwi(green.data, nir.data),
+        "EVI": evi(nir.data, red.data, blue.data),
+        "SAVI": savi(nir.data, red.data, L=0.5),
+        "NBR": nbr(nir.data, swir2.data),
+        "NDMI": ndmi(nir.data, swir1.data),
+        "NBR2": nbr2(swir1.data, swir2.data),
+        "GCI": gci(nir.data, green.data),
     }
 
     for name, arr in indices.items():
@@ -178,12 +178,12 @@ def example_temporal_composites():
     T, H, W = 10, 256, 256
     rng = np.random.default_rng(3)
     nir_ts = xr.DataArray(
-        da.from_array(rng.uniform(0.3, 0.9, size=(T, H, W)), chunks=(1, 128, 128)),
+        da.from_array(rng.uniform(0.3, 0.9, size=(T, H, W)), chunks=(-1, 128, 128)),
         dims=["time", "y", "x"],
         name="NIR",
     )
     red_ts = xr.DataArray(
-        da.from_array(rng.uniform(0.05, 0.4, size=(T, H, W)), chunks=(1, 128, 128)),
+        da.from_array(rng.uniform(0.05, 0.4, size=(T, H, W)), chunks=(-1, 128, 128)),
         dims=["time", "y", "x"],
         name="Red",
     )
@@ -193,8 +193,8 @@ def example_temporal_composites():
         ndvi,
         nir_ts,
         red_ts,
-        input_core_dims=[["y", "x"], ["y", "x"]],
-        output_core_dims=[["y", "x"]],
+        input_core_dims=[["time"], ["time"]],
+        output_core_dims=[["time"]],
         vectorize=True,
         dask="parallelized",
         output_dtypes=[float],
@@ -233,11 +233,11 @@ def example_multiband_dataset():
     )
 
     # Compute indices, add as new DataArrays
-    ds["NDVI"] = ndvi(ds["NIR"], ds["Red"])
-    ds["SAVI"] = savi(ds["NIR"], ds["Red"], L=0.25)
-    ds["NBR"] = nbr(ds["NIR"], ds["SWIR2"])
-    ds["NDMI"] = ndmi(ds["NIR"], ds["SWIR1"])
-    ds["GCI"] = gci(ds["NIR"], ds["Green"])
+    ds["NDVI"] = xr.DataArray(ndvi(ds["NIR"].data, ds["Red"].data), dims=["y", "x"])
+    ds["SAVI"] = xr.DataArray(savi(ds["NIR"].data, ds["Red"].data, L=0.5), dims=["y", "x"])
+    ds["NBR"] = xr.DataArray(nbr(ds["NIR"].data, ds["SWIR2"].data), dims=["y", "x"])
+    ds["NDMI"] = xr.DataArray(ndmi(ds["NIR"].data, ds["SWIR1"].data), dims=["y", "x"])
+    ds["GCI"] = xr.DataArray(gci(ds["NIR"].data, ds["Green"].data), dims=["y", "x"])
 
     print(ds[["NDVI", "SAVI", "NBR", "NDMI", "GCI"]])
     print("Multi-band dataset indices computed ✔\n")

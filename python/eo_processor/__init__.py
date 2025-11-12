@@ -28,6 +28,12 @@ from ._core import (
     minkowski_distance as _minkowski_distance,
     delta_ndvi as _delta_ndvi,
     delta_nbr as _delta_nbr,
+    mask_vals as _mask_vals,
+    replace_nans as _replace_nans,
+    mask_out_range as _mask_out_range,
+    mask_invalid as _mask_invalid,
+    mask_in_range as _mask_in_range,
+    mask_scl as _mask_scl,
 )
 
 
@@ -54,6 +60,12 @@ __all__ = [
     "manhattan_distance",
     "chebyshev_distance",
     "minkowski_distance",
+    "mask_vals",
+    "replace_nans",
+    "mask_out_range",
+    "mask_invalid",
+    "mask_in_range",
+    "mask_scl",
 ]
 
 
@@ -379,3 +391,140 @@ def minkowski_distance(points_a, points_b, p):
         If p < 1.0 (propagated from the Rust implementation).
     """
     return _minkowski_distance(points_a, points_b, p)
+
+
+def mask_vals(arr, values=None, fill_value=None, nan_to=None):
+    """
+    Mask specified values (exact equality) and optionally replace NaNs.
+
+    Parameters
+    ----------
+    arr : numpy.ndarray (1D–4D)
+        Input array; any numeric dtype accepted (coerced to float64 internally).
+    values : sequence, optional
+        Iterable of numeric codes to mask. If None, no value masking is performed.
+    fill_value : float, optional
+        Value to write for masked codes. Defaults to NaN when None.
+    nan_to : float, optional
+        If provided, all NaNs (original or created by masking) are replaced with this value
+        after masking.
+
+    Returns
+    -------
+    numpy.ndarray (float64)
+        Masked array preserving original shape.
+
+    Notes
+    -----
+    This is a thin pass-through to the Rust implementation; see README “Masking Utilities”.
+    """
+    return _mask_vals(arr, values=values, fill_value=fill_value, nan_to=nan_to)
+
+
+def replace_nans(arr, value):
+    """
+    Replace all NaNs in `arr` with `value`.
+
+    Parameters
+    ----------
+    arr : numpy.ndarray
+        Input array (1D–4D supported).
+    value : float
+        Replacement for every NaN.
+
+    Returns
+    -------
+    numpy.ndarray
+        Array with NaNs replaced.
+    """
+    return _replace_nans(arr, value)
+
+
+def mask_out_range(arr, min_val=None, max_val=None, fill_value=None):
+    """
+    Mask values outside a specified numeric range [min_val, max_val].
+
+    Parameters
+    ----------
+    arr : numpy.ndarray
+        Input array (1D–4D).
+    min_val : float, optional
+        Minimum valid value (inclusive).
+    max_val : float, optional
+        Maximum valid value (inclusive).
+    fill_value : float, optional
+        Value for masked positions (default NaN).
+
+    Returns
+    -------
+    numpy.ndarray
+        Masked array.
+    """
+    return _mask_out_range(arr, min=min_val, max=max_val, fill_value=fill_value)
+
+
+def mask_invalid(arr, invalid_values, fill_value=None):
+    """
+    Mask a list of common invalid sentinel values.
+
+    Parameters
+    ----------
+    arr : numpy.ndarray
+        Input array.
+    invalid_values : sequence
+        List of numeric codes to mask.
+    fill_value : float, optional
+        Value for masked positions (default NaN).
+
+    Returns
+    -------
+    numpy.ndarray
+        Masked array.
+    """
+    return _mask_invalid(arr, invalid_values=invalid_values, fill_value=fill_value)
+
+
+def mask_in_range(arr, min_val=None, max_val=None, fill_value=None):
+    """
+    Mask values inside a specified numeric range [min_val, max_val].
+
+    Parameters
+    ----------
+    arr : numpy.ndarray
+        Input array (1D–4D).
+    min_val : float, optional
+        Minimum value of range to mask (inclusive).
+    max_val : float, optional
+        Maximum value of range to mask (inclusive).
+    fill_value : float, optional
+        Value for masked positions (default NaN).
+
+    Returns
+    -------
+    numpy.ndarray
+        Masked array.
+    """
+    return _mask_in_range(arr, min=min_val, max=max_val, fill_value=fill_value)
+
+
+def mask_scl(scl, keep_codes=None, fill_value=None):
+    """
+    Mask a Sentinel-2 Scene Classification Layer (SCL) array.
+
+    By default, keeps vegetation, water, bare soil, and snow.
+
+    Parameters
+    ----------
+    scl : numpy.ndarray
+        SCL array.
+    keep_codes : sequence, optional
+        List of SCL codes to keep. Defaults to [4, 5, 6, 7, 11].
+    fill_value : float, optional
+        Value for masked positions (default NaN).
+
+    Returns
+    -------
+    numpy.ndarray
+        Masked SCL array.
+    """
+    return _mask_scl(scl, keep_codes=keep_codes, fill_value=fill_value)
