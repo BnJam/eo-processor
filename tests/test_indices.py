@@ -265,6 +265,7 @@ def test_savi_variable_L():
         expected[mask] = 0.0
         assert np.allclose(out, expected, rtol=1e-12, atol=0.0)
 
+
 def test_savi_l_precedence_over_L():
     """
     When both L and l are passed, the wrapper should prioritize 'l'.
@@ -277,6 +278,7 @@ def test_savi_l_precedence_over_L():
     expected[mask] = 0.0
     assert np.allclose(out_explicit_l, expected, rtol=1e-12, atol=0.0)
 
+
 def test_ndmi_1d():
     nir = np.array([0.8, 0.6, 0.4], dtype=np.float64)
     swir1 = np.array([0.3, 0.2, 0.1], dtype=np.float64)
@@ -286,6 +288,7 @@ def test_ndmi_1d():
     mask = np.isclose(denom, 0.0, atol=1e-10)
     expected[mask] = 0.0
     assert np.allclose(out, expected, rtol=1e-12)
+
 
 def test_ndmi_2d():
     nir = np.array([[0.8, 0.7], [0.6, 0.5]], dtype=np.float64)
@@ -297,6 +300,7 @@ def test_ndmi_2d():
     expected[mask] = 0.0
     assert np.allclose(out, expected, rtol=1e-12)
 
+
 def test_nbr2_1d():
     swir1 = np.array([0.4, 0.5, 0.45], dtype=np.float64)
     swir2 = np.array([0.3, 0.25, 0.2], dtype=np.float64)
@@ -306,6 +310,7 @@ def test_nbr2_1d():
     mask = np.isclose(denom, 0.0, atol=1e-10)
     expected[mask] = 0.0
     assert np.allclose(out, expected, rtol=1e-12)
+
 
 def test_nbr2_2d():
     swir1 = np.array([[0.4, 0.5], [0.45, 0.55]], dtype=np.float64)
@@ -317,6 +322,7 @@ def test_nbr2_2d():
     expected[mask] = 0.0
     assert np.allclose(out, expected, rtol=1e-12)
 
+
 def test_gci_1d():
     nir = np.array([0.8, 0.9, 0.7], dtype=np.float64)
     green = np.array([0.4, 0.45, 0.35], dtype=np.float64)
@@ -326,6 +332,7 @@ def test_gci_1d():
     mask = np.isclose(green, 0.0, atol=1e-12)
     expected[mask] = 0.0
     assert np.allclose(out, expected, rtol=1e-12)
+
 
 def test_gci_2d():
     nir = np.array([[0.8, 0.9], [0.7, 0.75]], dtype=np.float64)
