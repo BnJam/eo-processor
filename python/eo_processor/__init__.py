@@ -30,7 +30,8 @@ from ._core import (
     delta_nbr as _delta_nbr,
 )
 
-__version__ = "0.3.0"
+
+__version__ = "0.4.0"
 
 __all__ = [
     "normalized_difference",
@@ -290,6 +291,7 @@ def composite(arr, method="median", **kwargs):
         return median(arr, **kwargs)
     else:
         raise ValueError(f"Unknown composite method: {method}")
+
 
 def temporal_mean(arr, skip_na=True):
     """

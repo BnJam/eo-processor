@@ -143,8 +143,8 @@ def test_minkowski_monotonic_in_p():
     a = rng.uniform(-2.0, 2.0, size=(10, 5)).astype(np.float64)
     b = rng.uniform(-2.0, 2.0, size=(12, 5)).astype(np.float64)
 
-    d_p1 = minkowski_distance(a, b, 1.0)   # L1
-    d_p2 = minkowski_distance(a, b, 2.0)   # L2
+    d_p1 = minkowski_distance(a, b, 1.0)  # L1
+    d_p2 = minkowski_distance(a, b, 2.0)  # L2
     d_p3 = minkowski_distance(a, b, 3.0)
     d_p10 = minkowski_distance(a, b, 10.0)  # approaches L∞
 

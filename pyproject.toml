@@ -22,15 +22,21 @@ classifiers = [
 ]
 requires-python = ">=3.8"
 dependencies = [
-    "maturin>=1.9.6",
     "numpy>=1.20.0",
-    "tox>=4.25.0",
 ]
 
+[project.scripts]
+eo-processor = "eo_processor.cli:cli"  # invokes module-level cli() directly (no __init__ indirection)
+
+
 [project.optional-dependencies]
+cli = [
+    "pillow>=10.4.0",
+]
 dev = [
     "pytest>=7.0",
     "maturin>=1.0,<2.0",
+    "tox>=4.25.0",
 ]
 dask = [
     "dask[array]>=2023.0.0",
