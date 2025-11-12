@@ -32,6 +32,8 @@ from ._core import (
     replace_nans as _replace_nans,
     mask_out_range as _mask_out_range,
     mask_invalid as _mask_invalid,
+    mask_in_range as _mask_in_range,
+    mask_scl as _mask_scl,
 )
 
 
@@ -62,6 +64,8 @@ __all__ = [
     "replace_nans",
     "mask_out_range",
     "mask_invalid",
+    "mask_in_range",
+    "mask_scl",
 ]
 
 
@@ -478,3 +482,49 @@ def mask_invalid(arr, invalid_values, fill_value=None):
         Masked array.
     """
     return _mask_invalid(arr, invalid_values=invalid_values, fill_value=fill_value)
+
+
+def mask_in_range(arr, min_val=None, max_val=None, fill_value=None):
+    """
+    Mask values inside a specified numeric range [min_val, max_val].
+
+    Parameters
+    ----------
+    arr : numpy.ndarray
+        Input array (1D–4D).
+    min_val : float, optional
+        Minimum value of range to mask (inclusive).
+    max_val : float, optional
+        Maximum value of range to mask (inclusive).
+    fill_value : float, optional
+        Value for masked positions (default NaN).
+
+    Returns
+    -------
+    numpy.ndarray
+        Masked array.
+    """
+    return _mask_in_range(arr, min=min_val, max=max_val, fill_value=fill_value)
+
+
+def mask_scl(scl, keep_codes=None, fill_value=None):
+    """
+    Mask a Sentinel-2 Scene Classification Layer (SCL) array.
+
+    By default, keeps vegetation, water, bare soil, and snow.
+
+    Parameters
+    ----------
+    scl : numpy.ndarray
+        SCL array.
+    keep_codes : sequence, optional
+        List of SCL codes to keep. Defaults to [4, 5, 6, 7, 11].
+    fill_value : float, optional
+        Value for masked positions (default NaN).
+
+    Returns
+    -------
+    numpy.ndarray
+        Masked SCL array.
+    """
+    return _mask_scl(scl, keep_codes=keep_codes, fill_value=fill_value)

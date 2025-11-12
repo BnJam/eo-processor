@@ -73,5 +73,16 @@ def mask_invalid(
     invalid_values: Sequence[float],
     fill_value: Optional[float] = ...,
 ) -> NDArray[np.float64]: ...
+def mask_in_range(
+    arr: NumericArray,
+    min_val: Optional[float] = ...,
+    max_val: Optional[float] = ...,
+    fill_value: Optional[float] = ...,
+) -> NDArray[np.float64]: ...
+def mask_scl(
+    scl: NumericArray,
+    keep_codes: Optional[Sequence[float]] = ...,
+    fill_value: Optional[float] = ...,
+) -> NDArray[np.float64]: ...
 
 # Raises ValueError if p < 1.0

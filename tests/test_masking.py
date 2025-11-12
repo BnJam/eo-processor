@@ -1,6 +1,13 @@
 import numpy as np
 import pytest
-from eo_processor import mask_vals, replace_nans, mask_out_range, mask_invalid
+from eo_processor import (
+    mask_vals,
+    replace_nans,
+    mask_out_range,
+    mask_invalid,
+    mask_in_range,
+    mask_scl,
+)
 
 
 def test_mask_vals_1d_basic_nan():
@@ -233,3 +240,34 @@ def test_mask_invalid_fill_value():
     assert out[0] == -1
     assert out[1] == 1
     assert out[2] == 2
+
+
+def test_mask_in_range_basic():
+    arr = np.array([-1.0, 0.5, 1.0, 1.5])
+    out = mask_in_range(arr, min_val=0.0, max_val=1.0)
+    assert out[0] == -1.0
+    assert np.isnan(out[1])
+    assert np.isnan(out[2])
+    assert out[3] == 1.5
+
+
+def test_mask_scl_default():
+    scl = np.array([0, 4, 5, 6, 7, 8, 9, 10, 11])
+    out = mask_scl(scl)
+    assert np.isnan(out[0])
+    assert out[1] == 4.0
+    assert out[2] == 5.0
+    assert out[3] == 6.0
+    assert out[4] == 7.0
+    assert np.isnan(out[5])
+    assert np.isnan(out[6])
+    assert np.isnan(out[7])
+    assert out[8] == 11.0
+
+
+def test_mask_scl_custom_keep():
+    scl = np.array([4, 8, 9])
+    out = mask_scl(scl, keep_codes=[4, 9])
+    assert out[0] == 4.0
+    assert np.isnan(out[1])
+    assert out[2] == 9.0

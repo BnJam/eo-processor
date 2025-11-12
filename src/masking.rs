@@ -329,6 +329,115 @@ pub fn mask_invalid(
     mask_vals(py, arr, Some(invalid_values), fill_value, None)
 }
 
+/// Internal helper for in-range masking.
+fn apply_mask_in_range_slice(
+    values: &mut [f64],
+    min: Option<f64>,
+    max: Option<f64>,
+    fill_value: f64,
+) {
+    for v in values.iter_mut() {
+        let mut is_masked = false;
+        if let Some(min_val) = min {
+            if *v >= min_val {
+                if let Some(max_val) = max {
+                    if *v <= max_val {
+                        is_masked = true;
+                    }
+                } else {
+                    is_masked = true; // No max, so anything >= min is masked
+                }
+            }
+        } else if let Some(max_val) = max {
+            if *v <= max_val {
+                is_masked = true; // No min, so anything <= max is masked
+            }
+        }
+
+        if is_masked {
+            *v = fill_value;
+        }
+    }
+}
+
+/// Mask values inside a specified numeric range [min, max].
+#[pyfunction]
+#[pyo3(signature = (arr, min=None, max=None, fill_value=None))]
+pub fn mask_in_range(
+    py: Python<'_>,
+    arr: &PyAny,
+    min: Option<f64>,
+    max: Option<f64>,
+    fill_value: Option<f64>,
+) -> PyResult<PyObject> {
+    let fill = fill_value.unwrap_or(f64::NAN);
+
+    if let Ok(a1) = coerce_1d(arr) {
+        let mut out = a1.as_array().to_owned();
+        apply_mask_in_range_slice(out.as_slice_mut().unwrap(), min, max, fill);
+        return Ok(out.into_pyarray(py).into_py(py));
+    } else if let Ok(a2) = coerce_2d(arr) {
+        let mut out = a2.as_array().to_owned();
+        for mut row in out.rows_mut() {
+            apply_mask_in_range_slice(row.as_slice_mut().unwrap(), min, max, fill);
+        }
+        return Ok(out.into_pyarray(py).into_py(py));
+    } else if let Ok(a3) = coerce_3d(arr) {
+        let mut out = a3.as_array().to_owned();
+        for mut plane in out.outer_iter_mut() {
+            for mut row in plane.rows_mut() {
+                apply_mask_in_range_slice(row.as_slice_mut().unwrap(), min, max, fill);
+            }
+        }
+        return Ok(out.into_pyarray(py).into_py(py));
+    } else if let Ok(a4) = coerce_4d(arr) {
+        let mut out = a4.as_array().to_owned();
+        for mut block in out.outer_iter_mut() {
+            for mut plane in block.outer_iter_mut() {
+                for mut row in plane.rows_mut() {
+                    apply_mask_in_range_slice(row.as_slice_mut().unwrap(), min, max, fill);
+                }
+            }
+        }
+        return Ok(out.into_pyarray(py).into_py(py));
+    }
+
+    Err(PyTypeError::new_err(
+        "Expected a 1D, 2D, 3D, or 4D numeric NumPy array.",
+    ))
+}
+
+/// Mask a Sentinel-2 Scene Classification Layer (SCL) array.
+#[pyfunction]
+#[pyo3(signature = (scl, keep_codes=None, fill_value=None))]
+pub fn mask_scl(
+    py: Python<'_>,
+    scl: &PyAny,
+    keep_codes: Option<Vec<f64>>,
+    fill_value: Option<f64>,
+) -> PyResult<PyObject> {
+    // Default S2 codes to KEEP: vegetation (4,5), water (6), bare soil (7), snow (11)
+    let default_keep = vec![4.0, 5.0, 6.0, 7.0, 11.0];
+    let codes_to_keep = keep_codes.unwrap_or(default_keep);
+
+    let arr_float = if let Ok(a) = scl.extract::<PyReadonlyArray1<f64>>() {
+        a.to_owned_array()
+    } else {
+        scl.call_method1("astype", ("float64",))?
+            .extract::<PyReadonlyArray1<f64>>()?
+            .to_owned_array()
+    };
+
+    let mut out = arr_float.to_owned();
+    for v in out.iter_mut() {
+        if !codes_to_keep.contains(v) {
+            *v = fill_value.unwrap_or(f64::NAN);
+        }
+    }
+
+    let result_array = out.into_dyn();
+    Ok(result_array.into_pyarray(py).into_py(py))
+}
 
 #[cfg(test)]
 mod tests {

@@ -41,6 +41,8 @@ fn _core(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(masking::replace_nans, m)?)?;
     m.add_function(wrap_pyfunction!(masking::mask_out_range, m)?)?;
     m.add_function(wrap_pyfunction!(masking::mask_invalid, m)?)?;
+    m.add_function(wrap_pyfunction!(masking::mask_in_range, m)?)?;
+    m.add_function(wrap_pyfunction!(masking::mask_scl, m)?)?;
 
     Ok(())
 }
