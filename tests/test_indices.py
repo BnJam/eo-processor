@@ -143,8 +143,8 @@ def test_shape_mismatch_evi():
 
 
 def test_invalid_dimension():
-    nir = np.random.rand(2, 2, 2)
-    red = np.random.rand(2, 2, 2)
+    nir = np.random.rand(2, 2, 2, 2, 2)
+    red = np.random.rand(2, 2, 2, 2, 2)
     with pytest.raises(TypeError):
         ndvi(nir, red)
 

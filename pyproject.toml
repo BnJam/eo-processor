@@ -56,6 +56,7 @@ build-backend = "maturin"
 
 [dependency-groups]
 dev = [
+    "tox>=4.32.0",
     "ruff>=0.14.4",
     "pytest>=7.0",
 ]
