@@ -4,52 +4,57 @@
 [![Coverage](./coverage-badge.svg)](#test-coverage)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-High-performance Rust UDFs for Earth Observation (EO) processing with Python bindings.
-Provides fast spectral indices, temporal statistics, and (internally) spatial distance utilities.
+High-performance Rust (PyO3) UDFs for Earth Observation (EO) processing with Python bindings.
+Fast spectral indices, temporal statistics, masking utilities, and spatial distance functions.
 
 ---
 
 ## Overview
 
-`eo-processor` accelerates common Earth Observation and geospatial computations using Rust + PyO3, exposing a Python API compatible with NumPy, XArray, and Dask. Rust execution bypasses Python's Global Interpreter Lock (GIL), enabling true parallelism in multi-core environments and large-array workflows.
+`eo-processor` accelerates common remote sensing computations using safe Rust (no `unsafe`) exposed via PyO3.
+All public functions interoperate with NumPy and can be embedded in XArray / Dask pipelines.
+Rust kernels release Python's GIL; multi-core parallelism (via Rayon) is leveraged for selected operations (larger temporal aggregations, pairwise distances).
 
-Primary focus areas:
-- Spectral indices (NDVI, NDWI, EVI, generic normalized differences)
-- Temporal compositing/statistics (median, mean, standard deviation)
-- Spatial utilities (distance computations — currently available via internal module)
+Focus areas:
+- Spectral & change-detection indices
+- Temporal statistics & median compositing (1D–4D stacks)
+- Masking & data quality filtering (value / range / SCL / invalid sentinels)
+- Pairwise spatial distances (utility layer)
+- Benchmark harness for reproducible performance measurements
 
 ---
 
 ## Key Features
 
-- Rust-accelerated numerical kernels (safe, no `unsafe` code)
-- Automatic dimensional dispatch (1D vs 2D for spectral indices)
-- Temporal statistics across a leading “time” axis for 1D–4D arrays
-- Optional skipping of NaN values (`skip_na=True`)
-- Ready for XArray / Dask parallelized workflows
-- Type hints and stubs for IDE assistance
-- Deterministic, GIL-efficient performance
+- Rust-accelerated numerical kernels (float64 internal, stable results)
+- Automatic dimensional dispatch (1D / 2D for spectral indices, 1D–4D for temporal/masking)
+- Change detection support (ΔNDVI, ΔNBR)
+- Flexible masking utilities (exact values, ranges, SCL codes)
+- Median, mean, sample standard deviation over time axis
+- Pairwise distance functions (Euclidean, Manhattan, Chebyshev, Minkowski)
+- Type stubs (`__init__.pyi`) for IDE / mypy
+- Benchmark script with optional NumPy baseline comparison
+- Pure CPU, no external network or storage side-effects in core path
 
 ---
 
 ## Installation
 
-### Using `pip` (PyPI)
+### PyPI (standard)
 
 ```bash
 pip install eo-processor
 ```
 
-Optional extras (for distributed / parallel array workflows):
+Optional extras for array ecosystem:
 
 ```bash
 pip install eo-processor[dask]
 ```
 
-### Using `uv` (fast dependency manager)
+### Using `uv`
 
 ```bash
-# Create and sync environment
 uv venv
 source .venv/bin/activate
 uv pip install eo-processor
@@ -59,18 +64,16 @@ uv pip install eo-processor
 
 Requirements:
 - Python 3.8+
-- Rust toolchain (install via https://rustup.rs/)
-- `maturin` for building the extension
+- Rust toolchain (`rustup` recommended)
+- `maturin` for building the extension module
 
 ```bash
 git clone https://github.com/BnJam/eo-processor.git
 cd eo-processor
 
-# Build & install in editable (development) mode
 pip install maturin
-maturin develop --release
-
-# Or build a wheel
+maturin develop --release        # build & install in-place
+# or wheel:
 maturin build --release
 pip install target/wheels/*.whl
 ```
@@ -83,276 +86,176 @@ pip install target/wheels/*.whl
 import numpy as np
 from eo_processor import ndvi, ndwi, evi, normalized_difference
 
-nir  = np.array([0.8, 0.7, 0.6])
-red  = np.array([0.2, 0.1, 0.3])
-blue = np.array([0.1, 0.05, 0.08])
+nir   = np.array([0.8, 0.7, 0.6])
+red   = np.array([0.2, 0.1, 0.3])
+blue  = np.array([0.1, 0.05, 0.08])
 green = np.array([0.35, 0.42, 0.55])
 
-ndvi_vals = ndvi(nir, red)
-ndwi_vals = ndwi(green, nir)
-evi_vals  = evi(nir, red, blue)
-nd_generic = normalized_difference(nir, red)
-
-print(ndvi_vals, ndwi_vals, evi_vals, nd_generic)
+print(ndvi(nir, red))               # NDVI
+print(ndwi(green, nir))             # NDWI
+print(evi(nir, red, blue))          # EVI
+print(normalized_difference(nir, red))
 ```
 
-All spectral index functions return NumPy arrays directly (no tuple wrappers).
+All inputs may be any numeric NumPy dtype (int/uint/float); internal coercion to `float64`.
 
 ---
 
 ## API Summary
 
-Top-level Python exports (via `eo_processor`):
-
-| Function | Description |
-|----------|-------------|
-| `normalized_difference(a, b)` | Generic `(a - b) / (a + b)` with zero-denominator safeguard |
+| Function | Purpose |
+|----------|---------|
+| `normalized_difference(a, b)` | Generic normalized difference `(a - b) / (a + b)` with near-zero denominator safeguard |
 | `ndvi(nir, red)` | Normalized Difference Vegetation Index |
 | `ndwi(green, nir)` | Normalized Difference Water Index |
-| `enhanced_vegetation_index(nir, red, blue)` / `evi(...)` | Enhanced Vegetation Index (EVI: G*(NIR-Red)/(NIR + C1*Red - C2*Blue + L)) |
-| `median(arr, skip_na=True)` | Temporal median across leading axis for 1D–4D arrays |
-| `composite(arr, method="median", **kwargs)` | Convenience wrapper (currently only median) |
-| `temporal_mean(arr, skip_na=True)` | Mean across time dimension |
-| `temporal_std(arr, skip_na=True)` | Sample standard deviation (n-1 denominator) across time |
-| `savi(nir, red, L=0.5)` | Soil Adjusted Vegetation Index: (NIR - Red)/(NIR + Red + L) * (1 + L); variable L (≥ 0) |
-| `nbr(nir, swir2)` | Normalized Burn Ratio: (NIR - SWIR2)/(NIR + SWIR2) |
-| `ndmi(nir, swir1)` | Normalized Difference Moisture Index: (NIR - SWIR1)/(NIR + SWIR1) |
-| `nbr2(swir1, swir2)` | Normalized Burn Ratio 2: (SWIR1 - SWIR2)/(SWIR1 + SWIR2) |
-| `gci(nir, green)` | Green Chlorophyll Index: (NIR / Green) - 1 (division guarded) |
-| `delta_ndvi(pre_nir, pre_red, post_nir, post_red)` | Change in NDVI (pre - post); vegetation loss (positive values often indicate decrease in post-event NDVI) |
-| `delta_nbr(pre_nir, pre_swir2, post_nir, post_swir2)` | Change in NBR (pre - post); burn severity (higher positive change suggests more severe burn) |
+| `evi(nir, red, blue)` / `enhanced_vegetation_index(...)` | Enhanced Vegetation Index (G*(NIR - Red)/(NIR + C1*Red - C2*Blue + L)) |
+| `savi(nir, red, L=0.5)` | Soil Adjusted Vegetation Index `(NIR - Red)/(NIR + Red + L) * (1 + L)` |
+| `nbr(nir, swir2)` | Normalized Burn Ratio `(NIR - SWIR2)/(NIR + SWIR2)` |
+| `ndmi(nir, swir1)` | Normalized Difference Moisture Index `(NIR - SWIR1)/(NIR + SWIR1)` |
+| `nbr2(swir1, swir2)` | Normalized Burn Ratio 2 `(SWIR1 - SWIR2)/(SWIR1 + SWIR2)` |
+| `gci(nir, green)` | Green Chlorophyll Index `(NIR / Green) - 1` (division guard) |
+| `delta_ndvi(pre_nir, pre_red, post_nir, post_red)` | Change in NDVI `(NDVI_pre - NDVI_post)` |
+| `delta_nbr(pre_nir, pre_swir2, post_nir, post_swir2)` | Change in NBR `(NBR_pre - NBR_post)` |
+| `median(arr, skip_na=True)` | Temporal median (time axis) with NaN skipping |
+| `composite(arr, method="median")` | Compositing convenience (currently median only) |
+| `temporal_mean(arr, skip_na=True)` | Mean across time axis |
+| `temporal_std(arr, skip_na=True)` | Sample standard deviation (n-1) across time |
+| `euclidean_distance(points_a, points_b)` | Pairwise Euclidean distances |
+| `manhattan_distance(points_a, points_b)` | Pairwise L1 distances |
+| `chebyshev_distance(points_a, points_b)` | Pairwise L∞ distances |
+| `minkowski_distance(points_a, points_b, p)` | Pairwise L^p distances (p ≥ 1) |
+| `mask_vals(arr, values=None, fill_value=None, nan_to=None)` | Mask exact codes, optional fill & NaN normalization |
+| `replace_nans(arr, value)` | Replace all NaNs with `value` |
+| `mask_out_range(arr, min_val=None, max_val=None, fill_value=None)` | Mask values outside `[min, max]` |
+| `mask_in_range(arr, min_val=None, max_val=None, fill_value=None)` | Mask values inside `[min, max]` |
+| `mask_invalid(arr, invalid_values, fill_value=None)` | Mask list of sentinel values (e.g., `0, -9999`) |
+| `mask_scl(scl, keep_codes=None, fill_value=None)` | Mask Sentinel‑2 SCL codes, keeping selected classes |
 
-Spatial distance functions (pairwise distance matrices; now exported at the top level — note O(N*M) memory/time for large point sets). Formulas (a, b ∈ ℝ^D).
-All spectral/temporal index functions accept any numeric NumPy dtype (int, uint, float32, float64, etc.); inputs are automatically coerced to float64 internally for consistency:
-- Euclidean: √(∑ᵢ (aᵢ - bᵢ)²)
-- Manhattan (L₁): ∑ᵢ |aᵢ - bᵢ|
-- Chebyshev (L_∞): maxᵢ |aᵢ - bᵢ|
-- Minkowski (L_p): (∑ᵢ |aᵢ - bᵢ|^p)^(1/p), with p ≥ 1.0 (this library enforces p ≥ 1)
-
-
-| Function | Description |
-|----------|-------------|
-| `euclidean_distance(points_a, points_b)` | Pairwise Euclidean distances (shape (N,M)) |
-| `manhattan_distance(points_a, points_b)` | Pairwise L1 distance |
-| `chebyshev_distance(points_a, points_b)` | Pairwise max-abs (L∞) distance |
-| `minkowski_distance(points_a, points_b, p)` | Pairwise L^p distance |
-| (Median helpers for dimension dispatch) | Implementations backing `median` |
-
-If you need spatial distance functions at the top level, add them to `python/eo_processor/__init__.py` and re-export.
-
----
-
-## Spectral Indices
-
-### NDVI
-Formula: `(NIR - Red) / (NIR + Red)`
-Typical interpretation:
-- Water / snow: < 0 (often strongly negative for clear water)
-- Bare soil / built surfaces: ~ 0.0 – 0.2
-- Sparse vegetation / stressed crops: 0.2 – 0.5
-- Healthy dense vegetation: > 0.5 (tropical forest can exceed 0.7)
-
-### NDWI
-Formula: `(Green - NIR) / (Green + NIR)`
-Typical interpretation:
-- Open water bodies: > 0.3 (often 0.4–0.6)
-- Moist vegetation / wetlands: 0.0 – 0.3
-- Dry vegetation / bare soil: < 0.0 (negative values)
-
-### EVI
-Formula:
-`EVI = G * (NIR - Red) / (NIR + C1 * Red - C2 * Blue + L)`
-Constants (MODIS): `G=2.5, C1=6.0, C2=7.5, L=1.0`
-Typical interpretation:
-- EVI dampens soil & atmospheric effects relative to NDVI
-- Moderate vegetation: ~0.2 – 0.4
-- Dense / healthy canopy: >0.4 (can reach ~0.8 in lush tropical zones)
-- Very low / senescent vegetation: <0.2
-
-### SAVI
-Formula:
-`SAVI = (NIR - Red) / (NIR + Red + L) * (1 + L)`
-Typical soil factor `L=0.5`; recommended range 0–1. Higher L reduces soil background effects. Implementation supports variable `L` (must be ≥ 0).
-Interpretation (similar to NDVI but more robust over bright soil):
-- Bare / bright soil: ~0.0 – 0.2
-- Moderate vegetation: 0.2 – 0.5
-- Healthy dense vegetation: > 0.5
-Use smaller L (e.g. 0.25) for dense vegetation, larger L (~1.0) for very sparse vegetation / bright soil conditions.
-
-### NBR
-Formula:
-`NBR = (NIR - SWIR2) / (NIR + SWIR2)`
-Used for burn severity and post-fire change detection.
-Typical interpretation (pre-fire vs post-fire):
-- Healthy vegetation (pre-fire): high positive (≈0.4 – 0.7)
-- Recently burned areas: strong drop; post-fire NBR often < 0.1 or negative
-Change analysis often uses ΔNBR (pre - post). Common burn severity thresholds (example ranges, refine per study):
-- ΔNBR > 0.66: High severity
-- 0.44 – 0.66: Moderate-high
-- 0.27 – 0.44: Moderate-low
-- 0.1 – 0.27: Low severity
-- < 0.1: Unburned / noise
-
-### NDMI
-Formula:
-`NDMI = (NIR - SWIR1) / (NIR + SWIR1)`
-Moisture / canopy water content indicator.
-Typical interpretation:
-- High positive (>0.3): Moist / healthy canopy (leaf water content high)
-- Near zero (0.0 – 0.3): Moderate moisture / possible stress onset
-- Negative (<0.0): Dry vegetation / senescence / possible drought stress
-
-### NBR2
-Formula:
-`NBR2 = (SWIR1 - SWIR2) / (SWIR1 + SWIR2)`
-Highlights burn severity and subtle thermal / moisture differences.
-Typical interpretation:
-- Lower values: Increased moisture / less burn impact
-- Higher values: Greater dryness / potential higher burn severity
-Use in tandem with NBR or NDMI for refined burn severity or moisture discrimination.
-
-### GCI
-Formula:
-`GCI = (NIR / Green) - 1`
-Green Chlorophyll Index; division by near-zero Green values is guarded to return 0.
-Typical interpretation:
-- Values > 0 indicate chlorophyll presence
-- 0 – 2: Sparse to moderate chlorophyll (grassland, early growth)
-- 2 – 8: Higher chlorophyll density (crops peak growth, healthy canopy)
-- > 8: Very dense chlorophyll (may indicate saturation; verify sensor & calibration)
-Absolute ranges vary with sensor, atmospheric correction, and reflectance scaling—use relative comparisons or time-series trends.
-
-All indices auto-dispatch between 1D and 2D input arrays; shapes must match.
-
-### Change Detection Indices
-
-Change detection indices operate on “pre” and “post” event imagery (e.g., before vs after fire, storm, harvest):
-
-Formulae:
-`ΔNDVI = NDVI(pre) - NDVI(post)`
-`ΔNBR  = NBR(pre)  - NBR(post)`
-
-Typical interpretation:
-- Positive ΔNDVI: vegetation loss / canopy degradation.
-- Near-zero ΔNDVI: minimal change.
-- Positive ΔNBR: higher burn severity (consult study-specific threshold tables).
-- Use masks (cloud, snow, shadow) to set unreliable pre/post pixels to NaN before computing deltas.
-
-These delta indices also accept any numeric dtype; values are coerced to float64.
-
-### CLI Usage
-
-A command-line helper is available (`scripts/eo_cli.py`) to batch compute indices from .npy band files.
-You can now also invoke the packaged CLI directly (added in 0.4.0), either as a module or via the installed console script.
-
-Single index (script form):
-```
-python scripts/eo_cli.py --index ndvi --nir data/nir.npy --red data/red.npy --out outputs/ndvi.npy
-```
-
-Single index (package module form):
-```
-python -m eo_processor.cli --index ndvi --nir data/nir.npy --red data/red.npy --out outputs/ndvi.npy
-```
-
-Single index (console script after installation):
-```
-eo-processor --index ndvi --nir data/nir.npy --red data/red.npy --out outputs/ndvi.npy
-```
-
-List supported indices:
-```
-eo-processor --list
-```
-
-Multiple indices:
-```
-python scripts/eo_cli.py --index ndvi savi ndmi nbr --nir data/nir.npy --red data/red.npy --swir1 data/swir1.npy --swir2 data/swir2.npy --out-dir outputs/
-```
-
-Change detection:
-```
-python -m eo_processor.cli --index delta_nbr \
-  --pre-nir pre/nir.npy --pre-swir2 pre/swir2.npy \
-  --post-nir post/nir.npy --post-swir2 post/swir2.npy \
-  --out outputs/delta_nbr.npy
-```
-
-Cloud mask (0=cloud, 1=clear):
-```
-eo-processor --index ndvi --nir data/nir.npy --red data/red.npy --mask data/cloudmask.npy --out outputs/ndvi_masked.npy
-```
-
-PNG preview:
-```
-eo-processor --index ndvi --nir data/nir.npy --red data/red.npy --out outputs/ndvi.npy --png-preview outputs/ndvi.png
-```
-
-Use `--savi-l` to adjust soil factor for SAVI; use `--clamp MIN MAX` to restrict output range before saving; `--allow-missing` skips indices lacking required bands. The module and console-script invocations accept the same arguments as the original `scripts/eo_cli.py`. Note: In 0.4.0 a circular import encountered when invoking the console script was resolved by removing the CLI import from `__init__`. Invoke the CLI via the installed `eo-processor` command or `python -m eo_processor.cli`—both now load without circular import issues.
-
----
-
-## Temporal Statistics & Compositing
-
-Temporal functions assume the first axis is “time”:
-
+Temporal dimension expectations:
 - 1D: `(time,)`
 - 2D: `(time, band)`
 - 3D: `(time, y, x)`
 - 4D: `(time, band, y, x)`
 
-Example (temporal mean of a stack):
+Distance functions: input shape `(N, D)` and `(M, D)` → output `(N, M)` (O(N*M) memory/time).
+
+---
+
+## Spectral & Change Detection Indices
+
+All indices auto-dispatch 1D vs 2D arrays (matching shapes required).
+
+### NDVI
+`(NIR - Red) / (NIR + Red)`
+Interpretation (approximate):
+- < 0: water / snow
+- 0.0–0.2: bare soil / built surfaces
+- 0.2–0.5: sparse to moderate vegetation
+- > 0.5: healthy dense vegetation
+
+### NDWI
+`(Green - NIR) / (Green + NIR)`
+- > 0.3: open water (often 0.4–0.6)
+- 0.0–0.3: moist vegetation / wetlands
+- < 0.0: dry vegetation / soil
+
+### EVI
+`G * (NIR - Red) / (NIR + C1*Red - C2*Blue + L)` (MODIS constants: G=2.5, C1=6.0, C2=7.5, L=1.0)
+Improves sensitivity over high biomass & reduces soil/atmospheric noise vs NDVI.
+
+### SAVI
+`(NIR - Red) / (NIR + Red + L) * (1 + L)`
+Typical `L=0.5`. Larger `L` for sparse vegetation (bright soil), smaller for dense vegetation.
+
+### NBR
+`(NIR - SWIR2) / (NIR + SWIR2)`
+Used for burn severity. Compare pre/post via ΔNBR.
+
+### NDMI
+`(NIR - SWIR1) / (NIR + SWIR1)`
+Moisture / canopy water content indicator.
+
+### NBR2
+`(SWIR1 - SWIR2) / (SWIR1 + SWIR2)`
+Highlights moisture & thermal differences; complementary to NBR/NDMI.
+
+### GCI
+`(NIR / Green) - 1`
+Chlorophyll proxy; division by near-zero guarded to avoid instability.
+
+### Change Detection
+`ΔNDVI = NDVI_pre - NDVI_post`
+`ΔNBR  = NBR_pre  - NBR_post`
+Positive ΔNDVI: vegetation loss. Positive ΔNBR: burn severity increase.
+
+---
+
+## Masking Utilities
+
+Rust-accelerated preprocessing helpers for quality filtering.
+
+| Function | Notes |
+|----------|-------|
+| `mask_vals` | Exact equality masking (codes → `fill_value` or NaN) + optional NaN normalization |
+| `replace_nans` | Force all NaNs to a scalar |
+| `mask_out_range` | Mask outside interval |
+| `mask_in_range` | Mask inside interval |
+| `mask_invalid` | Shorthand for common invalid sentinels |
+| `mask_scl` | Keep only selected Sentinel‑2 SCL classes |
+
+Example:
 
 ```python
 import numpy as np
-from eo_processor import temporal_mean, temporal_std
+from eo_processor import mask_vals, replace_nans, mask_out_range, mask_scl
 
-# Simulate (time, y, x) stack: 10 timesteps of 256x256
-cube = np.random.rand(10, 256, 256)
-mean_image = temporal_mean(cube)       # shape (256, 256)
-std_image  = temporal_std(cube)        # shape (256, 256)
-```
+scl = np.array([4,5,6,8,9])  # vegetation, vegetation, water, cloud (med), cloud (high)
+clear = mask_scl(scl, keep_codes=[4,5,6])   # -> [4., 5., 6., nan, nan]
 
-Median compositing:
+ndvi = np.array([-0.3, 0.1, 0.8, 1.2])
+valid = mask_out_range(ndvi, min_val=-0.2, max_val=1.0)  # -> [nan,0.1,0.8,nan]
 
-```python
-from eo_processor import median, composite
-median_image = median(cube)          # same as composite(cube, method="median")
-```
-
-Skip NaNs:
-
-```python
-cloudy_series = np.array([[0.2, np.nan, 0.5],
-                          [0.25, 0.3,   0.45],
-                          [0.22, np.nan, 0.47]])  # (time, band)
-clean_mean = temporal_mean(cloudy_series, skip_na=True)   # ignores NaNs
-strict_mean = temporal_mean(cloudy_series, skip_na=False) # bands with NaN → NaN
+arr = np.array([0, 100, -9999, 50])
+clean = mask_vals(arr, values=[0, -9999])  # -> [nan,100.,nan,50.]
+filled = replace_nans(clean, -9999.0)      # -> [-9999.,100.,-9999.,50.]
 ```
 
 ---
 
-## Spatial Distances (Internal)
+## Temporal Statistics & Compositing
 
-Currently available in the Rust core module:
+Median, mean, and standard deviation across time axis (skip NaNs optional):
 
 ```python
-from eo_processor import _core
-
 import numpy as np
-points_a = np.array([[0.0, 0.0],
-                     [1.0, 1.0]])
-points_b = np.array([[1.0, 0.0],
-                     [0.0, 1.0]])
+from eo_processor import temporal_mean, temporal_std, median
 
-dist_euclid = _core.euclidean_distance(points_a, points_b)
-dist_manhat = _core.manhattan_distance(points_a, points_b)
-dist_cheby  = _core.chebyshev_distance(points_a, points_b)
-dist_mink   = _core.minkowski_distance(points_a, points_b, 3.0)
+cube = np.random.rand(12, 256, 256)  # (time, y, x)
+mean_img  = temporal_mean(cube)      # (256, 256)
+std_img   = temporal_std(cube)       # (256, 256)
+median_img = median(cube)
 ```
 
-Each returns an `(N, M)` array of pairwise distances.
-Note: These perform O(N*M) computations; for very large sets consider spatial indexing approaches (not yet implemented here).
+`composite(cube, method="median")` currently routes to `median`.
+
+---
+
+## Spatial Distances
+
+Pairwise distance matrices:
+
+```python
+import numpy as np
+from eo_processor import euclidean_distance, manhattan_distance
+
+A = np.random.rand(100, 8)  # (N, D)
+B = np.random.rand(250, 8)  # (M, D)
+
+dist_e = euclidean_distance(A, B)    # (100, 250)
+dist_l1 = manhattan_distance(A, B)
+```
+
+For large N*M consider spatial indexing or chunking (not implemented).
 
 ---
 
@@ -363,13 +266,13 @@ import dask.array as da
 import xarray as xr
 from eo_processor import ndvi
 
-nir_dask = da.random.random((5000, 5000), chunks=(500, 500))
-red_dask = da.random.random((5000, 5000), chunks=(500, 500))
+nir_dask  = da.random.random((5000, 5000), chunks=(500, 500))
+red_dask  = da.random.random((5000, 5000), chunks=(500, 500))
 
 nir_xr = xr.DataArray(nir_dask, dims=["y", "x"])
 red_xr = xr.DataArray(red_dask, dims=["y", "x"])
 
-ndvi_da = xr.apply_ufunc(
+ndvi_xr = xr.apply_ufunc(
     ndvi,
     nir_xr,
     red_xr,
@@ -377,14 +280,48 @@ ndvi_da = xr.apply_ufunc(
     output_dtypes=[float],
 )
 
-result = ndvi_da.compute()
+result = ndvi_xr.compute()
 ```
+
+---
+
+## CLI Usage
+
+Console script exposed as `eo-processor` (installed via PyPI):
+
+```bash
+# Single index
+eo-processor --index ndvi --nir nir.npy --red red.npy --out ndvi.npy
+
+# Multiple indices (provide necessary bands)
+eo-processor --index ndvi savi ndmi nbr --nir nir.npy --red red.npy --swir1 swir1.npy --swir2 swir2.npy --out-dir outputs/
+
+# Change detection (ΔNBR)
+eo-processor --index delta_nbr \
+  --pre-nir pre/nir.npy --pre-swir2 pre/swir2.npy \
+  --post-nir post/nir.npy --post-swir2 post/swir2.npy \
+  --out outputs/delta_nbr.npy
+
+# List supported indices
+eo-processor --list
+
+# Apply cloud mask (0=cloud, 1=clear)
+eo-processor --index ndvi --nir nir.npy --red red.npy --mask cloudmask.npy --out ndvi_masked.npy
+
+# PNG preview (requires optional Pillow)
+eo-processor --index ndvi --nir nir.npy --red red.npy --out ndvi.npy --png-preview ndvi.png
+```
+
+Selected flags:
+- `--savi-l` soil brightness factor for SAVI.
+- `--clamp MIN MAX` output range clamping.
+- `--allow-missing` skip indices lacking required bands instead of error.
 
 ---
 
 ## Performance
 
-Rust implementations avoid Python-loop overhead and release the GIL. Example benchmark (single-thread baseline):
+Example benchmark (NDVI on a large array):
 
 ```python
 import numpy as np, time
@@ -394,122 +331,6 @@ nir = np.random.rand(5000, 5000)
 red = np.random.rand(5000, 5000)
 
 t0 = time.time()
-
-# (Masking Utilities section appended below)
-
-## Masking Utilities
-
-Rust-accelerated masking functions simplify common EO preprocessing tasks (cloud / shadow filtering, sentinel value removal, NaN normalization) across 1D–4D arrays.
-
-### Functions
-
-| Function | Purpose |
-|----------|---------|
-| `mask_vals(arr, values=None, fill_value=None, nan_to=None)` | Mask exact numeric codes, optionally assign a fill value (default NaN) and/or replace all NaNs with a single value |
-| `replace_nans(arr, value)` | Replace every NaN with `value` (1D–4D supported) |
-| `mask_out_range(arr, min_val=None, max_val=None, fill_value=None)` | Mask values outside a numeric range `[min_val, max_val]` |
-| `mask_invalid(arr, invalid_values, fill_value=None)` | Convenience wrapper to mask a list of sentinel values (e.g., `[0, -9999]`) |
-| `mask_in_range(arr, min_val=None, max_val=None, fill_value=None)` | Mask values inside a numeric range `[min_val, max_val]` |
-| `mask_scl(scl, keep_codes=None, fill_value=None)` | Mask a Sentinel-2 SCL array, keeping specified codes |
-
-Both functions accept any numeric NumPy dtype; inputs are coerced to `float64` internally and the output is always `float64`.
-
-### `mask_vals` Parameters
-
-- `arr`: NumPy array with shape `(time,)`, `(time, band)`, `(time, y, x)`, or `(time, band, y, x)`; also works for pure 1D/2D spectral arrays.
-- `values`: Iterable of numeric codes to mask (exact equality). If `None` or empty, no value masking occurs.
-- `fill_value`: Numeric value to write into masked positions. Defaults to `NaN` when omitted.
-- `nan_to`: After masking, if provided, all `NaN`s (original or newly created) are replaced with this numeric value.
-
-### Examples
-
-```python
-import numpy as np
-from eo_processor import mask_vals, replace_nans
-
-# Mask SCL-style codes (example: 0 = no data, 8 = cloud medium prob, 9 = cloud high prob)
-scl = np.array([[0, 4, 5, 8],
-                [9, 6, 7, 0]], dtype=np.int16)
-
-# Mask 0, 8, 9 -> NaN
-masked = mask_vals(scl, values=[0, 8, 9])
-print(masked)
-# [[nan  4.  5. nan]
-#  [nan  6.  7. nan]]
-
-# Replace NaNs with -9999 (common fill)
-filled = replace_nans(masked, -9999.0)
-print(filled)
-# [[-9999.     4.     5. -9999.]
-#  [-9999.     6.     7. -9999.]]
-
-# Combined: mask 0 → custom fill, then force all NaNs to 0
-arr = np.array([0, 1, np.nan, 2], dtype=np.float64)
-out = mask_vals(arr, values=[0], fill_value=-9999.0, nan_to=0.0)
-# Result: [0.0, 1.0, 0.0, 2.0]
-```
-
-### Typical Sentinel-2 SCL Workflow
-
-```python
-# Keep vegetation (4,5), water (6), bare soil (7), snow/ice (11); mask everything else
-keep_codes = {4, 5, 6, 7, 11}
-scl = np.load("SCL.npy")  # (time, y, x) or (y, x)
-
-# Build list of codes to mask
-all_codes = set(np.unique(scl))
-mask_codes = sorted(all_codes - keep_codes)
-
-clean = mask_vals(scl, values=mask_codes)  # unwanted classes -> NaN
-```
-
-### Range Masking (Manual Composition)
-
-You can emulate a range mask by constructing `values` or using boolean logic prior to calling `mask_vals`:
-
-```python
-ndvi = np.random.rand(100, 100) * 1.2 - 0.2  # simulate NDVI (-0.2 .. 1.0)
-# Mask improbable values outside [-0.1, 0.9]
-invalid_mask = (ndvi < -0.1) | (ndvi > 0.9)
-# Convert boolean mask to codes (True→1 to mask, False→0 keep) then call mask_vals
-invalid_codes = np.where(invalid_mask, 1.0, 0.0)
-ndvi_masked = mask_vals(invalid_codes, values=[1.0], fill_value=np.nan) * ndvi
-```
-
-### Notes
-
-- Exact equality is used for value comparisons (appropriate for integer-coded classes).
-- For floating “near-equality” masking (e.g., values within an epsilon), pre-process with a boolean mask.
-- Outputs remain `float64` even if inputs are integer arrays—important for downstream computations expecting NaNs.
-
-### Convenience Wrappers
-
-`mask_out_range`, `mask_in_range`, `mask_invalid`, and `mask_scl` are provided for common use cases:
-
-```python
-from eo_processor import mask_out_range, mask_invalid
-
-# Mask values outside the plausible NDVI range [-0.2, 1.0]
-ndvi = np.array([-0.5, 0.1, 0.8, 1.2])
-valid_ndvi = mask_out_range(ndvi, min_val=-0.2, max_val=1.0)
-# valid_ndvi -> [nan, 0.1, 0.8, nan]
-
-# Mask common no-data sentinels
-data = np.array([0, 100, 200, -9999])
-clean_data = mask_invalid(data, invalid_values=[0, -9999])
-# clean_data -> [nan, 100., 200., nan]
-
-# Mask values inside a range
-noise = np.array([0.1, 0.8, 0.05, 0.9])
-masked_noise = mask_in_range(noise, min_val=0.0, max_val=0.1)
-# masked_noise -> [nan, 0.8, nan, 0.9]
-
-# Mask a Sentinel-2 SCL array, keeping only vegetation and water
-scl = np.array([4, 5, 6, 8, 9]) # Veg, Veg, Water, Cloud med, Cloud high
-clear_pixels = mask_scl(scl, keep_codes=[4, 5, 6])
-# clear_pixels -> [4., 5., 6., nan, nan]
-```
-
 rust_out = ndvi(nir, red)
 t_rust = time.time() - t0
 
@@ -517,49 +338,111 @@ t0 = time.time()
 numpy_out = (nir - red) / (nir + red)
 t_numpy = time.time() - t0
 
-print(f"Rust: {t_rust:.4f}s  NumPy: {t_numpy:.4f}s  Speedup: {t_numpy/t_rust:.2f}x")
+print(f"Rust: {t_rust:.3f}s  NumPy: {t_numpy:.3f}s  Speedup: {t_numpy/t_rust:.2f}x")
 ```
 
-Observed speedups vary by platform and array size. Always benchmark in your environment.
+Speedups depend on array shape, memory bandwidth, and CPU cores.
+Use the benchmark harness for systematic comparison.
+
+---
+
+## Benchmark Harness
+
+`scripts/benchmark.py` provides grouped tests:
+
+```bash
+# Spectral functions (e.g., NDVI, NDWI, EVI, SAVI, NBR, NDMI, NBR2, GCI)
+python scripts/benchmark.py --group spectral --height 2048 --width 2048
+
+# Temporal (compare Rust vs NumPy)
+python scripts/benchmark.py --group temporal --time 24 --height 1024 --width 1024 --compare-numpy
+
+# Distances
+python scripts/benchmark.py --group distances --points-a 2000 --points-b 2000 --point-dim 8
+
+# All groups; write reports
+python scripts/benchmark.py --group all --compare-numpy --json-out bench.json --md-out bench.md
+```
+
+Key options:
+- `--functions <list>` override group selection.
+- `--compare-numpy` baseline timings (speedup > 1.0 ⇒ Rust faster).
+- `--minkowski-p <p>` set order (p ≥ 1).
+- `--loops`, `--warmups` repetition control.
+- `--json-out`, `--md-out` artifact outputs.
 
 ---
 
 ## Test Coverage
 
-The badge above is generated from `coverage.xml` via `scripts/generate_coverage_badge.py`.
-To regenerate after test changes:
+Regenerate badge after modifying logic/tests:
 
 ```bash
 tox -e coverage
 python scripts/generate_coverage_badge.py coverage.xml coverage-badge.svg
 ```
 
+Ensure the badge is committed if coverage changes materially.
+
 ---
 
 ## Contributing
 
-See `CONTRIBUTING.md` and `AGENTS.md` for guidelines (workflows, security posture, and pre-commit checklist).
-Typical steps:
+Follow repository guidelines (`AGENTS.md`, copilot instructions). Checklist before proposing a PR:
 
-```bash
-cargo fmt
-cargo clippy --all-targets -- -D warnings
-pytest
-tox -e coverage
+1. Implement Rust function(s) (no `unsafe`)
+2. Register via `wrap_pyfunction!` in `src/lib.rs`
+3. Export in `python/eo_processor/__init__.py`
+4. Add type stubs in `python/eo_processor/__init__.pyi`
+5. Add tests (`tests/test_<feature>.py`) including edge cases & NaN handling
+6. Update README (API Summary, examples, formulas)
+7. Run:
+   - `cargo fmt`
+   - `cargo clippy -- -D warnings`
+   - `cargo test` (if Rust tests)
+   - `pytest`
+   - `tox -e coverage`
+   - `ruff` and `mypy` (if configured)
+8. Update version if public API added (minor bump)
+9. Regenerate coverage badge if changed
+10. Confirm no secrets / large binaries staged
+
+Commit message pattern:
+
+```
+<type>(scope): concise summary
+
+Optional rationale, benchmarks, references
 ```
 
-Add new Rust functions → export via `#[pyfunction]` → register in `src/lib.rs` → expose in `python/eo_processor/__init__.py` → add type stubs → add tests → update README.
+Types: feat, fix, perf, docs, test, chore, build, ci
+
+Example:
+```
+feat(indices): add Green Chlorophyll Index (GCI)
+
+Implements 1D/2D dispatch, tests, docs, benchmark entry.
+```
+
+---
+
+## Semantic Versioning
+
+- Patch: Internal fixes, refactors, docs only
+- Minor: New functions (backward-compatible)
+- Major: Breaking changes (signature changes, removals)
 
 ---
 
 ## Roadmap (Indicative)
 
-- Additional spectral indices (SAVI, NBR, GCI)
-- Sliding window / neighborhood stats
-- Direct distance exports at top-level
-- Distributed temporal
- composites (chunk-aware)
-- Optional GPU acceleration feasibility study
+- Additional spectral indices (future: NBR derivatives, custom moisture composites)
+- Sliding window / neighborhood statistics (mean, variance)
+- Optional multithread strategies for very large temporal cubes
+- Expanded masking (boolean predicate composition)
+- Extended change metrics (ΔNDMI, fractional vegetation cover)
+
+(Items requiring strategic design will request human review before implementation.)
 
 ---
 
@@ -567,10 +450,10 @@ Add new Rust functions → export via `#[pyfunction]` → register in `src/lib.r
 
 ```bibtex
 @software{eo_processor,
-  title = {eo-processor: High-performance Rust UDFs for Earth Observation},
-  author = {Ben Smith},
-  year = {2025},
-  url = {https://github.com/BnJam/eo-processor}
+  title   = {eo-processor: High-performance Rust UDFs for Earth Observation},
+  author  = {Ben Smith},
+  year    = {2025},
+  url     = {https://github.com/BnJam/eo-processor}
 }
 ```
 
@@ -578,67 +461,45 @@ Add new Rust functions → export via `#[pyfunction]` → register in `src/lib.r
 
 ## License
 
-MIT License. See `LICENSE`.
+MIT License – see `LICENSE`.
 
 ---
 
 ## Disclaimer
 
-This library focuses on computational primitives; it does not handle:
-- Cloud masking
-- Sensor-specific calibration
-- CRS reprojection
-- I/O of remote datasets
+Core library focuses on computational primitives. It does NOT perform:
+- Sensor-specific radiometric calibration
+- Atmospheric correction
+- CRS reprojection / spatial indexing
+- Cloud/shadow detection algorithms beyond simple masking
+- Data acquisition / I/O orchestration
 
-Combine with domain tools (e.g., rasterio, xarray, dask-geopandas) for complete EO pipelines.
+Integrate with domain tools (rasterio, xarray, dask, geopandas) for full pipelines.
 
 ---
 
 ## Support
 
-Open issues for bugs or enhancements. Feature proposals with benchmarks and EO relevance are welcome.
+Open issues for bugs or enhancements. Provide:
+- Reproducible snippet
+- Input shapes / dtypes
+- Expected vs actual output
+- Benchmark data (if performance-related)
 
 ---
 
-## Benchmark Harness
+## Version Note
 
-A minimal benchmarking harness is provided at `scripts/benchmark.py` to measure performance of spectral, temporal, and spatial distance functions. The spectral group currently includes: ndvi, ndwi, evi, savi, nbr, ndmi, nbr2, gci, and normalized_difference.
-
-Basic usage (spectral functions on a 2048x2048 image):
-```bash
-python scripts/benchmark.py --group spectral --height 2048 --width 2048
-```
-
-Compare Rust vs pure NumPy baselines (supported for spectral & temporal functions):
-```bash
-python scripts/benchmark.py --group temporal --time 24 --height 1024 --width 1024 --compare-numpy
-```
-
-Distance benchmarks (pairwise matrix; O(N*M)):
-```bash
-python scripts/benchmark.py --group distances --points-a 2000 --points-b 2000 --point-dim 8
-```
-
-Write JSON and Markdown reports:
-```bash
-python scripts/benchmark.py --group all --compare-numpy --json-out bench.json --md-out bench.md
-```
-
-Key options:
-- `--group {spectral|temporal|distances|all}` selects predefined function sets.
-- `--functions <names...>` overrides group selection with explicit functions.
-- `--compare-numpy` enables baseline timing (speedup > 1.0 indicates Rust faster).
-- `--loops / --warmups` control timing repetitions.
-- `--json-out` writes structured results (including baseline metrics when enabled).
-- `--md-out` writes a Markdown table suitable for PRs / reports.
-- `--quiet` suppresses console table output (still writes artifacts).
-- `--minkowski-p` sets the norm order for Minkowski distance (must be ≥ 1.0).
-
-Example Markdown table excerpt (columns):
-| Function | Mean (ms) | StDev (ms) | Min (ms) | Max (ms) | Elements | Throughput (M elems/s) | Speedup vs NumPy | Shape |
-
-> Speedup vs NumPy = (NumPy mean time / Rust mean time); values > 1 indicate Rust is faster.
+`pyproject.toml` currently lists version `0.5.0`.
+If `__version__` in Python exports lags (e.g. shows `0.4.0`), synchronize by updating `python/eo_processor/__init__.py` and stubs, then follow the version bump checklist.
 
 ---
 
-Happy processing!
+## Acknowledgements
+
+Built with PyO3, NumPy, ndarray, and Rayon.
+Thanks to the scientific EO community for standardized index formulations.
+
+---
+
+Enjoy fast, reproducible Earth Observation processing!
