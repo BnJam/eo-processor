@@ -371,32 +371,48 @@ def test_png_preview_all_nan(tmp_path):
     mask = make_band(tmp_path, "mask", [0, 0, 0])  # all masked -> all NaN
     out_path = tmp_path / "ndvi_all_nan.npy"
     png_path = tmp_path / "ndvi_all_nan.png"
-    code = cli([
-        "--index", "ndvi",
-        "--nir", nir,
-        "--red", red,
-        "--mask", mask,
-        "--out", str(out_path),
-        "--png-preview", str(png_path),
-    ])
+    code = cli(
+        [
+            "--index",
+            "ndvi",
+            "--nir",
+            nir,
+            "--red",
+            red,
+            "--mask",
+            mask,
+            "--out",
+            str(out_path),
+            "--png-preview",
+            str(png_path),
+        ]
+    )
     assert code == 0
     assert out_path.exists()
     # PNG should not be created because data are all NaN
     assert not png_path.exists()
+
 
 def test_missing_file_handling(tmp_path):
     # Provide a non-existent band path; expect exit code 1 and no output file
     nir = make_band(tmp_path, "nir", [0.5, 0.6])
     missing_red = str(tmp_path / "does_not_exist.npy")
     out_path = tmp_path / "ndvi_missing.npy"
-    code = cli([
-        "--index", "ndvi",
-        "--nir", nir,
-        "--red", missing_red,
-        "--out", str(out_path),
-    ])
+    code = cli(
+        [
+            "--index",
+            "ndvi",
+            "--nir",
+            nir,
+            "--red",
+            missing_red,
+            "--out",
+            str(out_path),
+        ]
+    )
     assert code == 1
     assert not out_path.exists()
+
 
 if __name__ == "__main__":  # pragma: no cover
     pytest.main([__file__])

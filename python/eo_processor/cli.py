@@ -35,7 +35,7 @@ import argparse
 import os
 import sys
 from dataclasses import dataclass
-from typing import Callable, Dict, Iterable, List, Mapping, Optional
+from typing import Dict, Iterable, List, Mapping, Optional
 
 import numpy as np
 
@@ -55,7 +55,18 @@ from . import (
 )
 
 
-IndexFunction = Callable[..., np.ndarray]
+from numpy.typing import NDArray
+from typing import Protocol, Any
+
+# Public numeric array type (inputs may be any numeric dtype; outputs coerced to float64)
+NumericArray = NDArray[np.float64]
+
+
+class IndexFunctionProtocol(Protocol):
+    def __call__(self, *args: Any, **kwargs: Any) -> NumericArray: ...
+
+
+IndexFunction = IndexFunctionProtocol
 
 
 @dataclass(frozen=True)
@@ -65,8 +76,10 @@ class IndexSpec:
     required_bands: List[str]
     description: str
 
-    def missing_bands(self, provided: Mapping[str, np.ndarray]) -> List[str]:
+    def missing_bands(self, provided: Mapping[str, NumericArray]) -> List[str]:
         return [b for b in self.required_bands if b not in provided]
+
+    # (Method moved into class definition above with annotations)
 
 
 # Registry of supported indices
@@ -189,14 +202,14 @@ def build_parser() -> argparse.ArgumentParser:
     return p
 
 
-def list_indices():
+def list_indices() -> None:
     print("Supported indices:")
     for spec in INDEX_SPECS.values():
         bands = ",".join(spec.required_bands)
         print(f"  {spec.name:15} {spec.description:35} bands=[{bands}]")
 
 
-def load_npy(path: str) -> np.ndarray:
+def load_npy(path: str) -> NumericArray:
     if not path:
         raise ValueError("Empty path.")
     if not os.path.isfile(path):
@@ -207,13 +220,15 @@ def load_npy(path: str) -> np.ndarray:
     return arr
 
 
-def apply_mask(arr: np.ndarray, mask: np.ndarray) -> np.ndarray:
+def apply_mask(arr: NumericArray, mask: NumericArray) -> NumericArray:
     if arr.shape != mask.shape:
         raise ValueError(f"Mask shape {mask.shape} != array shape {arr.shape}")
     return np.where(mask == 0, np.nan, arr)
 
 
-def save_npy(path: str, arr: np.ndarray, dtype: str, clamp: Optional[List[float]]):
+def save_npy(
+    path: str, arr: NumericArray, dtype: str, clamp: Optional[List[float]]
+) -> None:
     out_arr = arr
     if clamp:
         lo, hi = clamp
@@ -223,7 +238,7 @@ def save_npy(path: str, arr: np.ndarray, dtype: str, clamp: Optional[List[float]
     np.save(path, out_arr)
 
 
-def save_png(path: str, arr: np.ndarray, clamp: Optional[List[float]]):
+def save_png(path: str, arr: NumericArray, clamp: Optional[List[float]]) -> None:
     try:
         from PIL import Image
     except Exception:
@@ -249,8 +264,8 @@ def save_png(path: str, arr: np.ndarray, clamp: Optional[List[float]]):
 
 
 def compute(
-    spec: IndexSpec, bands: Mapping[str, np.ndarray], savi_l: float
-) -> np.ndarray:
+    spec: IndexSpec, bands: Mapping[str, NumericArray], savi_l: float
+) -> NumericArray:
     # Dispatch based on spec.name (explicit to keep signature clarity)
     name = spec.name
     f = spec.func
@@ -322,7 +337,7 @@ def cli(argv: Optional[List[str]] = None) -> int:
         parser.error("--png-preview only valid for a single index")
 
     # Load mask (optional)
-    mask_arr: Optional[np.ndarray] = None
+    mask_arr: Optional[NumericArray] = None
     if args.mask:
         try:
             mask_arr = load_npy(args.mask)
@@ -353,7 +368,7 @@ def cli(argv: Optional[List[str]] = None) -> int:
     except KeyError as e:
         print(f"[ERROR] Unsupported index '{e.args[0]}'", file=sys.stderr)
         return 1
-    loaded: Dict[str, np.ndarray] = {}
+    loaded: Dict[str, NumericArray] = {}
 
     for band in required:
         path = band_path_map.get(band)
@@ -375,7 +390,7 @@ def cli(argv: Optional[List[str]] = None) -> int:
             )
             return 1
 
-    results: Dict[str, np.ndarray] = {}
+    results: Dict[str, NumericArray] = {}
     for idx in indices:
         spec = INDEX_SPECS.get(idx)
         if not spec:
