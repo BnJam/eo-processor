@@ -1,13 +1,13 @@
 """Type stubs for eo_processor"""
 
-from typing import Literal
+from typing import Literal, Optional, Sequence
 import numpy as np
 from numpy.typing import NDArray
 
 # Inputs accept any numeric dtype; implementation coerces to float64 internally.
 NumericArray = NDArray[np.generic]
 
-__version__: Literal["0.3.0"]
+__version__: Literal["0.4.0"]
 
 def normalized_difference(a: NumericArray, b: NumericArray) -> NDArray[np.float64]: ...
 def ndvi(nir: NumericArray, red: NumericArray) -> NDArray[np.float64]: ...
@@ -55,5 +55,12 @@ def chebyshev_distance(
 def minkowski_distance(
     points_a: NumericArray, points_b: NumericArray, p: float
 ) -> NDArray[np.float64]: ...
+def mask_vals(
+    arr: NumericArray,
+    values: Optional[Sequence[float]] = ...,
+    fill_value: Optional[float] = ...,
+    nan_to: Optional[float] = ...,
+) -> NDArray[np.float64]: ...
+def replace_nans(arr: NumericArray, value: float) -> NDArray[np.float64]: ...
 
 # Raises ValueError if p < 1.0

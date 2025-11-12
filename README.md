@@ -394,6 +394,95 @@ nir = np.random.rand(5000, 5000)
 red = np.random.rand(5000, 5000)
 
 t0 = time.time()
+
+# (Masking Utilities section appended below)
+
+## Masking Utilities
+
+Rust-accelerated masking functions simplify common EO preprocessing tasks (cloud / shadow filtering, sentinel value removal, NaN normalization) across 1D–4D arrays.
+
+### Functions
+
+| Function | Purpose |
+|----------|---------|
+| `mask_vals(arr, values=None, fill_value=None, nan_to=None)` | Mask exact numeric codes, optionally assign a fill value (default NaN) and/or replace all NaNs with a single value |
+| `replace_nans(arr, value)` | Replace every NaN with `value` (1D–4D supported) |
+
+Both functions accept any numeric NumPy dtype; inputs are coerced to `float64` internally and the output is always `float64`.
+
+### `mask_vals` Parameters
+
+- `arr`: NumPy array with shape `(time,)`, `(time, band)`, `(time, y, x)`, or `(time, band, y, x)`; also works for pure 1D/2D spectral arrays.
+- `values`: Iterable of numeric codes to mask (exact equality). If `None` or empty, no value masking occurs.
+- `fill_value`: Numeric value to write into masked positions. Defaults to `NaN` when omitted.
+- `nan_to`: After masking, if provided, all `NaN`s (original or newly created) are replaced with this numeric value.
+
+### Examples
+
+```python
+import numpy as np
+from eo_processor import mask_vals, replace_nans
+
+# Mask SCL-style codes (example: 0 = no data, 8 = cloud medium prob, 9 = cloud high prob)
+scl = np.array([[0, 4, 5, 8],
+                [9, 6, 7, 0]], dtype=np.int16)
+
+# Mask 0, 8, 9 -> NaN
+masked = mask_vals(scl, values=[0, 8, 9])
+print(masked)
+# [[nan  4.  5. nan]
+#  [nan  6.  7. nan]]
+
+# Replace NaNs with -9999 (common fill)
+filled = replace_nans(masked, -9999.0)
+print(filled)
+# [[-9999.     4.     5. -9999.]
+#  [-9999.     6.     7. -9999.]]
+
+# Combined: mask 0 → custom fill, then force all NaNs to 0
+arr = np.array([0, 1, np.nan, 2], dtype=np.float64)
+out = mask_vals(arr, values=[0], fill_value=-9999.0, nan_to=0.0)
+# Result: [0.0, 1.0, 0.0, 2.0]
+```
+
+### Typical Sentinel-2 SCL Workflow
+
+```python
+# Keep vegetation (4,5), water (6), bare soil (7), snow/ice (11); mask everything else
+keep_codes = {4, 5, 6, 7, 11}
+scl = np.load("SCL.npy")  # (time, y, x) or (y, x)
+
+# Build list of codes to mask
+all_codes = set(np.unique(scl))
+mask_codes = sorted(all_codes - keep_codes)
+
+clean = mask_vals(scl, values=mask_codes)  # unwanted classes -> NaN
+```
+
+### Range Masking (Manual Composition)
+
+You can emulate a range mask by constructing `values` or using boolean logic prior to calling `mask_vals`:
+
+```python
+ndvi = np.random.rand(100, 100) * 1.2 - 0.2  # simulate NDVI (-0.2 .. 1.0)
+# Mask improbable values outside [-0.1, 0.9]
+invalid_mask = (ndvi < -0.1) | (ndvi > 0.9)
+# Convert boolean mask to codes (True→1 to mask, False→0 keep) then call mask_vals
+invalid_codes = np.where(invalid_mask, 1.0, 0.0)
+ndvi_masked = mask_vals(invalid_codes, values=[1.0], fill_value=np.nan) * ndvi
+```
+
+### Notes
+
+- Exact equality is used for value comparisons (appropriate for integer-coded classes).
+- For floating “near-equality” masking (e.g., values within an epsilon), pre-process with a boolean mask.
+- Outputs remain `float64` even if inputs are integer arrays—important for downstream computations expecting NaNs.
+
+Future convenience wrappers (not yet implemented):
+- `mask_scl(scl, keep_codes=[4,5,6,7,11], fill_value=np.nan)`
+- `mask_range(arr, min=None, max=None, fill_value=np.nan)`
+- `mask_invalid(arr, invalid=[0], fill_value=np.nan)`
+- `mask_cloud_probability(prob_arr, threshold=0.5, fill_value=np.nan)`
 rust_out = ndvi(nir, red)
 t_rust = time.time() - t0
 

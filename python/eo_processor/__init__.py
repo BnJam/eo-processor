@@ -28,6 +28,8 @@ from ._core import (
     minkowski_distance as _minkowski_distance,
     delta_ndvi as _delta_ndvi,
     delta_nbr as _delta_nbr,
+    mask_vals as _mask_vals,
+    replace_nans as _replace_nans,
 )
 
 
@@ -54,6 +56,8 @@ __all__ = [
     "manhattan_distance",
     "chebyshev_distance",
     "minkowski_distance",
+    "mask_vals",
+    "replace_nans",
 ]
 
 
@@ -379,3 +383,50 @@ def minkowski_distance(points_a, points_b, p):
         If p < 1.0 (propagated from the Rust implementation).
     """
     return _minkowski_distance(points_a, points_b, p)
+
+
+def mask_vals(arr, values=None, fill_value=None, nan_to=None):
+    """
+    Mask specified values (exact equality) and optionally replace NaNs.
+
+    Parameters
+    ----------
+    arr : numpy.ndarray (1D–4D)
+        Input array; any numeric dtype accepted (coerced to float64 internally).
+    values : sequence, optional
+        Iterable of numeric codes to mask. If None, no value masking is performed.
+    fill_value : float, optional
+        Value to write for masked codes. Defaults to NaN when None.
+    nan_to : float, optional
+        If provided, all NaNs (original or created by masking) are replaced with this value
+        after masking.
+
+    Returns
+    -------
+    numpy.ndarray (float64)
+        Masked array preserving original shape.
+
+    Notes
+    -----
+    This is a thin pass-through to the Rust implementation; see README “Masking Utilities”.
+    """
+    return _mask_vals(arr, values=values, fill_value=fill_value, nan_to=nan_to)
+
+
+def replace_nans(arr, value):
+    """
+    Replace all NaNs in `arr` with `value`.
+
+    Parameters
+    ----------
+    arr : numpy.ndarray
+        Input array (1D–4D supported).
+    value : float
+        Replacement for every NaN.
+
+    Returns
+    -------
+    numpy.ndarray
+        Array with NaNs replaced.
+    """
+    return _replace_nans(arr, value)
