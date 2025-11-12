@@ -143,7 +143,8 @@ fn temporal_std_1d(arr: PyReadonlyArray1<f64>, skip_na: bool) -> f64 {
         return f64::NAN;
     }
     let mean = series.iter().sum::<f64>() / series.len() as f64;
-    let variance = series.iter().map(|v| (v - mean).powi(2)).sum::<f64>() / (series.len() - 1) as f64;
+    let variance =
+        series.iter().map(|v| (v - mean).powi(2)).sum::<f64>() / (series.len() - 1) as f64;
     variance.sqrt()
 }
 
@@ -167,7 +168,8 @@ fn temporal_std_2d<'py>(
             continue;
         }
         let mean = series.iter().sum::<f64>() / series.len() as f64;
-        let variance = series.iter().map(|v| (v - mean).powi(2)).sum::<f64>() / (series.len() - 1) as f64;
+        let variance =
+            series.iter().map(|v| (v - mean).powi(2)).sum::<f64>() / (series.len() - 1) as f64;
         result[i] = variance.sqrt();
     }
 
@@ -197,7 +199,8 @@ fn temporal_std_3d<'py>(
                 return;
             }
             let mean = series.iter().sum::<f64>() / series.len() as f64;
-            let variance = series.iter().map(|v| (v - mean).powi(2)).sum::<f64>() / (series.len() - 1) as f64;
+            let variance =
+                series.iter().map(|v| (v - mean).powi(2)).sum::<f64>() / (series.len() - 1) as f64;
             *pixel = variance.sqrt();
         });
 
@@ -227,7 +230,8 @@ fn temporal_std_4d<'py>(
                 return;
             }
             let mean = series.iter().sum::<f64>() / series.len() as f64;
-            let variance = series.iter().map(|v| (v - mean).powi(2)).sum::<f64>() / (series.len() - 1) as f64;
+            let variance =
+                series.iter().map(|v| (v - mean).powi(2)).sum::<f64>() / (series.len() - 1) as f64;
             *pixel = variance.sqrt();
         });
 

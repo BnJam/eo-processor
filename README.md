@@ -407,6 +407,10 @@ Rust-accelerated masking functions simplify common EO preprocessing tasks (cloud
 |----------|---------|
 | `mask_vals(arr, values=None, fill_value=None, nan_to=None)` | Mask exact numeric codes, optionally assign a fill value (default NaN) and/or replace all NaNs with a single value |
 | `replace_nans(arr, value)` | Replace every NaN with `value` (1D–4D supported) |
+| `mask_out_range(arr, min_val=None, max_val=None, fill_value=None)` | Mask values outside a numeric range `[min_val, max_val]` |
+| `mask_invalid(arr, invalid_values, fill_value=None)` | Convenience wrapper to mask a list of sentinel values (e.g., `[0, -9999]`) |
+| `mask_in_range(arr, min_val=None, max_val=None, fill_value=None)` | Mask values inside a numeric range `[min_val, max_val]` |
+| `mask_scl(scl, keep_codes=None, fill_value=None)` | Mask a Sentinel-2 SCL array, keeping specified codes |
 
 Both functions accept any numeric NumPy dtype; inputs are coerced to `float64` internally and the output is always `float64`.
 
@@ -478,11 +482,34 @@ ndvi_masked = mask_vals(invalid_codes, values=[1.0], fill_value=np.nan) * ndvi
 - For floating “near-equality” masking (e.g., values within an epsilon), pre-process with a boolean mask.
 - Outputs remain `float64` even if inputs are integer arrays—important for downstream computations expecting NaNs.
 
-Future convenience wrappers (not yet implemented):
-- `mask_scl(scl, keep_codes=[4,5,6,7,11], fill_value=np.nan)`
-- `mask_range(arr, min=None, max=None, fill_value=np.nan)`
-- `mask_invalid(arr, invalid=[0], fill_value=np.nan)`
-- `mask_cloud_probability(prob_arr, threshold=0.5, fill_value=np.nan)`
+### Convenience Wrappers
+
+`mask_out_range`, `mask_in_range`, `mask_invalid`, and `mask_scl` are provided for common use cases:
+
+```python
+from eo_processor import mask_out_range, mask_invalid
+
+# Mask values outside the plausible NDVI range [-0.2, 1.0]
+ndvi = np.array([-0.5, 0.1, 0.8, 1.2])
+valid_ndvi = mask_out_range(ndvi, min_val=-0.2, max_val=1.0)
+# valid_ndvi -> [nan, 0.1, 0.8, nan]
+
+# Mask common no-data sentinels
+data = np.array([0, 100, 200, -9999])
+clean_data = mask_invalid(data, invalid_values=[0, -9999])
+# clean_data -> [nan, 100., 200., nan]
+
+# Mask values inside a range
+noise = np.array([0.1, 0.8, 0.05, 0.9])
+masked_noise = mask_in_range(noise, min_val=0.0, max_val=0.1)
+# masked_noise -> [nan, 0.8, nan, 0.9]
+
+# Mask a Sentinel-2 SCL array, keeping only vegetation and water
+scl = np.array([4, 5, 6, 8, 9]) # Veg, Veg, Water, Cloud med, Cloud high
+clear_pixels = mask_scl(scl, keep_codes=[4, 5, 6])
+# clear_pixels -> [4., 5., 6., nan, nan]
+```
+
 rust_out = ndvi(nir, red)
 t_rust = time.time() - t0
 
