@@ -407,6 +407,8 @@ Rust-accelerated masking functions simplify common EO preprocessing tasks (cloud
 |----------|---------|
 | `mask_vals(arr, values=None, fill_value=None, nan_to=None)` | Mask exact numeric codes, optionally assign a fill value (default NaN) and/or replace all NaNs with a single value |
 | `replace_nans(arr, value)` | Replace every NaN with `value` (1D–4D supported) |
+| `mask_out_range(arr, min_val=None, max_val=None, fill_value=None)` | Mask values outside a numeric range `[min_val, max_val]` |
+| `mask_invalid(arr, invalid_values, fill_value=None)` | Convenience wrapper to mask a list of sentinel values (e.g., `[0, -9999]`) |
 
 Both functions accept any numeric NumPy dtype; inputs are coerced to `float64` internally and the output is always `float64`.
 
@@ -480,9 +482,26 @@ ndvi_masked = mask_vals(invalid_codes, values=[1.0], fill_value=np.nan) * ndvi
 
 Future convenience wrappers (not yet implemented):
 - `mask_scl(scl, keep_codes=[4,5,6,7,11], fill_value=np.nan)`
-- `mask_range(arr, min=None, max=None, fill_value=np.nan)`
-- `mask_invalid(arr, invalid=[0], fill_value=np.nan)`
 - `mask_cloud_probability(prob_arr, threshold=0.5, fill_value=np.nan)`
+
+### Convenience Wrappers
+
+`mask_out_range` and `mask_invalid` are provided for common use cases:
+
+```python
+from eo_processor import mask_out_range, mask_invalid
+
+# Mask values outside the plausible NDVI range [-0.2, 1.0]
+ndvi = np.array([-0.5, 0.1, 0.8, 1.2])
+valid_ndvi = mask_out_range(ndvi, min_val=-0.2, max_val=1.0)
+# valid_ndvi -> [nan, 0.1, 0.8, nan]
+
+# Mask common no-data sentinels
+data = np.array([0, 100, 200, -9999])
+clean_data = mask_invalid(data, invalid_values=[0, -9999])
+# clean_data -> [nan, 100., 200., nan]
+```
+
 rust_out = ndvi(nir, red)
 t_rust = time.time() - t0
 

@@ -30,6 +30,8 @@ from ._core import (
     delta_nbr as _delta_nbr,
     mask_vals as _mask_vals,
     replace_nans as _replace_nans,
+    mask_out_range as _mask_out_range,
+    mask_invalid as _mask_invalid,
 )
 
 
@@ -58,6 +60,8 @@ __all__ = [
     "minkowski_distance",
     "mask_vals",
     "replace_nans",
+    "mask_out_range",
+    "mask_invalid",
 ]
 
 
@@ -430,3 +434,47 @@ def replace_nans(arr, value):
         Array with NaNs replaced.
     """
     return _replace_nans(arr, value)
+
+
+def mask_out_range(arr, min_val=None, max_val=None, fill_value=None):
+    """
+    Mask values outside a specified numeric range [min_val, max_val].
+
+    Parameters
+    ----------
+    arr : numpy.ndarray
+        Input array (1D–4D).
+    min_val : float, optional
+        Minimum valid value (inclusive).
+    max_val : float, optional
+        Maximum valid value (inclusive).
+    fill_value : float, optional
+        Value for masked positions (default NaN).
+
+    Returns
+    -------
+    numpy.ndarray
+        Masked array.
+    """
+    return _mask_out_range(arr, min=min_val, max=max_val, fill_value=fill_value)
+
+
+def mask_invalid(arr, invalid_values, fill_value=None):
+    """
+    Mask a list of common invalid sentinel values.
+
+    Parameters
+    ----------
+    arr : numpy.ndarray
+        Input array.
+    invalid_values : sequence
+        List of numeric codes to mask.
+    fill_value : float, optional
+        Value for masked positions (default NaN).
+
+    Returns
+    -------
+    numpy.ndarray
+        Masked array.
+    """
+    return _mask_invalid(arr, invalid_values=invalid_values, fill_value=fill_value)

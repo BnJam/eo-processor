@@ -62,5 +62,16 @@ def mask_vals(
     nan_to: Optional[float] = ...,
 ) -> NDArray[np.float64]: ...
 def replace_nans(arr: NumericArray, value: float) -> NDArray[np.float64]: ...
+def mask_out_range(
+    arr: NumericArray,
+    min_val: Optional[float] = ...,
+    max_val: Optional[float] = ...,
+    fill_value: Optional[float] = ...,
+) -> NDArray[np.float64]: ...
+def mask_invalid(
+    arr: NumericArray,
+    invalid_values: Sequence[float],
+    fill_value: Optional[float] = ...,
+) -> NDArray[np.float64]: ...
 
 # Raises ValueError if p < 1.0
