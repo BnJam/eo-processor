@@ -403,6 +403,7 @@ def run_single_benchmark(
     for _ in range(warmups):
         call()
 
+    baseline_kind: Optional[str] = None
     baseline_timings: List[float] = []
     supports_baseline = False
     baseline_fn: Optional[Callable[[], Any]] = None
@@ -612,7 +613,7 @@ def run_single_benchmark(
         baseline_max_s=baseline_max,
         speedup_vs_numpy=speedup,
         baseline_throughput_elems=baseline_throughput,
-         baseline_kind=baseline_kind,
+        baseline_kind=baseline_kind,
     )
 
 
