@@ -10,32 +10,86 @@ in the Rust layer for consistent and stable computation.
 """
 
 from ._core import (
-    normalized_difference as _normalized_difference,
-    ndvi as _ndvi,
-    ndwi as _ndwi,
-    savi as _savi,
-    nbr as _nbr,
-    ndmi as _ndmi,
-    nbr2 as _nbr2,
-    gci as _gci,
-    enhanced_vegetation_index as _enhanced_vegetation_index,
-    median as _median,
-    temporal_mean as _temporal_mean,
-    temporal_std as _temporal_std,
-    euclidean_distance as _euclidean_distance,
-    manhattan_distance as _manhattan_distance,
     chebyshev_distance as _chebyshev_distance,
-    minkowski_distance as _minkowski_distance,
-    delta_ndvi as _delta_ndvi,
+)
+from ._core import (
     delta_nbr as _delta_nbr,
-    mask_vals as _mask_vals,
-    replace_nans as _replace_nans,
-    mask_out_range as _mask_out_range,
-    mask_invalid as _mask_invalid,
+)
+from ._core import (
+    delta_ndvi as _delta_ndvi,
+)
+from ._core import (
+    enhanced_vegetation_index as _enhanced_vegetation_index,
+)
+from ._core import (
+    euclidean_distance as _euclidean_distance,
+)
+from ._core import (
+    gci as _gci,
+)
+from ._core import (
+    manhattan_distance as _manhattan_distance,
+)
+from ._core import (
     mask_in_range as _mask_in_range,
+)
+from ._core import (
+    mask_invalid as _mask_invalid,
+)
+from ._core import (
+    mask_out_range as _mask_out_range,
+)
+from ._core import (
     mask_scl as _mask_scl,
 )
-
+from ._core import (
+    mask_vals as _mask_vals,
+)
+from ._core import (
+    median as _median,
+)
+from ._core import (
+    minkowski_distance as _minkowski_distance,
+)
+from ._core import (
+    moving_average_temporal as _moving_average_temporal,
+)
+from ._core import (
+    moving_average_temporal_stride as _moving_average_temporal_stride,
+)
+from ._core import (
+    nbr as _nbr,
+)
+from ._core import (
+    nbr2 as _nbr2,
+)
+from ._core import (
+    ndmi as _ndmi,
+)
+from ._core import (
+    ndvi as _ndvi,
+)
+from ._core import (
+    ndwi as _ndwi,
+)
+from ._core import (
+    normalized_difference as _normalized_difference,
+)
+from ._core import (
+    pixelwise_transform as _pixelwise_transform,
+)
+from ._core import (
+    replace_nans as _replace_nans,
+)
+from ._core import (
+    savi as _savi,
+)
+from ._core import (
+    temporal_mean as _temporal_mean,
+)
+from ._core import (
+    temporal_std as _temporal_std,
+)
 
 __version__ = "0.6.0"
 
@@ -66,6 +120,9 @@ __all__ = [
     "mask_invalid",
     "mask_in_range",
     "mask_scl",
+    "moving_average_temporal",
+    "moving_average_temporal_stride",
+    "pixelwise_transform",
 ]
 
 
@@ -573,3 +630,85 @@ def mask_scl(scl, keep_codes=None, fill_value=None):
         Masked SCL array.
     """
     return _mask_scl(scl, keep_codes=keep_codes, fill_value=fill_value)
+
+
+def moving_average_temporal(arr, window, skip_na=True, mode="same"):
+    """
+    Sliding window mean along leading time axis of a 1D–4D time-first array.
+
+    Parameters
+    ----------
+    arr : numpy.ndarray
+        Time-first array (T,...).
+    window : int
+        Window size (>=1).
+    skip_na : bool, default True
+        Exclude NaNs from window mean; if all NaN -> NaN.
+    mode : {"same","valid"}, default "same"
+        "same": output length equals T (edge windows shrink).
+        "valid": only full windows; output length = T - window + 1.
+
+    Returns
+    -------
+    numpy.ndarray
+    """
+    return _moving_average_temporal(arr, window, skip_na=skip_na, mode=mode)
+
+
+def moving_average_temporal_stride(arr, window, stride, skip_na=True, mode="same"):
+    """
+    Stride-based sliding window mean along leading time axis.
+
+    Computes moving_average_temporal then samples every `stride` steps
+    along the time axis to reduce temporal resolution.
+
+    Parameters
+    ----------
+    arr : numpy.ndarray
+        Time-first array (T,...).
+    window : int
+        Window size (>=1).
+    stride : int
+        Sampling interval along output time axis (>=1).
+    skip_na : bool, default True
+        Exclude NaNs from window mean; if all NaN -> NaN.
+    mode : {"same","valid"}, default "same"
+        "same": output length equals T (variable-size edges).
+        "valid": only full windows; base length = T - window + 1.
+
+    Returns
+    -------
+    numpy.ndarray
+        Downsampled moving average with time dimension approximately
+        ceil(base_length / stride).
+    """
+    return _moving_average_temporal_stride(
+        arr, window, stride, skip_na=skip_na, mode=mode
+    )
+
+
+def pixelwise_transform(arr, scale=1.0, offset=0.0, clamp_min=None, clamp_max=None):
+    """
+    Apply linear transform scale*arr + offset with optional clamping per element.
+
+    NaNs propagate unchanged.
+
+    Parameters
+    ----------
+    arr : numpy.ndarray
+    scale : float
+    offset : float
+    clamp_min : float or None
+    clamp_max : float or None
+
+    Returns
+    -------
+    numpy.ndarray
+    """
+    return _pixelwise_transform(
+        arr,
+        scale=scale,
+        offset=offset,
+        clamp_min=clamp_min,
+        clamp_max=clamp_max,
+    )

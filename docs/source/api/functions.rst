@@ -17,6 +17,8 @@ Unless otherwise noted:
   yet part of the formal contract.
 - Temporal reducers (`temporal_mean`, `temporal_std`, `median`, `composite`) support 1D–4D with
   time-first layout.
+- Advanced temporal processes (`moving_average_temporal`, `moving_average_temporal_stride`) and
+  `pixelwise_transform` operate on 1D–4D time-first arrays.
 - Masking utilities accept 1D–4D numeric arrays.
 - Distance metrics operate on 2D point matrices `(N, D)` and `(M, D)`.
 
@@ -58,6 +60,16 @@ Temporal Reducers & Compositing
    functions/temporal_std
    functions/median
    functions/composite
+
+Advanced Temporal & Pixelwise Processes
+---------------------------------------
+.. toctree::
+   :maxdepth: 1
+   :titlesonly:
+
+   functions/moving_average_temporal
+   functions/moving_average_temporal_stride
+   functions/pixelwise_transform
 
 Masking & Cleanup Utilities
 ---------------------------
@@ -121,9 +133,10 @@ Key flags:
 - --compare-numpy: include baseline timings (speedup > 1 means Rust faster).
 - --loops / --warmups: control timing stability.
 - --md-out / --rst-out / --json-out: emit Markdown, reStructuredText (Sphinx), and JSON artifacts.
-- --height/--width/--time: spatial + temporal dimensions for temporal + spectral functions.
+- --height/--width/--time: spatial + temporal dimensions for temporal + spectral + process functions.
 - --points-a/--points-b/--point-dim: shapes for distance metrics.
 - --minkowski-p: order p for minkowski_distance.
+- --ma-window / --ma-stride: window & stride parameters for moving average process benchmarks.
 
 Sphinx Integration:
 - Use --rst-out to create a reST grid table you can include with ``.. include:: api/benchmarks.rst``.
@@ -140,6 +153,7 @@ Interpreting Results:
 - Speedups < 1 indicate NumPy faster for given shape; consider adjusting parallel thresholds or array sizes.
 - Fused arithmetic functions (indices) typically show ≥1.3x gains on large tiles.
 - Temporal reducers may need tuning; median often benefits most from native parallelism.
+- Moving average processes can show >5x vs naive window scans due to O(T) prefix sums.
 
 Re-running benchmarks on different hardware (template):
 .. code-block:: bash

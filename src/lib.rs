@@ -1,5 +1,6 @@
 pub mod indices;
 pub mod masking;
+pub mod processes;
 pub mod spatial;
 pub mod temporal;
 
@@ -43,6 +44,13 @@ fn _core(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(masking::mask_invalid, m)?)?;
     m.add_function(wrap_pyfunction!(masking::mask_in_range, m)?)?;
     m.add_function(wrap_pyfunction!(masking::mask_scl, m)?)?;
+    // --- Advanced Processes ---
+    m.add_function(wrap_pyfunction!(processes::moving_average_temporal, m)?)?;
+    m.add_function(wrap_pyfunction!(
+        processes::moving_average_temporal_stride,
+        m
+    )?)?;
+    m.add_function(wrap_pyfunction!(processes::pixelwise_transform, m)?)?;
 
     Ok(())
 }
