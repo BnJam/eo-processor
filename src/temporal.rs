@@ -106,6 +106,112 @@ fn temporal_mean_3d<'py>(
     result.into_pyarray(py)
 }
 
+#[pyfunction]
+#[pyo3(signature = (arr, skip_na=true))]
+pub fn temporal_sum(py: Python<'_>, arr: &PyAny, skip_na: bool) -> PyResult<PyObject> {
+    if let Ok(arr1d) = arr.downcast::<numpy::PyArray1<f64>>() {
+        Ok(temporal_sum_1d(arr1d.readonly(), skip_na).into_py(py))
+    } else if let Ok(arr2d) = arr.downcast::<numpy::PyArray2<f64>>() {
+        Ok(temporal_sum_2d(py, arr2d.readonly(), skip_na).into_py(py))
+    } else if let Ok(arr3d) = arr.downcast::<numpy::PyArray3<f64>>() {
+        Ok(temporal_sum_3d(py, arr3d.readonly(), skip_na).into_py(py))
+    } else if let Ok(arr4d) = arr.downcast::<numpy::PyArray4<f64>>() {
+        Ok(temporal_sum_4d(py, arr4d.readonly(), skip_na).into_py(py))
+    } else {
+        Err(pyo3::exceptions::PyTypeError::new_err(
+            "Expected a 1D, 2D, 3D, or 4D NumPy array.",
+        ))
+    }
+}
+
+fn temporal_sum_1d(arr: PyReadonlyArray1<f64>, skip_na: bool) -> f64 {
+    let array = arr.as_array();
+    if skip_na {
+        array.iter().filter(|v| !v.is_nan()).sum()
+    } else if array.iter().any(|v| v.is_nan()) {
+        f64::NAN
+    } else {
+        array.sum()
+    }
+}
+
+fn temporal_sum_2d<'py>(
+    py: Python<'py>,
+    arr: PyReadonlyArray2<f64>,
+    skip_na: bool,
+) -> &'py PyArray1<f64> {
+    let array = arr.as_array();
+    let shape = array.shape();
+    let num_bands = shape[1];
+    let mut result = Array1::<f64>::zeros(num_bands);
+
+    for i in 0..num_bands {
+        let series = array.column(i);
+        if skip_na {
+            result[i] = series.iter().filter(|v| !v.is_nan()).sum();
+        } else if series.iter().any(|v| v.is_nan()) {
+            result[i] = f64::NAN;
+        } else {
+            result[i] = series.sum();
+        }
+    }
+    result.into_pyarray(py)
+}
+
+fn temporal_sum_3d<'py>(
+    py: Python<'py>,
+    arr: PyReadonlyArray3<f64>,
+    skip_na: bool,
+) -> &'py PyArray2<f64> {
+    let array = arr.as_array();
+    let shape = array.shape();
+    let (height, width) = (shape[1], shape[2]);
+    let mut result = Array2::<f64>::zeros((height, width));
+
+    result
+        .indexed_iter_mut()
+        .par_bridge()
+        .for_each(|((r, c), pixel)| {
+            let series = array.slice(s![.., r, c]);
+            if skip_na {
+                *pixel = series.iter().filter(|v| !v.is_nan()).sum();
+            } else if series.iter().any(|v| v.is_nan()) {
+                *pixel = f64::NAN;
+            } else {
+                *pixel = series.sum();
+            }
+        });
+
+    result.into_pyarray(py)
+}
+
+fn temporal_sum_4d<'py>(
+    py: Python<'py>,
+    arr: PyReadonlyArray4<f64>,
+    skip_na: bool,
+) -> &'py PyArray3<f64> {
+    let array = arr.as_array();
+    let shape = array.shape();
+    let (num_bands, height, width) = (shape[1], shape[2], shape[3]);
+    let mut result = Array3::<f64>::zeros((num_bands, height, width));
+
+    result
+        .indexed_iter_mut()
+        .par_bridge()
+        .for_each(|((b, r, c), pixel)| {
+            let series = array.slice(s![.., b, r, c]);
+            if skip_na {
+                *pixel = series.iter().filter(|v| !v.is_nan()).sum();
+            } else if series.iter().any(|v| v.is_nan()) {
+                *pixel = f64::NAN;
+            } else {
+                *pixel = series.sum();
+            }
+        });
+
+    result.into_pyarray(py)
+}
+
 fn temporal_mean_4d<'py>(
     py: Python<'py>,
     arr: PyReadonlyArray4<f64>,

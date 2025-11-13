@@ -60,6 +60,7 @@ Temporal Reducers & Compositing
    functions/temporal_std
    functions/median
    functions/composite
+   functions/temporal_sum
 
 Advanced Temporal & Pixelwise Processes
 ---------------------------------------
@@ -70,6 +71,7 @@ Advanced Temporal & Pixelwise Processes
    functions/moving_average_temporal
    functions/moving_average_temporal_stride
    functions/pixelwise_transform
+   functions/temporal_composite
 
 Masking & Cleanup Utilities
 ---------------------------

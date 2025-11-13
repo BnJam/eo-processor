@@ -11,118 +11,70 @@ in the Rust layer for consistent and stable computation.
 
 from ._core import (
     chebyshev_distance as _chebyshev_distance,
-)
-from ._core import (
     delta_nbr as _delta_nbr,
-)
-from ._core import (
     delta_ndvi as _delta_ndvi,
-)
-from ._core import (
     enhanced_vegetation_index as _enhanced_vegetation_index,
-)
-from ._core import (
     euclidean_distance as _euclidean_distance,
-)
-from ._core import (
     gci as _gci,
-)
-from ._core import (
     manhattan_distance as _manhattan_distance,
-)
-from ._core import (
     mask_in_range as _mask_in_range,
-)
-from ._core import (
     mask_invalid as _mask_invalid,
-)
-from ._core import (
     mask_out_range as _mask_out_range,
-)
-from ._core import (
     mask_scl as _mask_scl,
-)
-from ._core import (
     mask_vals as _mask_vals,
-)
-from ._core import (
     median as _median,
-)
-from ._core import (
     minkowski_distance as _minkowski_distance,
-)
-from ._core import (
     moving_average_temporal as _moving_average_temporal,
-)
-from ._core import (
     moving_average_temporal_stride as _moving_average_temporal_stride,
-)
-from ._core import (
     nbr as _nbr,
-)
-from ._core import (
     nbr2 as _nbr2,
-)
-from ._core import (
     ndmi as _ndmi,
-)
-from ._core import (
     ndvi as _ndvi,
-)
-from ._core import (
     ndwi as _ndwi,
-)
-from ._core import (
     normalized_difference as _normalized_difference,
-)
-from ._core import (
     pixelwise_transform as _pixelwise_transform,
-)
-from ._core import (
     replace_nans as _replace_nans,
-)
-from ._core import (
     savi as _savi,
-)
-from ._core import (
     temporal_mean as _temporal_mean,
-)
-from ._core import (
     temporal_std as _temporal_std,
+    temporal_sum as _temporal_sum,
+    temporal_composite as _temporal_composite,
 )
 
 __version__ = "0.6.0"
 
 __all__ = [
-    "normalized_difference",
-    "ndvi",
-    "ndwi",
-    "savi",
-    "nbr",
-    "ndmi",
-    "nbr2",
-    "gci",
-    "enhanced_vegetation_index",
-    "evi",
-    "delta_ndvi",
-    "delta_nbr",
-    "median",
-    "composite",
-    "temporal_mean",
-    "temporal_std",
-    "euclidean_distance",
-    "manhattan_distance",
     "chebyshev_distance",
-    "minkowski_distance",
-    "mask_vals",
-    "replace_nans",
-    "mask_out_range",
-    "mask_invalid",
+    "composite",
+    "delta_nbr",
+    "delta_ndvi",
+    "enhanced_vegetation_index",
+    "euclidean_distance",
+    "evi",
+    "gci",
+    "manhattan_distance",
     "mask_in_range",
+    "mask_invalid",
+    "mask_out_range",
     "mask_scl",
+    "mask_vals",
+    "median",
+    "minkowski_distance",
     "moving_average_temporal",
     "moving_average_temporal_stride",
+    "nbr",
+    "nbr2",
+    "ndmi",
+    "ndvi",
+    "ndwi",
+    "normalized_difference",
     "pixelwise_transform",
+    "replace_nans",
+    "savi",
+    "temporal_mean",
+    "temporal_std",
+    "temporal_sum",
+    "temporal_composite",
 ]
 
 
@@ -712,3 +664,43 @@ def pixelwise_transform(arr, scale=1.0, offset=0.0, clamp_min=None, clamp_max=No
         clamp_min=clamp_min,
         clamp_max=clamp_max,
     )
+
+
+def temporal_sum(arr, skip_na=True):
+    """
+    Compute the sum along the leading time axis of a 1D–4D time‑first array.
+
+    Parameters
+    ----------
+    arr : numpy.ndarray
+        Time‑first array (1D–4D).
+    skip_na : bool, default True
+        If True, NaNs are excluded.
+
+    Returns
+    -------
+    numpy.ndarray
+        Sum with time axis removed; float64 dtype. Scalar for 1D input.
+    """
+    return _temporal_sum(arr, skip_na=skip_na)
+
+
+def temporal_composite(arr, weights, skip_na=True):
+    """
+    Compute a temporal composite of a 4D array using a weighted median.
+
+    Parameters
+    ----------
+    arr : numpy.ndarray
+        4D array with shape (time, bands, y, x).
+    weights : numpy.ndarray
+        1D array of weights with the same length as the time dimension of arr.
+    skip_na : bool, default True
+        If True, NaNs are excluded.
+
+    Returns
+    -------
+    numpy.ndarray
+        Composited 3D array with shape (bands, y, x).
+    """
+    return _temporal_composite(arr, weights, skip_na=skip_na)

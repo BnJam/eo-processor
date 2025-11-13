@@ -37,6 +37,7 @@ fn _core(_py: Python, m: &PyModule) -> PyResult<()> {
     // --- Temporal Functions ---
     m.add_function(wrap_pyfunction!(temporal::temporal_mean, m)?)?;
     m.add_function(wrap_pyfunction!(temporal::temporal_std, m)?)?;
+    m.add_function(wrap_pyfunction!(temporal::temporal_sum, m)?)?;
     // --- Masking Functions ---
     m.add_function(wrap_pyfunction!(masking::mask_vals, m)?)?;
     m.add_function(wrap_pyfunction!(masking::replace_nans, m)?)?;
@@ -51,6 +52,7 @@ fn _core(_py: Python, m: &PyModule) -> PyResult<()> {
         m
     )?)?;
     m.add_function(wrap_pyfunction!(processes::pixelwise_transform, m)?)?;
+    m.add_function(wrap_pyfunction!(processes::temporal_composite, m)?)?;
 
     Ok(())
 }
