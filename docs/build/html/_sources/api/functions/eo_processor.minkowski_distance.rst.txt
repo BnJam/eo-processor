@@ -1,6 +1,0 @@
-﻿eo\_processor.minkowski\_distance
-=================================
-
-.. currentmodule:: eo_processor
-
-.. autofunction:: minkowski_distance

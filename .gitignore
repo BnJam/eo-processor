@@ -32,7 +32,6 @@ __pycache__/
 *.so
 .Python
 build/
-!docs/build/
 develop-eggs/
 dist/
 downloads/

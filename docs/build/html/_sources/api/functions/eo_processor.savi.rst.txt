@@ -1,6 +1,0 @@
-﻿eo\_processor.savi
-==================
-
-.. currentmodule:: eo_processor
-
-.. autofunction:: savi

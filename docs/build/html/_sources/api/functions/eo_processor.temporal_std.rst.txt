@@ -1,6 +1,0 @@
-﻿eo\_processor.temporal\_std
-===========================
-
-.. currentmodule:: eo_processor
-
-.. autofunction:: temporal_std

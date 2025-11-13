@@ -1,6 +1,0 @@
-﻿eo\_processor.composite
-=======================
-
-.. currentmodule:: eo_processor
-
-.. autofunction:: composite

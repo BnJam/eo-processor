@@ -1,6 +1,0 @@
-﻿eo\_processor.temporal\_mean
-============================
-
-.. currentmodule:: eo_processor
-
-.. autofunction:: temporal_mean

@@ -1,6 +1,0 @@
-﻿eo\_processor.normalized\_difference
-====================================
-
-.. currentmodule:: eo_processor
-
-.. autofunction:: normalized_difference

@@ -1,6 +1,0 @@
-﻿eo\_processor.delta\_nbr
-========================
-
-.. currentmodule:: eo_processor
-
-.. autofunction:: delta_nbr

@@ -1,6 +1,0 @@
-﻿eo\_processor.evi
-=================
-
-.. currentmodule:: eo_processor
-
-.. autofunction:: evi
