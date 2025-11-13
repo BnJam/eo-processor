@@ -1,6 +1,6 @@
 // src/trends.rs
 
-use ndarray::{Array1};
+use ndarray::Array1;
 use pyo3::prelude::*;
 
 #[pyclass]

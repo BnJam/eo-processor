@@ -34,7 +34,6 @@ def run_temporal_examples():
     # Verify a known weighted median case
     pixel_series = np.array([1, 2, 3, 4, 5], dtype=np.float64)
     pixel_weights = np.array([1, 1, 10, 1, 1], dtype=np.float64)
-    single_pixel_stack = pixel_series.reshape(5, 1, 1, 1)
 
     # Create a 4D array with this pixel series
     test_stack = np.zeros((5, 1, 1, 1), dtype=np.float64)

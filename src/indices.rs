@@ -110,7 +110,7 @@ fn normalized_difference_1d<'py>(
 ) -> PyResult<&'py PyArray1<f64>> {
     let a_arr = a.as_array();
     let b_arr = b.as_array();
-    // Fused branchless arithmetic with EPSILON added to denominator.
+    // Branchless division; zero denominators yield NaN or Inf per IEEE 754.
     let out = py.allow_threads(|| {
         let numerator = &a_arr - &b_arr;
         let denom = &a_arr + &b_arr;
@@ -121,8 +121,8 @@ fn normalized_difference_1d<'py>(
 
 /// Compute normalized difference between two 2D arrays.
 ///
-/// This function computes (a - b) / (a + b) element-wise for 2D arrays,
-/// handling division by zero by returning 0.0 when the denominator is zero.
+/// This function computes (a - b) / (a + b) element-wise for 2D arrays.
+/// Division by zero yields NaN or Inf per IEEE 754.
 ///
 /// # Arguments
 /// * `a` - First input 2D array (e.g., NIR band for NDVI)
@@ -157,8 +157,8 @@ fn normalized_difference_2d<'py>(
 
 /// Compute normalized difference between two 3D arrays.
 ///
-/// This function computes (a - b) / (a + b) element-wise for 3D arrays,
-/// handling division by zero by returning 0.0 when the denominator is zero.
+/// This function computes (a - b) / (a + b) element-wise for 3D arrays.
+/// Division by zero yields NaN or Inf per IEEE 754.
 /// # Arguments
 /// * `a` - First input 3D array (e.g., NIR band for NDVI)
 /// * `b` - Second input 3D array (e.g., Red band for NDVI)

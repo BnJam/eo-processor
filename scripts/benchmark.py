@@ -276,6 +276,13 @@ def run_single_benchmark(
     post_red: np.ndarray = np.empty((0, 0))
     pre_swir2: np.ndarray = np.empty((0, 0))
     post_swir2: np.ndarray = np.empty((0, 0))
+    
+    # Initialize baseline variables
+    baseline_kind: Optional[str] = None
+    baseline_timings: List[float] = []
+    supports_baseline = False
+    baseline_fn: Optional[Callable[[], Any]] = None
+    
     # Prepare inputs
     if func_name in {
         "ndvi",
@@ -366,47 +373,12 @@ def run_single_benchmark(
         else:
             call = lambda: minkowski_distance(pts_a, pts_b, minkowski_p)
         shape_desc = f"N={shape_info['points_a']}, M={shape_info['points_b']}, D={shape_info['point_dim']}"
-    elif func_name == "moving_average_temporal":
-                supports_baseline = True
-                if ma_baseline_style == "naive":
-                    baseline_kind = "naive"
-                    def _ma_baseline():
-                        ...
-                    baseline_fn = _ma_baseline
-                else:
-                    baseline_kind = "prefix"
-                    # Prefix-sum baseline with NaN handling
-                    def _ma_prefix():
-                        arr = cube
-                        T = arr.shape[0]
-                        # Replace NaNs with 0 for sum; build valid mask
-                        valid_mask = ~np.isnan(arr)
-                        arr_zero = np.nan_to_num(arr, nan=0.0)
-                        csum = np.cumsum(arr_zero, axis=0)
-                        ccount = np.cumsum(valid_mask.astype(np.int64), axis=0)
-                        out = np.empty_like(arr)
-                        half_left = ma_window // 2
-                        half_right = ma_window - half_left - 1
-                        for t in range(T):
-                            start = max(0, t - half_left)
-                            end = min(T - 1, t + half_right)
-                            total_sum = csum[end] - (csum[start - 1] if start > 0 else 0)
-                            total_count = ccount[end] - (ccount[start - 1] if start > 0 else 0)
-                            with np.errstate(invalid="ignore", divide="ignore"):
-                                out[t] = np.where(total_count > 0, total_sum / total_count, np.nan)
-                        return out
-                    baseline_fn = _ma_prefix
     else:  # pragma: no cover
         raise ValueError(f"Unknown function: {func_name}")
 
     # Warmups
     for _ in range(warmups):
         call()
-
-    baseline_kind: Optional[str] = None
-    baseline_timings: List[float] = []
-    supports_baseline = False
-    baseline_fn: Optional[Callable[[], Any]] = None
 
     if compare_numpy:
         # Provide NumPy baseline implementations where feasible
@@ -460,25 +432,50 @@ def run_single_benchmark(
             baseline_fn = lambda: np.median(cube, axis=0)
         elif func_name == "moving_average_temporal":
             supports_baseline = True
-            # Naive same-mode baseline (variable edges) O(T*W); skip NaN logic mirrored
-            def _ma_baseline():
-                arr = cube
-                T = arr.shape[0]
-                half_left = ma_window // 2
-                half_right = ma_window - half_left - 1
-                out = np.empty_like(arr)
-                for t in range(T):
-                    start = max(0, t - half_left)
-                    end = min(T - 1, t + half_right)
-                    window = arr[start : end + 1]
-                    # skip_na=True: exclude NaNs
-                    valid = window[~np.isnan(window)]
-                    if valid.size == 0:
-                        out[t] = np.nan
-                    else:
-                        out[t] = valid.mean(axis=0)
-                return out
-            baseline_fn = _ma_baseline
+            if ma_baseline_style == "naive":
+                baseline_kind = "naive"
+                # Naive same-mode baseline (variable edges) O(T*W); skip NaN logic mirrored
+                def _ma_baseline():
+                    arr = cube
+                    T = arr.shape[0]
+                    half_left = ma_window // 2
+                    half_right = ma_window - half_left - 1
+                    out = np.empty_like(arr)
+                    for t in range(T):
+                        start = max(0, t - half_left)
+                        end = min(T - 1, t + half_right)
+                        window = arr[start : end + 1]
+                        # skip_na=True: exclude NaNs
+                        valid = window[~np.isnan(window)]
+                        if valid.size == 0:
+                            out[t] = np.nan
+                        else:
+                            out[t] = valid.mean(axis=0)
+                    return out
+                baseline_fn = _ma_baseline
+            else:
+                baseline_kind = "prefix"
+                # Prefix-sum baseline with NaN handling
+                def _ma_prefix():
+                    arr = cube
+                    T = arr.shape[0]
+                    # Replace NaNs with 0 for sum; build valid mask
+                    valid_mask = ~np.isnan(arr)
+                    arr_zero = np.nan_to_num(arr, nan=0.0)
+                    csum = np.cumsum(arr_zero, axis=0)
+                    ccount = np.cumsum(valid_mask.astype(np.int64), axis=0)
+                    out = np.empty_like(arr)
+                    half_left = ma_window // 2
+                    half_right = ma_window - half_left - 1
+                    for t in range(T):
+                        start = max(0, t - half_left)
+                        end = min(T - 1, t + half_right)
+                        total_sum = csum[end] - (csum[start - 1] if start > 0 else 0)
+                        total_count = ccount[end] - (ccount[start - 1] if start > 0 else 0)
+                        with np.errstate(invalid="ignore", divide="ignore"):
+                            out[t] = np.where(total_count > 0, total_sum / total_count, np.nan)
+                    return out
+                baseline_fn = _ma_prefix
         elif func_name == "moving_average_temporal_stride":
             supports_baseline = True
             def _ma_stride_baseline():
