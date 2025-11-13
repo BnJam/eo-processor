@@ -113,7 +113,7 @@ fn normalized_difference_1d<'py>(
     // Fused branchless arithmetic with EPSILON added to denominator.
     let out = py.allow_threads(|| {
         let numerator = &a_arr - &b_arr;
-        let denom = &a_arr + &b_arr + EPSILON;
+        let denom = &a_arr + &b_arr;
         numerator / denom
     });
     Ok(out.into_pyarray(py))
@@ -149,7 +149,7 @@ fn normalized_difference_2d<'py>(
     let b_arr = b.as_array();
     let out = py.allow_threads(|| {
         let numerator = &a_arr - &b_arr;
-        let denom = &a_arr + &b_arr + EPSILON;
+        let denom = &a_arr + &b_arr;
         numerator / denom
     });
     Ok(out.into_pyarray(py))
@@ -182,7 +182,7 @@ fn normalized_difference_3d<'py>(
     let b_arr = b.as_array();
     let out = py.allow_threads(|| {
         let numerator = &a_arr - &b_arr;
-        let denom = &a_arr + &b_arr + EPSILON;
+        let denom = &a_arr + &b_arr;
         numerator / denom
     });
     Ok(out.into_pyarray(py))
@@ -216,7 +216,7 @@ fn normalized_difference_4d<'py>(
     let b_arr = b.as_array();
     let out = py.allow_threads(|| {
         let numerator = &a_arr - &b_arr;
-        let denom = &a_arr + &b_arr + EPSILON;
+        let denom = &a_arr + &b_arr;
         numerator / denom
     });
     Ok(out.into_pyarray(py))

@@ -1,4 +1,4 @@
-use ndarray::{Array1, Array2, Array3, Array4, Axis};
+use ndarray::{s, Array1, Array2, Array3, Array4, ArrayView4, Axis};
 use numpy::{
     IntoPyArray, PyArray1, PyArray2, PyArray3, PyArray4, PyReadonlyArray1, PyReadonlyArray2,
     PyReadonlyArray3, PyReadonlyArray4,
@@ -395,7 +395,7 @@ fn compute_window_mean(
     start: usize,
     end: usize,
     skip_na: bool,
-    variable_size: bool,
+    _variable_size: bool,
 ) -> f64 {
     let range_sum = prefix_sum[end]
         - if start > 0 {
@@ -423,18 +423,12 @@ fn compute_window_mean(
         } else {
             range_sum / non_nan_count as f64
         }
+    } else if nan_count > 0 {
+        f64::NAN
     } else {
-        if nan_count > 0 {
-            f64::NAN
-        } else {
-            // If variable size (same mode at edges), denominator = effective window length
-            let denom = if variable_size {
-                window_len
-            } else {
-                window_len
-            };
-            range_sum / denom as f64
-        }
+        // If variable size (same mode at edges), denominator = effective window length
+        let denom = window_len;
+        range_sum / denom as f64
     }
 }
 
@@ -597,7 +591,7 @@ pub fn moving_average_temporal_stride(
         let full_owned = full.readonly().as_array().to_owned();
 
         let out_t = full_owned.shape()[0];
-        let sampled_len = (out_t + stride - 1) / stride;
+        let sampled_len = out_t.div_ceil(stride);
         let mut sampled = Array2::<f64>::zeros((sampled_len, full_owned.shape()[1]));
 
         for (dst_t, src_t) in (0..out_t).step_by(stride).enumerate() {
@@ -619,7 +613,7 @@ pub fn moving_average_temporal_stride(
         let full = moving_avg_3d(py, a3.readonly(), window, skip_na, mode)?;
         let full_owned = full.readonly().as_array().to_owned();
         let out_t = full_owned.shape()[0];
-        let sampled_len = (out_t + stride - 1) / stride;
+        let sampled_len = out_t.div_ceil(stride);
         let mut sampled =
             Array3::<f64>::zeros((sampled_len, full_owned.shape()[1], full_owned.shape()[2]));
         let mut src_t = 0usize;
@@ -644,7 +638,7 @@ pub fn moving_average_temporal_stride(
         let full = moving_avg_4d(py, a4.readonly(), window, skip_na, mode)?;
         let full_owned = full.readonly().as_array().to_owned();
         let out_t = full_owned.shape()[0];
-        let sampled_len = (out_t + stride - 1) / stride;
+        let sampled_len = out_t.div_ceil(stride);
         let mut sampled = Array4::<f64>::zeros((
             sampled_len,
             full_owned.shape()[1],
@@ -667,6 +661,81 @@ pub fn moving_average_temporal_stride(
         "Expected 1D, 2D, 3D, or 4D NumPy float64 array.",
     ))
 }
+#[pyfunction]
+#[pyo3(signature = (arr, weights, skip_na = true))]
+pub fn temporal_composite(
+    py: Python<'_>,
+    arr: &PyAny,
+    weights: PyReadonlyArray1<f64>,
+    skip_na: bool,
+) -> PyResult<PyObject> {
+    if let Ok(arr4d) = arr.downcast::<numpy::PyArray4<f64>>() {
+        Ok(temporal_composite_4d(py, arr4d.readonly().as_array(), weights, skip_na)?.into_py(py))
+    } else if let Ok(arr4d_u16) = arr.downcast::<numpy::PyArray4<u16>>() {
+        let arr4d_f64 = arr4d_u16.readonly().as_array().mapv(|x| x as f64);
+        Ok(temporal_composite_4d(py, arr4d_f64.view(), weights, skip_na)?.into_py(py))
+    } else {
+        Err(pyo3::exceptions::PyTypeError::new_err(
+            "Expected a 4D NumPy array of f64 or u16.",
+        ))
+    }
+}
+
+pub fn temporal_composite_4d<'py>(
+    py: Python<'py>,
+    arr: ArrayView4<f64>,
+    weights: PyReadonlyArray1<f64>,
+    skip_na: bool,
+) -> PyResult<&'py PyArray3<f64>> {
+    let weights_array = weights.as_array();
+    let shape = arr.shape();
+    let (num_bands, height, width) = (shape[1], shape[2], shape[3]);
+
+    if shape[0] != weights_array.len() {
+        return Err(pyo3::exceptions::PyValueError::new_err(
+            "The length of the weights array must match the temporal dimension of the input array.",
+        ));
+    }
+
+    let mut result = Array3::<f64>::zeros((num_bands, height, width));
+
+    result
+        .indexed_iter_mut()
+        .par_bridge()
+        .for_each(|((b, r, c), pixel)| {
+            let mut series: Vec<(f64, f64)> = arr
+                .slice(s![.., b, r, c])
+                .iter()
+                .zip(weights_array.iter())
+                .map(|(v, w)| (*v, *w))
+                .collect();
+
+            if skip_na {
+                series.retain(|(v, _)| !v.is_nan());
+            }
+
+            if series.is_empty() {
+                *pixel = f64::NAN;
+                return;
+            }
+
+            series.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal));
+
+            let total_weight: f64 = series.iter().map(|(_, w)| *w).sum();
+            let mut accumulated_weight = 0.0;
+            let median_weight = total_weight / 2.0;
+
+            for (value, weight) in series {
+                accumulated_weight += weight;
+                if accumulated_weight >= median_weight {
+                    *pixel = value;
+                    return;
+                }
+            }
+        });
+
+    Ok(result.into_pyarray(py))
+}
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -685,7 +754,7 @@ mod tests {
             // idx1: [0..2] -> (1+2+3)/3 = 2.0
             // idx2: [1..3] -> (2+3+4)/3 = 3.0
             // idx3: [2..3] -> (3+4)/2 = 3.5
-            let expected = vec![1.5, 2.0, 3.0, 3.5];
+            let expected = [1.5, 2.0, 3.0, 3.5];
             for (a, b) in rust.iter().zip(expected.iter()) {
                 assert!((a - b).abs() < 1e-12);
             }
@@ -701,7 +770,7 @@ mod tests {
             let out = out_obj.extract::<&PyArray1<f64>>(py).unwrap().readonly();
             let rust = out.as_array();
             // Windows: [1,2] [2,3] [3,4]
-            let expected = vec![1.5, 2.5, 3.5];
+            let expected = [1.5, 2.5, 3.5];
             for (a, b) in rust.iter().zip(expected.iter()) {
                 assert!((a - b).abs() < 1e-12);
             }
@@ -720,7 +789,7 @@ mod tests {
             // 0.0 -> -0.5 -> 0.0
             // 0.5 -> 0.5 -> 0.5
             // 1.0 -> 1.5 -> clamp to 1.0
-            let expected = vec![0.0, 0.5, 1.0];
+            let expected = [0.0, 0.5, 1.0];
             for (a, b) in rust.iter().zip(expected.iter()) {
                 assert!((a - b).abs() < 1e-12);
             }
