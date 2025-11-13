@@ -15,7 +15,6 @@
 #   2. Ensure docstring quality (parameters, returns, notes)
 #   3. Re-run `make docs` locally or trigger RTD build.
 
-import os
 import sys
 import importlib
 from datetime import datetime
