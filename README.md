@@ -242,6 +242,42 @@ median_img = median(cube)
 
 `composite(cube, method="median")` currently routes to `median`.
 
+## Trend Analysis
+
+`eo-processor` provides a simple trend analysis UDF to detect breaks in a time series. This implementation is iterative and is more performant than the previous recursive version.
+
+| Function | Purpose |
+|----------|---------|
+| `trend_analysis(y, threshold)` | Detects breaks in a time series by iteratively fitting linear models. |
+
+**Note:** The current implementation of the trend analysis UDF is not optimized for large datasets and may time out on long time series.
+
+Example:
+
+```python
+import numpy as np
+from eo_processor._core import trend_analysis
+
+# Generate some sample time-series data with a break
+y = np.concatenate([
+    np.linspace(0, 10, 50),
+    np.linspace(10, 0, 50)
+]) + np.random.normal(0, 0.5, 100)
+
+# Run the trend analysis
+segments = trend_analysis(y.tolist(), threshold=5.0)
+
+# Print the results
+print("Trend Analysis Results:")
+for segment in segments:
+    print(
+        f"  Start: {segment.start_index}, "
+        f"End: {segment.end_index}, "
+        f"Slope: {segment.slope:.4f}, "
+        f"Intercept: {segment.intercept:.4f}"
+    )
+```
+
 ## Advanced Temporal & Pixelwise Processing
 
 High-performance smoothing and per-pixel transforms for deep temporal stacks and large spatial tiles.

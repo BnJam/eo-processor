@@ -3,6 +3,7 @@ pub mod masking;
 pub mod processes;
 pub mod spatial;
 pub mod temporal;
+pub mod trends;
 
 use pyo3::prelude::*;
 
@@ -51,6 +52,11 @@ fn _core(_py: Python, m: &PyModule) -> PyResult<()> {
         m
     )?)?;
     m.add_function(wrap_pyfunction!(processes::pixelwise_transform, m)?)?;
+
+    // --- Trend Analysis ---
+    m.add_class::<trends::TrendSegment>()?;
+    m.add_function(wrap_pyfunction!(trends::trend_analysis, m)?)?;
+    m.add_function(wrap_pyfunction!(trends::linear_regression, m)?)?;
 
     Ok(())
 }
