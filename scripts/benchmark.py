@@ -118,6 +118,7 @@ class BenchmarkResult:
     baseline_min_s: Optional[float] = None
     baseline_max_s: Optional[float] = None
     speedup_vs_numpy: Optional[float] = None  # baseline_mean_s / mean_s (values >1 mean Rust faster)
+    baseline_throughput_elems: Optional[float] = None  # elements/sec for NumPy baseline (if available)
 
 
 # --------------------------------------------------------------------------------------
@@ -215,6 +216,8 @@ def run_single_benchmark(
     minkowski_p: float,
     seed: int,
     compare_numpy: bool = False,
+    distance_baseline: str = "broadcast",
+    name_override: Optional[str] = None,
 ) -> BenchmarkResult:
     # Predeclare delta arrays to satisfy static type checkers (overwritten when used).
     pre_nir: np.ndarray = np.empty((0, 0))
@@ -360,7 +363,59 @@ def run_single_benchmark(
         elif func_name == "median":
             supports_baseline = True
             baseline_fn = lambda: np.median(cube, axis=0)
-        # Distance baselines would require pairwise loops; skip for fairness/performance.
+        # Distance baselines (now enabled for NumPy comparison using vectorized formulations).
+        elif func_name == "euclidean_distance":
+            supports_baseline = True
+            # Broadcast baseline (allocates N x M x D implicitly via math identity)
+            broadcast_euclid = lambda: np.sqrt(
+                np.clip(
+                    (pts_a**2).sum(axis=1)[:, None]
+                    + (pts_b**2).sum(axis=1)[None, :]
+                    - 2 * (pts_a @ pts_b.T),
+                    0.0,
+                    None,
+                )
+            )
+            # Streaming baseline (no large 3D temporary; pure Python loop, shows algorithmic parity)
+            def streaming_euclid():
+                out = np.empty((pts_a.shape[0], pts_b.shape[0]), dtype=np.float64)
+                for i in range(pts_a.shape[0]):
+                    diff = pts_a[i] - pts_b
+                    out[i] = np.sqrt(np.sum(diff * diff, axis=1))
+                return out
+            baseline_fn = broadcast_euclid if distance_baseline == "broadcast" else streaming_euclid
+        elif func_name == "manhattan_distance":
+            supports_baseline = True
+            broadcast_manhattan = lambda: np.abs(pts_a[:, None, :] - pts_b[None, :, :]).sum(axis=2)
+            def streaming_manhattan():
+                out = np.empty((pts_a.shape[0], pts_b.shape[0]), dtype=np.float64)
+                for i in range(pts_a.shape[0]):
+                    diff = np.abs(pts_a[i] - pts_b)
+                    out[i] = np.sum(diff, axis=1)
+                return out
+            baseline_fn = broadcast_manhattan if distance_baseline == "broadcast" else streaming_manhattan
+        elif func_name == "chebyshev_distance":
+            supports_baseline = True
+            broadcast_cheby = lambda: np.abs(pts_a[:, None, :] - pts_b[None, :, :]).max(axis=2)
+            def streaming_cheby():
+                out = np.empty((pts_a.shape[0], pts_b.shape[0]), dtype=np.float64)
+                for i in range(pts_a.shape[0]):
+                    diff = np.abs(pts_a[i] - pts_b)
+                    out[i] = np.max(diff, axis=1)
+                return out
+            baseline_fn = broadcast_cheby if distance_baseline == "broadcast" else streaming_cheby
+        elif func_name == "minkowski_distance":
+            supports_baseline = True
+            broadcast_minkowski = lambda: (
+                np.abs(pts_a[:, None, :] - pts_b[None, :, :]) ** minkowski_p
+            ).sum(axis=2) ** (1.0 / minkowski_p)
+            def streaming_minkowski():
+                out = np.empty((pts_a.shape[0], pts_b.shape[0]), dtype=np.float64)
+                for i in range(pts_a.shape[0]):
+                    diff = np.abs(pts_a[i] - pts_b) ** minkowski_p
+                    out[i] = np.sum(diff, axis=1) ** (1.0 / minkowski_p)
+                return out
+            baseline_fn = broadcast_minkowski if distance_baseline == "broadcast" else streaming_minkowski
 
     # Timed loops
     timings: List[float] = []
@@ -392,6 +447,11 @@ def run_single_benchmark(
             # speedup (baseline_mean / rust_mean) > 1 means Rust faster
             speedup = baseline_mean / mean_s
 
+    # Compute baseline throughput (elements/sec) if we have a NumPy baseline
+    baseline_throughput = None
+    if supports_baseline and baseline_mean and elements:
+        baseline_throughput = elements / baseline_mean if baseline_mean > 0 else None
+
     return BenchmarkResult(
         name=func_name,
         loops=loops,
@@ -408,6 +468,7 @@ def run_single_benchmark(
         baseline_min_s=baseline_min,
         baseline_max_s=baseline_max,
         speedup_vs_numpy=speedup,
+        baseline_throughput_elems=baseline_throughput,
     )
 
 
@@ -491,6 +552,31 @@ def parse_args(argv: Sequence[str]) -> argparse.Namespace:
         type=str,
         help="Write benchmark results as a Markdown table to the specified file.",
     )
+    parser.add_argument(
+        "--rst-out",
+        type=str,
+        help="Write benchmark results as a reStructuredText (Sphinx) table to the specified file.",
+    )
+    parser.add_argument(
+        "--size-sweep",
+        nargs="+",
+        help=(
+            "Optional list of spatial sizes to sweep, e.g. 512x512 1024x1024 2048x1024. "
+            "You can override temporal length per entry with T=<len>:HxW (e.g. T=24:1024x1024). "
+            "When provided, benchmarks run for every specified size (height/width) instead of a single --height/--width."
+        ),
+    )
+    parser.add_argument(
+        "--distance-baseline",
+        choices=["broadcast", "streaming", "both"],
+        default="broadcast",
+        help="Distance baseline strategy for NumPy comparisons: broadcast (allocates NxMxD), streaming (Python loop, no large temp), or both (emit two benchmark rows per distance function).",
+    )
+    parser.add_argument(
+        "--stress",
+        action="store_true",
+        help="Enable stress benchmark sizes (large arrays / point sets) to demonstrate scalability.",
+    )
     return parser.parse_args(argv)
 
 
@@ -550,6 +636,16 @@ def resolve_functions(group: str, explicit: Optional[List[str]]) -> List[str]:
 def main(argv: Optional[Sequence[str]] = None) -> int:
     args = parse_args(argv or sys.argv[1:])
     funcs = resolve_functions(args.group, args.functions)
+    # Stress mode: override sizes to large defaults
+    if args.stress:
+        # Larger spatial and point set sizes for stress tests (tunable)
+        if not args.size_sweep:
+            args.height = max(args.height, 4096)
+            args.width = max(args.width, 4096)
+        args.points_a = max(args.points_a, 10000)
+        args.points_b = max(args.points_b, 10000)
+        args.point_dim = max(args.point_dim, 16)
+        args.time = max(args.time, 48)
 
     shape_info = {
         "height": args.height,
@@ -560,18 +656,81 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         "point_dim": args.point_dim,
     }
 
+    # Build list of shape infos for size sweep (if requested)
+    sweep_specs = args.size_sweep or []
+    shape_infos: List[Dict[str, int]] = []
+    if sweep_specs:
+        for spec in sweep_specs:
+            spec = spec.strip()
+            if not spec:
+                continue
+            t_val = args.time
+            # Allow T=<time>:HxW pattern
+            if "T=" in spec:
+                try:
+                    t_part, rest = spec.split(":", 1)
+                    t_val = int(t_part.split("=", 1)[1])
+                    spec = rest
+                except Exception:
+                    raise ValueError(f"Invalid size sweep temporal syntax: {spec}")
+            if "x" not in spec.lower():
+                raise ValueError(f"Invalid size sweep entry (expected HxW): {spec}")
+            h_str, w_str = spec.lower().split("x", 1)
+            try:
+                h_val = int(h_str)
+                w_val = int(w_str)
+            except ValueError:
+                raise ValueError(f"Non-integer size components in sweep entry: {spec}")
+            shape_infos.append(
+                {
+                    "height": h_val,
+                    "width": w_val,
+                    "time": t_val,
+                    "points_a": args.points_a,
+                    "points_b": args.points_b,
+                    "point_dim": args.point_dim,
+                }
+            )
+    else:
+        shape_infos.append(shape_info)
+
     results: List[BenchmarkResult] = []
-    for f in funcs:
-        res = run_single_benchmark(
-            func_name=f,
-            loops=args.loops,
-            warmups=args.warmups,
-            shape_info=shape_info,
-            minkowski_p=args.minkowski_p,
-            seed=args.seed,
-            compare_numpy=args.compare_numpy,
-        )
-        results.append(res)
+    for shp in shape_infos:
+        for f in funcs:
+            # For distance functions with --distance-baseline=both, run twice.
+            is_distance = f in {
+                "euclidean_distance",
+                "manhattan_distance",
+                "chebyshev_distance",
+                "minkowski_distance",
+            }
+            if is_distance and args.distance_baseline == "both":
+                for mode in ("broadcast", "streaming"):
+                    res = run_single_benchmark(
+                        func_name=f,
+                        loops=args.loops,
+                        warmups=args.warmups,
+                        shape_info=shp,
+                        minkowski_p=args.minkowski_p,
+                        seed=args.seed,
+                        compare_numpy=args.compare_numpy,
+                        distance_baseline=mode,
+                        name_override=f"{f}[{mode}]",
+                    )
+                    results.append(res)
+            else:
+                res = run_single_benchmark(
+                    func_name=f,
+                    loops=args.loops,
+                    warmups=args.warmups,
+                    shape_info=shp,
+                    minkowski_p=args.minkowski_p,
+                    seed=args.seed,
+                    compare_numpy=args.compare_numpy,
+                    distance_baseline=args.distance_baseline,
+                    name_override=None,
+                )
+                results.append(res)
 
     if not args.quiet:
         print()
@@ -585,7 +744,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         for r in results:
             extra = ""
             if args.compare_numpy and r.baseline_mean_s is not None:
-                extra = f" | NumPy mean: {r.baseline_mean_s*1000:.2f} ms speedup: {r.speedup_vs_numpy:.2f}x"
+                bt = f"{r.baseline_throughput_elems/1e6:.2f}M elems/s" if r.baseline_throughput_elems else "-"
+                extra = f" | NumPy mean: {r.baseline_mean_s*1000:.2f} ms NumPy throughput: {bt} speedup: {r.speedup_vs_numpy:.2f}x"
             print(f"{format_result_row(r)}{extra}")
         print("-" * 115)
         print("Throughput reported as processed elements per second (approximation).")
@@ -602,6 +762,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                 "group": args.group,
                 "functions": funcs,
                 "shape_info": shape_info,
+                "size_sweep": args.size_sweep,
+                "sweep_shape_infos": shape_infos if args.size_sweep else None,
             },
             "results": [asdict(r) for r in results],
             "compare_numpy": args.compare_numpy,
@@ -610,8 +772,30 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             json.dump(payload, f, indent=2)
         if not args.quiet:
             print(f"Wrote JSON results to: {args.json_out}")
+    # Precompute meta_rows (unconditional) so both md_out and rst_out blocks can use it
+    meta_rows = {
+        "Python": platform.python_version(),
+        "Platform": platform.platform(),
+        "Group": args.group,
+        "Functions": ", ".join(funcs),
+        "Distance Baseline": args.distance_baseline,
+        "Stress Mode": str(args.stress),
+        "Loops": str(args.loops),
+        "Warmups": str(args.warmups),
+        "Seed": str(args.seed),
+        "Compare NumPy": str(args.compare_numpy),
+        "Height": str(shape_info["height"]),
+        "Width": str(shape_info["width"]),
+        "Time": str(shape_info["time"]),
+        "Points A": str(shape_info["points_a"]),
+        "Points B": str(shape_info["points_b"]),
+        "Point Dim": str(shape_info["point_dim"]),
+        "Size Sweep": str(args.size_sweep),
+        "Distance Baseline": args.distance_baseline,
+        "Stress Mode": str(args.stress),
+    }
     if getattr(args, "md_out", None):
-        # Build Markdown report
+        # Build Markdown (GitHub-style) report
         lines = []
         lines.append(f"# eo-processor Benchmark Report")
         lines.append("")
@@ -619,28 +803,12 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         lines.append("")
         lines.append("| Key | Value |")
         lines.append("|-----|-------|")
-        meta_rows = {
-            "Python": platform.python_version(),
-            "Platform": platform.platform(),
-            "Group": args.group,
-            "Functions": ", ".join(funcs),
-            "Loops": str(args.loops),
-            "Warmups": str(args.warmups),
-            "Seed": str(args.seed),
-            "Compare NumPy": str(args.compare_numpy),
-            "Height": str(shape_info["height"]),
-            "Width": str(shape_info["width"]),
-            "Time": str(shape_info["time"]),
-            "Points A": str(shape_info["points_a"]),
-            "Points B": str(shape_info["points_b"]),
-            "Point Dim": str(shape_info["point_dim"]),
-        }
         for k, v in meta_rows.items():
             lines.append(f"| {k} | {v} |")
         lines.append("")
         lines.append("## Results")
         lines.append("")
-        lines.append("| Function | Mean (ms) | StDev (ms) | Min (ms) | Max (ms) | Elements | Throughput (M elems/s) | Speedup vs NumPy | Shape |")
+        lines.append("| Function | Mean (ms) | StDev (ms) | Min (ms) | Max (ms) | Elements | Rust Throughput (M elems/s) | NumPy Throughput (M elems/s) | Speedup vs NumPy | Shape |")
         lines.append("|----------|-----------|------------|----------|----------|----------|------------------------|------------------|-------|")
         for r in results:
             mean_ms = r.mean_s * 1000
@@ -650,16 +818,83 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             elems = f"{r.elements:,}" if r.elements is not None else "-"
             tput = f"{(r.throughput_elems/1e6):.2f}" if r.throughput_elems is not None else "-"
             speedup = f"{r.speedup_vs_numpy:.2f}x" if r.speedup_vs_numpy is not None else "-"
-            lines.append(f"| {r.name} | {mean_ms:.2f} | {stdev_ms:.2f} | {min_ms:.2f} | {max_ms:.2f} | {elems} | {tput} | {speedup} | {r.shape_description} |")
+            btput = f"{(r.baseline_throughput_elems/1e6):.2f}" if r.baseline_throughput_elems is not None else "-"
+            lines.append(f"| {r.name} | {mean_ms:.2f} | {stdev_ms:.2f} | {min_ms:.2f} | {max_ms:.2f} | {elems} | {tput} | {btput} | {speedup} | {r.shape_description} |")
         lines.append("")
         if args.compare_numpy:
             lines.append("> Speedup vs NumPy = (NumPy mean time / Rust mean time); values > 1 indicate Rust is faster.")
-        with open(args.md_out, "w", encoding="utf-8") as f:
-            f.write("\n".join(lines))
+        with open(args.md_out, "w", encoding="utf-8") as f_md:
+            f_md.write("\n".join(lines))
         if not args.quiet:
             print(f"Wrote Markdown report to: {args.md_out}")
 
-    return 0
+    # Optional Sphinx reST output (grid tables) if --rst-out was provided.
+    if getattr(args, "rst_out", None):
+        rst = []
+        rst.append("Benchmark Report")
+        rst.append("================")
+        rst.append("")
+        rst.append("Meta")
+        rst.append("----")
+        # Meta as simple definition list
+        for k, v in meta_rows.items():
+            rst.append(f"{k}: {v}")
+        rst.append("")
+        rst.append("Results")
+        rst.append("-------")
+        # Build grid table
+        header_cols = [
+            "Function",
+            "Mean (ms)",
+            "StDev (ms)",
+            "Min (ms)",
+            "Max (ms)",
+            "Elements",
+            "Rust Throughput (M elems/s)",
+            "NumPy Throughput (M elems/s)",
+            "Speedup vs NumPy",
+            "Shape",
+        ]
+        # Determine column widths
+        rows = []
+        for r in results:
+            mean_ms = f"{r.mean_s*1000:.2f}"
+            stdev_ms = f"{r.stdev_s*1000:.2f}"
+            min_ms = f"{r.min_s*1000:.2f}"
+            max_ms = f"{r.max_s*1000:.2f}"
+            elems = f"{r.elements:,}" if r.elements is not None else "-"
+            tput = f"{(r.throughput_elems/1e6):.2f}" if r.throughput_elems is not None else "-"
+            btput = f"{(r.baseline_throughput_elems/1e6):.2f}" if r.baseline_throughput_elems is not None else "-"
+            speedup = f"{r.speedup_vs_numpy:.2f}x" if r.speedup_vs_numpy is not None else "-"
+            rows.append([r.name, mean_ms, stdev_ms, min_ms, max_ms, elems, tput, btput, speedup, r.shape_description])
+
+        # Compute column widths
+        col_widths = [max(len(h), *(len(row[i]) for row in rows)) for i, h in enumerate(header_cols)]
+
+        def grid_sep(char="="):
+            return "+" + "+".join(char * (w + 2) for w in col_widths) + "+"
+
+        def grid_row(values):
+            return "|" + "|".join(f" {v}{' ' * (w - len(v))} " for v, w in zip(values, col_widths)) + "|"
+
+        # Header
+        rst.append(grid_sep("="))
+        rst.append(grid_row(header_cols))
+        rst.append(grid_sep("="))
+        # Data rows
+        for row in rows:
+            rst.append(grid_row(row))
+        rst.append(grid_sep("="))
+        rst.append("")
+        if args.compare_numpy:
+            rst.append("Speedup vs NumPy = (NumPy mean time / Rust mean time); values > 1 indicate Rust is faster.")
+            rst.append("")
+        with open(args.rst_out, "w", encoding="utf-8") as f_rst:
+            f_rst.write("\n".join(rst))
+        if not args.quiet:
+            print(f"Wrote reST report to: {args.rst_out}")
+
+        return 0
 
 
 if __name__ == "__main__":  # pragma: no cover

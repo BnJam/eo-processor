@@ -1,13 +1,30 @@
-"""Type stubs for eo_processor"""
+"""Type stubs for eo_processor.
+
+Notes:
+- All spectral & masking functions accept any numeric numpy dtype; Rust layer coerces to float64.
+- Dimensional support:
+  * Spectral indices (ndvi, ndwi, savi, nbr, ndmi, nbr2, gci, enhanced_vegetation_index/evi) and delta indices (delta_ndvi, delta_nbr) dispatch over 1D and 2D; some additionally allow 3D/4D internally via generic normalized_difference but wrappers expose 1D/2D semantics.
+  * normalized_difference supports 1D–4D; temporal_mean, temporal_std, median, composite, masking functions support 1D–4D.
+  * Distance functions expect 2D inputs shaped (N, D).
+- Delta indices: pre/post inputs must have identical shapes; currently limited to 1D or 2D in public Python API.
+"""
 
 from typing import Literal, Optional, Sequence
 import numpy as np
 from numpy.typing import NDArray
 
-# Inputs accept any numeric dtype; implementation coerces to float64 internally.
+# Inputs accept any numeric dtype; implementation coerces to float64 internally for stable arithmetic.
+# Dimensional summary:
+#   - normalized_difference: 1D–4D
+#   - ndvi, ndwi, savi, nbr, ndmi, nbr2, gci, enhanced_vegetation_index (evi): 1D–2D primary (internal may handle >2D via generic path)
+#   - delta_ndvi, delta_nbr: 1D–2D (pre/post shapes must match exactly)
+#   - temporal_mean, temporal_std, median, composite: 1D–4D (time-first)
+#   - masking functions: 1D–4D
+#   - distance functions (euclidean_distance, manhattan_distance, chebyshev_distance, minkowski_distance): 2D only (N, D)
+# Keep this list in sync with README & Sphinx docs when adding new functions.
 NumericArray = NDArray[np.generic]
 
-__version__: Literal["0.4.0"]
+__version__: Literal["0.6.0"]
 
 def normalized_difference(a: NumericArray, b: NumericArray) -> NDArray[np.float64]: ...
 def ndvi(nir: NumericArray, red: NumericArray) -> NDArray[np.float64]: ...

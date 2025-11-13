@@ -1,0 +1,6 @@
+﻿eo\_processor.enhanced\_vegetation\_index
+=========================================
+
+.. currentmodule:: eo_processor
+
+.. autofunction:: enhanced_vegetation_index

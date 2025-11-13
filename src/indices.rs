@@ -108,24 +108,15 @@ fn normalized_difference_1d<'py>(
     a: PyReadonlyArray1<f64>,
     b: PyReadonlyArray1<f64>,
 ) -> PyResult<&'py PyArray1<f64>> {
-    let a = a.as_array();
-    let b = b.as_array();
-
-    let mut result = Array1::<f64>::zeros(a.len());
-
-    Zip::from(&mut result)
-        .and(&a)
-        .and(&b)
-        .for_each(|r, &a_val, &b_val| {
-            let sum = a_val + b_val;
-            *r = if sum.abs() < EPSILON {
-                0.0
-            } else {
-                (a_val - b_val) / sum
-            };
-        });
-
-    Ok(result.into_pyarray(py))
+    let a_arr = a.as_array();
+    let b_arr = b.as_array();
+    // Fused branchless arithmetic with EPSILON added to denominator.
+    let out = py.allow_threads(|| {
+        let numerator = &a_arr - &b_arr;
+        let denom = &a_arr + &b_arr + EPSILON;
+        numerator / denom
+    });
+    Ok(out.into_pyarray(py))
 }
 
 /// Compute normalized difference between two 2D arrays.
@@ -154,25 +145,14 @@ fn normalized_difference_2d<'py>(
     a: PyReadonlyArray2<f64>,
     b: PyReadonlyArray2<f64>,
 ) -> PyResult<&'py PyArray2<f64>> {
-    let a = a.as_array();
-    let b = b.as_array();
-
-    let shape = a.dim();
-    let mut result = Array2::<f64>::zeros(shape);
-
-    Zip::from(&mut result)
-        .and(&a)
-        .and(&b)
-        .for_each(|r, &a_val, &b_val| {
-            let sum = a_val + b_val;
-            *r = if sum.abs() < EPSILON {
-                0.0
-            } else {
-                (a_val - b_val) / sum
-            };
-        });
-
-    Ok(result.into_pyarray(py))
+    let a_arr = a.as_array();
+    let b_arr = b.as_array();
+    let out = py.allow_threads(|| {
+        let numerator = &a_arr - &b_arr;
+        let denom = &a_arr + &b_arr + EPSILON;
+        numerator / denom
+    });
+    Ok(out.into_pyarray(py))
 }
 
 /// Compute normalized difference between two 3D arrays.
@@ -198,25 +178,14 @@ fn normalized_difference_3d<'py>(
     a: PyReadonlyArray3<f64>,
     b: PyReadonlyArray3<f64>,
 ) -> PyResult<&'py PyArray3<f64>> {
-    let a = a.as_array();
-    let b = b.as_array();
-
-    let shape = a.dim();
-    let mut result = ndarray::Array3::<f64>::zeros(shape);
-
-    Zip::from(&mut result)
-        .and(&a)
-        .and(&b)
-        .for_each(|r, &a_val, &b_val| {
-            let sum = a_val + b_val;
-            *r = if sum.abs() < EPSILON {
-                0.0
-            } else {
-                (a_val - b_val) / sum
-            };
-        });
-
-    Ok(result.into_pyarray(py))
+    let a_arr = a.as_array();
+    let b_arr = b.as_array();
+    let out = py.allow_threads(|| {
+        let numerator = &a_arr - &b_arr;
+        let denom = &a_arr + &b_arr + EPSILON;
+        numerator / denom
+    });
+    Ok(out.into_pyarray(py))
 }
 
 /// Compute normalized difference between two 4D arrays.
@@ -243,24 +212,14 @@ fn normalized_difference_4d<'py>(
     a: PyReadonlyArray4<f64>,
     b: PyReadonlyArray4<f64>,
 ) -> PyResult<&'py PyArray4<f64>> {
-    let a = a.as_array();
-    let b = b.as_array();
-
-    let shape = a.dim();
-    let mut result = ndarray::Array4::<f64>::zeros(shape);
-
-    Zip::from(&mut result)
-        .and(&a)
-        .and(&b)
-        .for_each(|r, &a_val, &b_val| {
-            let sum = a_val + b_val;
-            *r = if sum.abs() < EPSILON {
-                0.0
-            } else {
-                (a_val - b_val) / sum
-            };
-        });
-    Ok(result.into_pyarray(py))
+    let a_arr = a.as_array();
+    let b_arr = b.as_array();
+    let out = py.allow_threads(|| {
+        let numerator = &a_arr - &b_arr;
+        let denom = &a_arr + &b_arr + EPSILON;
+        numerator / denom
+    });
+    Ok(out.into_pyarray(py))
 }
 
 /// Compute NDVI (Normalized Difference Vegetation Index) from NIR and Red bands.

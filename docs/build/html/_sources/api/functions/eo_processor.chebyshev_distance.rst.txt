@@ -1,0 +1,6 @@
+﻿eo\_processor.chebyshev\_distance
+=================================
+
+.. currentmodule:: eo_processor
+
+.. autofunction:: chebyshev_distance

@@ -37,7 +37,7 @@ from ._core import (
 )
 
 
-__version__ = "0.4.0"
+__version__ = "0.6.0"
 
 __all__ = [
     "normalized_difference",
@@ -288,16 +288,46 @@ def median(arr, skip_na=True):
 
 def composite(arr, method="median", **kwargs):
     """
-    Compute a composite over the time axis of a 1D, 2D, 3D, or 4D array.
+    Composite convenience wrapper over temporal aggregation functions.
+
+    Currently only supports method="median". The composite is computed along the
+    leading time axis for arrays with shape:
+      - 1D: (time,)
+      - 2D: (time, bands|features)
+      - 3D: (time, y, x)
+      - 4D: (time, band, y, x)
 
     Parameters
     ----------
     arr : numpy.ndarray
-        Input array.
+        Input array (1D–4D). Any numeric dtype accepted; coerced to float64 internally.
     method : str, optional
-        The compositing method to use, by default "median".
+        Name of compositing method. Currently only "median" is implemented.
+        Providing any other value raises ValueError.
     **kwargs
-        Additional keyword arguments to pass to the compositing function.
+        Passed through to the underlying method. For "median" this includes
+        skip_na (bool) to control NaN handling (default True).
+
+    Returns
+    -------
+    numpy.ndarray
+        Composite with time axis removed. Output dimensionality:
+          - 1D input -> scalar (float64)
+          - 2D input -> (bands,)
+          - 3D input -> (y, x)
+          - 4D input -> (band, y, x)
+
+    Notes
+    -----
+    This wrapper centralizes dispatch so future methods (e.g. "mean", "std",
+    "percentile") can be added without changing call sites. When new methods
+    are introduced: update README, type stubs, Sphinx autosummary entries,
+    and bump the minor version.
+
+    Raises
+    ------
+    ValueError
+        If method is not recognized.
     """
     if method == "median":
         return median(arr, **kwargs)
@@ -307,28 +337,43 @@ def composite(arr, method="median", **kwargs):
 
 def temporal_mean(arr, skip_na=True):
     """
-    Compute mean over the time axis of a 1D, 2D, 3D, or 4D array.
+    Compute the mean along the leading time axis of a 1D–4D time‑first array.
+
     Parameters
     ----------
     arr : numpy.ndarray
-        Input array.
-    skip_na : bool, optional
-        Whether to skip NaN values, by default True. If False, the mean
-        of any pixel containing a NaN will be NaN.
+        Time‑first array (1D–4D). Shapes:
+        (T,), (T, F), (T, Y, X), (T, B, Y, X).
+    skip_na : bool, default True
+        If True, NaNs are excluded per pixel/band; all‑NaN series produce NaN.
+        If False, any NaN in a series propagates NaN to the output position.
+
+    Returns
+    -------
+    numpy.ndarray
+        Mean with time axis removed; float64 dtype. Scalar for 1D input.
     """
     return _temporal_mean(arr, skip_na=skip_na)
 
 
 def temporal_std(arr, skip_na=True):
     """
-    Compute standard deviation over the time axis of a 1D, 2D, 3D, or 4D array.
+    Compute the sample standard deviation (ddof=1) along the leading time axis
+    of a 1D–4D time‑first array.
+
     Parameters
     ----------
     arr : numpy.ndarray
-        Input array.
-    skip_na : bool, optional
-        Whether to skip NaN values, by default True. If False, the std
-        of any pixel containing a NaN will be NaN.
+        Time‑first array (1D–4D). Shapes:
+        (T,), (T, F), (T, Y, X), (T, B, Y, X).
+    skip_na : bool, default True
+        If True, NaNs are excluded before variance; fewer than 2 valid values
+        yield NaN. If False, any NaN in a series propagates NaN.
+
+    Returns
+    -------
+    numpy.ndarray
+        Standard deviation with time axis removed; float64 dtype. Scalar for 1D input.
     """
     return _temporal_std(arr, skip_na=skip_na)
 

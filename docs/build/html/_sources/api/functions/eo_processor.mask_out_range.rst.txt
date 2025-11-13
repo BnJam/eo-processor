@@ -1,0 +1,6 @@
+﻿eo\_processor.mask\_out\_range
+==============================
+
+.. currentmodule:: eo_processor
+
+.. autofunction:: mask_out_range

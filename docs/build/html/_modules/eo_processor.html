@@ -1,0 +1,985 @@
+<!doctype html>
+<html class="no-js" lang="en" data-content_root="../">
+  <head><meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="color-scheme" content="light dark"><link rel="index" title="Index" href="../genindex.html"><link rel="search" title="Search" href="../search.html">
+
+    <!-- Generated with Sphinx 7.4.7 and Furo 2025.09.25 -->
+        <title>eo_processor - eo-processor 0.6.0</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=03e43079" />
+    <link rel="stylesheet" type="text/css" href="../_static/styles/furo.css?v=580074bf" />
+    <link rel="stylesheet" type="text/css" href="../_static/styles/furo-extensions.css?v=8dab3a3b" />
+    <link rel="stylesheet" type="text/css" href="../_static/custom.css?v=2f8e74de" />
+    
+    
+
+
+<style>
+  body {
+    --color-code-background: #eeffcc;
+  --color-code-foreground: black;
+  
+  }
+  @media not print {
+    body[data-theme="dark"] {
+      --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+    }
+    @media (prefers-color-scheme: dark) {
+      body:not([data-theme="light"]) {
+        --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+      }
+    }
+  }
+</style></head>
+  <body>
+    
+    <script>
+      document.body.dataset.theme = localStorage.getItem("theme") || "auto";
+    </script>
+    
+
+<svg xmlns="http://www.w3.org/2000/svg" style="display: none;">
+  <symbol id="svg-toc" viewBox="0 0 24 24">
+    <title>Contents</title>
+    <svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 1024 1024">
+      <path d="M408 442h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8zm-8 204c0 4.4 3.6 8 8 8h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56zm504-486H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zm0 632H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zM115.4 518.9L271.7 642c5.8 4.6 14.4.5 14.4-6.9V388.9c0-7.4-8.5-11.5-14.4-6.9L115.4 505.1a8.74 8.74 0 0 0 0 13.8z"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-menu" viewBox="0 0 24 24">
+    <title>Menu</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-menu">
+      <line x1="3" y1="12" x2="21" y2="12"></line>
+      <line x1="3" y1="6" x2="21" y2="6"></line>
+      <line x1="3" y1="18" x2="21" y2="18"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-arrow-right" viewBox="0 0 24 24">
+    <title>Expand</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-chevron-right">
+      <polyline points="9 18 15 12 9 6"></polyline>
+    </svg>
+  </symbol>
+  <symbol id="svg-sun" viewBox="0 0 24 24">
+    <title>Light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="feather-sun">
+      <circle cx="12" cy="12" r="5"></circle>
+      <line x1="12" y1="1" x2="12" y2="3"></line>
+      <line x1="12" y1="21" x2="12" y2="23"></line>
+      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+      <line x1="1" y1="12" x2="3" y2="12"></line>
+      <line x1="21" y1="12" x2="23" y2="12"></line>
+      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon" viewBox="0 0 24 24">
+    <title>Dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-moon">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454z" />
+    </svg>
+  </symbol>
+  <symbol id="svg-sun-with-moon" viewBox="0 0 24 24">
+    <title>Auto light/dark, in light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round"
+      class="icon-custom-derived-from-feather-sun-and-tabler-moon">
+      <path style="opacity: 50%" d="M 5.411 14.504 C 5.471 14.504 5.532 14.504 5.591 14.504 C 3.639 16.319 4.383 19.569 6.931 20.352 C 7.693 20.586 8.512 20.551 9.25 20.252 C 8.023 23.207 4.056 23.725 2.11 21.184 C 0.166 18.642 1.702 14.949 4.874 14.536 C 5.051 14.512 5.231 14.5 5.411 14.5 L 5.411 14.504 Z"/>
+      <line x1="14.5" y1="3.25" x2="14.5" y2="1.25"/>
+      <line x1="14.5" y1="15.85" x2="14.5" y2="17.85"/>
+      <line x1="10.044" y1="5.094" x2="8.63" y2="3.68"/>
+      <line x1="19" y1="14.05" x2="20.414" y2="15.464"/>
+      <line x1="8.2" y1="9.55" x2="6.2" y2="9.55"/>
+      <line x1="20.8" y1="9.55" x2="22.8" y2="9.55"/>
+      <line x1="10.044" y1="14.006" x2="8.63" y2="15.42"/>
+      <line x1="19" y1="5.05" x2="20.414" y2="3.636"/>
+      <circle cx="14.5" cy="9.55" r="3.6"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon-with-sun" viewBox="0 0 24 24">
+    <title>Auto light/dark, in dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round"
+      class="icon-custom-derived-from-feather-sun-and-tabler-moon">
+      <path d="M 8.282 7.007 C 8.385 7.007 8.494 7.007 8.595 7.007 C 5.18 10.184 6.481 15.869 10.942 17.24 C 12.275 17.648 13.706 17.589 15 17.066 C 12.851 22.236 5.91 23.143 2.505 18.696 C -0.897 14.249 1.791 7.786 7.342 7.063 C 7.652 7.021 7.965 7 8.282 7 L 8.282 7.007 Z"/>
+      <line style="opacity: 50%" x1="18" y1="3.705" x2="18" y2="2.5"/>
+      <line style="opacity: 50%" x1="18" y1="11.295" x2="18" y2="12.5"/>
+      <line style="opacity: 50%" x1="15.316" y1="4.816" x2="14.464" y2="3.964"/>
+      <line style="opacity: 50%" x1="20.711" y1="10.212" x2="21.563" y2="11.063"/>
+      <line style="opacity: 50%" x1="14.205" y1="7.5" x2="13.001" y2="7.5"/>
+      <line style="opacity: 50%" x1="21.795" y1="7.5" x2="23" y2="7.5"/>
+      <line style="opacity: 50%" x1="15.316" y1="10.184" x2="14.464" y2="11.036"/>
+      <line style="opacity: 50%" x1="20.711" y1="4.789" x2="21.563" y2="3.937"/>
+      <circle style="opacity: 50%" cx="18" cy="7.5" r="2.169"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-pencil" viewBox="0 0 24 24">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-pencil-code">
+      <path d="M4 20h4l10.5 -10.5a2.828 2.828 0 1 0 -4 -4l-10.5 10.5v4" />
+      <path d="M13.5 6.5l4 4" />
+      <path d="M20 21l2 -2l-2 -2" />
+      <path d="M17 17l-2 2l2 2" />
+    </svg>
+  </symbol>
+  <symbol id="svg-eye" viewBox="0 0 24 24">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-eye-code">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M10 12a2 2 0 1 0 4 0a2 2 0 0 0 -4 0" />
+      <path
+        d="M11.11 17.958c-3.209 -.307 -5.91 -2.293 -8.11 -5.958c2.4 -4 5.4 -6 9 -6c3.6 0 6.6 2 9 6c-.21 .352 -.427 .688 -.647 1.008" />
+      <path d="M20 21l2 -2l-2 -2" />
+      <path d="M17 17l-2 2l2 2" />
+    </svg>
+  </symbol>
+</svg>
+
+<input type="checkbox" class="sidebar-toggle" name="__navigation" id="__navigation" aria-label="Toggle site navigation sidebar">
+<input type="checkbox" class="sidebar-toggle" name="__toc" id="__toc" aria-label="Toggle table of contents sidebar">
+<label class="overlay sidebar-overlay" for="__navigation"></label>
+<label class="overlay toc-overlay" for="__toc"></label>
+
+<a class="skip-to-content muted-link" href="#furo-main-content">Skip to content</a>
+
+
+
+<div class="page">
+  <header class="mobile-header">
+    <div class="header-left">
+      <label class="nav-overlay-icon" for="__navigation">
+        <span class="icon"><svg><use href="#svg-menu"></use></svg></span>
+      </label>
+    </div>
+    <div class="header-center">
+      <a href="../index.html"><div class="brand">eo-processor 0.6.0</div></a>
+    </div>
+    <div class="header-right">
+      <div class="theme-toggle-container theme-toggle-header">
+        <button class="theme-toggle" aria-label="Toggle Light / Dark / Auto color theme">
+          <svg class="theme-icon-when-auto-light"><use href="#svg-sun-with-moon"></use></svg>
+          <svg class="theme-icon-when-auto-dark"><use href="#svg-moon-with-sun"></use></svg>
+          <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+          <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+        </button>
+      </div>
+      <label class="toc-overlay-icon toc-header-icon no-toc" for="__toc">
+        <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
+      </label>
+    </div>
+  </header>
+  <aside class="sidebar-drawer">
+    <div class="sidebar-container">
+      
+      <div class="sidebar-sticky"><a class="sidebar-brand" href="../index.html">
+  
+  <span class="sidebar-brand-text">eo-processor 0.6.0</span>
+  
+</a><form class="sidebar-search-container" method="get" action="../search.html" role="search">
+  <input class="sidebar-search" placeholder="Search" name="q" aria-label="Search">
+  <input type="hidden" name="check_keywords" value="yes">
+  <input type="hidden" name="area" value="default">
+</form>
+<div id="searchbox"></div><div class="sidebar-scroll"><div class="sidebar-tree">
+  <p class="caption" role="heading"><span class="caption-text">Getting Started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../README.html">eo-processor</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../QUICKSTART.html">Quick Start Guide</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../api/architecture.html">Architecture &amp; Performance Model</a></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../api/functions.html">Functions</a><input aria-label="Toggle navigation of Functions" class="toctree-checkbox" id="toctree-checkbox-1" name="toctree-checkbox-1" role="switch" type="checkbox"/><label for="toctree-checkbox-1"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="../api/functions/ndvi.html">ndvi</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../api/functions/ndwi.html">ndwi</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../api/functions/ndmi.html">ndmi</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../api/functions/nbr.html">nbr</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../api/functions/nbr2.html">nbr2</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../api/functions/savi.html">savi</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../api/functions/enhanced_vegetation_index.html">enhanced_vegetation_index</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../api/functions/evi.html">evi</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../api/functions/gci.html">gci</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../api/functions/delta_ndvi.html">delta_ndvi</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../api/functions/delta_nbr.html">delta_nbr</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../api/functions/temporal_mean.html">temporal_mean</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../api/functions/temporal_std.html">temporal_std</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../api/functions/median.html">median</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../api/functions/composite.html">composite</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../api/functions/mask_vals.html">mask_vals</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../api/functions/mask_invalid.html">mask_invalid</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../api/functions/mask_in_range.html">mask_in_range</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../api/functions/mask_out_range.html">mask_out_range</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../api/functions/mask_scl.html">mask_scl</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../api/functions/replace_nans.html">replace_nans</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../api/functions/euclidean_distance.html">euclidean_distance</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../api/functions/manhattan_distance.html">manhattan_distance</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../api/functions/chebyshev_distance.html">chebyshev_distance</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../api/functions/minkowski_distance.html">minkowski_distance</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../api/functions/normalized_difference.html">normalized_difference</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Contributing</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference external" href="https://github.com/Bnjam/eo-processor/blob/main/CONTRIBUTING.md">CONTRIBUTING</a></li>
+<li class="toctree-l1"><a class="reference external" href="https://github.com/Bnjam/eo-processor/blob/main/AGENTS.md">AGENTS</a></li>
+<li class="toctree-l1"><a class="reference external" href="https://github.com/Bnjam/eo-processor/blob/main/SECURITY.md">SECURITY</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Functions</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../api/functions/normalized_difference.html">normalized_difference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api/functions/ndvi.html">ndvi</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api/functions/ndwi.html">ndwi</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api/functions/savi.html">savi</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api/functions/nbr.html">nbr</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api/functions/ndmi.html">ndmi</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api/functions/nbr2.html">nbr2</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api/functions/gci.html">gci</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api/functions/enhanced_vegetation_index.html">enhanced_vegetation_index</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api/functions/evi.html">evi</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api/functions/delta_ndvi.html">delta_ndvi</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api/functions/delta_nbr.html">delta_nbr</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api/functions/median.html">median</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api/functions/composite.html">composite</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api/functions/temporal_mean.html">temporal_mean</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api/functions/temporal_std.html">temporal_std</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api/functions/euclidean_distance.html">euclidean_distance</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api/functions/manhattan_distance.html">manhattan_distance</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api/functions/chebyshev_distance.html">chebyshev_distance</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api/functions/minkowski_distance.html">minkowski_distance</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api/functions/mask_vals.html">mask_vals</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api/functions/replace_nans.html">replace_nans</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api/functions/mask_out_range.html">mask_out_range</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api/functions/mask_invalid.html">mask_invalid</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api/functions/mask_in_range.html">mask_in_range</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api/functions/mask_scl.html">mask_scl</a></li>
+</ul>
+
+</div>
+</div>
+
+      </div>
+      
+    </div>
+  </aside>
+  <div class="main">
+    <div class="content">
+      <div class="article-container">
+        <a href="#" class="back-to-top muted-link">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+            <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+          </svg>
+          <span>Back to top</span>
+        </a>
+        <div class="content-icon-container">
+          <div class="theme-toggle-container theme-toggle-content">
+            <button class="theme-toggle" aria-label="Toggle Light / Dark / Auto color theme">
+              <svg class="theme-icon-when-auto-light"><use href="#svg-sun-with-moon"></use></svg>
+              <svg class="theme-icon-when-auto-dark"><use href="#svg-moon-with-sun"></use></svg>
+              <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+              <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+            </button>
+          </div>
+          <label class="toc-overlay-icon toc-content-icon no-toc" for="__toc">
+            <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
+          </label>
+        </div>
+        <article role="main" id="furo-main-content">
+          <h1>Source code for eo_processor</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">High-performance Earth Observation processing library.</span>
+
+<span class="sd">This library provides Rust-accelerated functions for common EO/geospatial</span>
+<span class="sd">computations that can be used within XArray/Dask workflows to bypass Python&#39;s GIL.</span>
+
+<span class="sd">NOTE: All public spectral and temporal functions accept any numeric NumPy dtype</span>
+<span class="sd">(int, uint, float32, float64, etc.). Inputs are automatically coerced to float64</span>
+<span class="sd">in the Rust layer for consistent and stable computation.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">._core</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">normalized_difference</span> <span class="k">as</span> <span class="n">_normalized_difference</span><span class="p">,</span>
+    <span class="n">ndvi</span> <span class="k">as</span> <span class="n">_ndvi</span><span class="p">,</span>
+    <span class="n">ndwi</span> <span class="k">as</span> <span class="n">_ndwi</span><span class="p">,</span>
+    <span class="n">savi</span> <span class="k">as</span> <span class="n">_savi</span><span class="p">,</span>
+    <span class="n">nbr</span> <span class="k">as</span> <span class="n">_nbr</span><span class="p">,</span>
+    <span class="n">ndmi</span> <span class="k">as</span> <span class="n">_ndmi</span><span class="p">,</span>
+    <span class="n">nbr2</span> <span class="k">as</span> <span class="n">_nbr2</span><span class="p">,</span>
+    <span class="n">gci</span> <span class="k">as</span> <span class="n">_gci</span><span class="p">,</span>
+    <span class="n">enhanced_vegetation_index</span> <span class="k">as</span> <span class="n">_enhanced_vegetation_index</span><span class="p">,</span>
+    <span class="n">median</span> <span class="k">as</span> <span class="n">_median</span><span class="p">,</span>
+    <span class="n">temporal_mean</span> <span class="k">as</span> <span class="n">_temporal_mean</span><span class="p">,</span>
+    <span class="n">temporal_std</span> <span class="k">as</span> <span class="n">_temporal_std</span><span class="p">,</span>
+    <span class="n">euclidean_distance</span> <span class="k">as</span> <span class="n">_euclidean_distance</span><span class="p">,</span>
+    <span class="n">manhattan_distance</span> <span class="k">as</span> <span class="n">_manhattan_distance</span><span class="p">,</span>
+    <span class="n">chebyshev_distance</span> <span class="k">as</span> <span class="n">_chebyshev_distance</span><span class="p">,</span>
+    <span class="n">minkowski_distance</span> <span class="k">as</span> <span class="n">_minkowski_distance</span><span class="p">,</span>
+    <span class="n">delta_ndvi</span> <span class="k">as</span> <span class="n">_delta_ndvi</span><span class="p">,</span>
+    <span class="n">delta_nbr</span> <span class="k">as</span> <span class="n">_delta_nbr</span><span class="p">,</span>
+    <span class="n">mask_vals</span> <span class="k">as</span> <span class="n">_mask_vals</span><span class="p">,</span>
+    <span class="n">replace_nans</span> <span class="k">as</span> <span class="n">_replace_nans</span><span class="p">,</span>
+    <span class="n">mask_out_range</span> <span class="k">as</span> <span class="n">_mask_out_range</span><span class="p">,</span>
+    <span class="n">mask_invalid</span> <span class="k">as</span> <span class="n">_mask_invalid</span><span class="p">,</span>
+    <span class="n">mask_in_range</span> <span class="k">as</span> <span class="n">_mask_in_range</span><span class="p">,</span>
+    <span class="n">mask_scl</span> <span class="k">as</span> <span class="n">_mask_scl</span><span class="p">,</span>
+<span class="p">)</span>
+
+
+<span class="n">__version__</span> <span class="o">=</span> <span class="s2">&quot;0.6.0&quot;</span>
+
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="s2">&quot;normalized_difference&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;ndvi&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;ndwi&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;savi&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;nbr&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;ndmi&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;nbr2&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;gci&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;enhanced_vegetation_index&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;evi&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;delta_ndvi&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;delta_nbr&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;median&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;composite&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;temporal_mean&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;temporal_std&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;euclidean_distance&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;manhattan_distance&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;chebyshev_distance&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;minkowski_distance&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;mask_vals&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;replace_nans&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;mask_out_range&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;mask_invalid&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;mask_in_range&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;mask_scl&quot;</span><span class="p">,</span>
+<span class="p">]</span>
+
+
+<div class="viewcode-block" id="normalized_difference">
+<a class="viewcode-back" href="../api/functions/normalized_difference.html#eo_processor.normalized_difference">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">normalized_difference</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Compute normalized difference (a - b) / (a + b) using the Rust core.</span>
+<span class="sd">    Supports 1D or 2D numpy float arrays; dimensional dispatch occurs in Rust.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">_normalized_difference</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="ndvi">
+<a class="viewcode-back" href="../api/functions/ndvi.html#eo_processor.ndvi">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">ndvi</span><span class="p">(</span><span class="n">nir</span><span class="p">,</span> <span class="n">red</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Compute NDVI = (NIR - Red) / (NIR + Red) via Rust core (1D or 2D).</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">_ndvi</span><span class="p">(</span><span class="n">nir</span><span class="p">,</span> <span class="n">red</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="ndwi">
+<a class="viewcode-back" href="../api/functions/ndwi.html#eo_processor.ndwi">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">ndwi</span><span class="p">(</span><span class="n">green</span><span class="p">,</span> <span class="n">nir</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Compute NDWI = (Green - NIR) / (Green + NIR) via Rust core (1D or 2D).</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">_ndwi</span><span class="p">(</span><span class="n">green</span><span class="p">,</span> <span class="n">nir</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="savi">
+<a class="viewcode-back" href="../api/functions/savi.html#eo_processor.savi">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">savi</span><span class="p">(</span><span class="n">nir</span><span class="p">,</span> <span class="n">red</span><span class="p">,</span> <span class="n">L</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Compute Soil Adjusted Vegetation Index (SAVI).</span>
+
+<span class="sd">    SAVI = (NIR - Red) / (NIR + Red + L) * (1 + L)</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    nir : numpy.ndarray</span>
+<span class="sd">        Near-infrared band.</span>
+<span class="sd">    red : numpy.ndarray</span>
+<span class="sd">        Red band.</span>
+<span class="sd">    L : float, optional</span>
+<span class="sd">        Soil brightness correction factor (default 0.5). Typical range 0–1.</span>
+<span class="sd">        Larger L reduces soil background influence.</span>
+<span class="sd">    **kwargs :</span>
+<span class="sd">        May contain &#39;l&#39; to specify the soil adjustment factor instead of &#39;L&#39;.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    numpy.ndarray</span>
+<span class="sd">        SAVI values with same shape as inputs.</span>
+
+<span class="sd">    Notes</span>
+<span class="sd">    -----</span>
+<span class="sd">    You can call as:</span>
+<span class="sd">        savi(nir, red)              # uses L=0.5</span>
+<span class="sd">        savi(nir, red, L=0.25)      # custom L</span>
+<span class="sd">        savi(nir, red, l=0.25)      # alternative keyword</span>
+<span class="sd">    If both L and l are provided, &#39;l&#39; takes precedence.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">l_val</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;l&quot;</span><span class="p">,</span> <span class="n">L</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">_savi</span><span class="p">(</span><span class="n">nir</span><span class="p">,</span> <span class="n">red</span><span class="p">,</span> <span class="n">l_val</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="ndmi">
+<a class="viewcode-back" href="../api/functions/ndmi.html#eo_processor.ndmi">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">ndmi</span><span class="p">(</span><span class="n">nir</span><span class="p">,</span> <span class="n">swir1</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Normalized Difference Moisture Index (NDMI)</span>
+
+<span class="sd">    NDMI = (NIR - SWIR1) / (NIR + SWIR1)</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    nir : numpy.ndarray</span>
+<span class="sd">        Near-infrared band.</span>
+<span class="sd">    swir1 : numpy.ndarray</span>
+<span class="sd">        Short-wave infrared 1 band.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    numpy.ndarray</span>
+<span class="sd">        NDMI values (-1 .. 1).</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">_ndmi</span><span class="p">(</span><span class="n">nir</span><span class="p">,</span> <span class="n">swir1</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="nbr2">
+<a class="viewcode-back" href="../api/functions/nbr2.html#eo_processor.nbr2">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">nbr2</span><span class="p">(</span><span class="n">swir1</span><span class="p">,</span> <span class="n">swir2</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Normalized Burn Ratio 2 (NBR2)</span>
+
+<span class="sd">    NBR2 = (SWIR1 - SWIR2) / (SWIR1 + SWIR2)</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    swir1 : numpy.ndarray</span>
+<span class="sd">        Short-wave infrared 1 band.</span>
+<span class="sd">    swir2 : numpy.ndarray</span>
+<span class="sd">        Short-wave infrared 2 band.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    numpy.ndarray</span>
+<span class="sd">        NBR2 values (-1 .. 1).</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">_nbr2</span><span class="p">(</span><span class="n">swir1</span><span class="p">,</span> <span class="n">swir2</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="gci">
+<a class="viewcode-back" href="../api/functions/gci.html#eo_processor.gci">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">gci</span><span class="p">(</span><span class="n">nir</span><span class="p">,</span> <span class="n">green</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Green Chlorophyll Index (GCI)</span>
+
+<span class="sd">    GCI = (NIR / Green) - 1</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    nir : numpy.ndarray</span>
+<span class="sd">        Near-infrared band (any numeric dtype; auto-coerced to float64).</span>
+<span class="sd">    green : numpy.ndarray</span>
+<span class="sd">        Green band (any numeric dtype).</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    numpy.ndarray</span>
+<span class="sd">        GCI values (unbounded; typical vegetation &gt; 0).</span>
+
+<span class="sd">    Notes</span>
+<span class="sd">    -----</span>
+<span class="sd">    Division-by-near-zero guarded; returns 0 where Green is ~0.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">_gci</span><span class="p">(</span><span class="n">nir</span><span class="p">,</span> <span class="n">green</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="delta_ndvi">
+<a class="viewcode-back" href="../api/functions/delta_ndvi.html#eo_processor.delta_ndvi">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">delta_ndvi</span><span class="p">(</span><span class="n">pre_nir</span><span class="p">,</span> <span class="n">pre_red</span><span class="p">,</span> <span class="n">post_nir</span><span class="p">,</span> <span class="n">post_red</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Change in NDVI (pre - post).</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    pre_nir, pre_red : numpy.ndarray</span>
+<span class="sd">        Pre-event near-infrared and red bands.</span>
+<span class="sd">    post_nir, post_red : numpy.ndarray</span>
+<span class="sd">        Post-event near-infrared and red bands.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    numpy.ndarray</span>
+<span class="sd">        ΔNDVI array (same shape as inputs), positive values often indicate vegetation loss.</span>
+
+<span class="sd">    Notes</span>
+<span class="sd">    -----</span>
+<span class="sd">    Inputs may be any numeric dtype; values are coerced to float64 internally.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">_delta_ndvi</span><span class="p">(</span><span class="n">pre_nir</span><span class="p">,</span> <span class="n">pre_red</span><span class="p">,</span> <span class="n">post_nir</span><span class="p">,</span> <span class="n">post_red</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="delta_nbr">
+<a class="viewcode-back" href="../api/functions/delta_nbr.html#eo_processor.delta_nbr">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">delta_nbr</span><span class="p">(</span><span class="n">pre_nir</span><span class="p">,</span> <span class="n">pre_swir2</span><span class="p">,</span> <span class="n">post_nir</span><span class="p">,</span> <span class="n">post_swir2</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Change in NBR (pre - post) for burn severity analysis.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    pre_nir, pre_swir2 : numpy.ndarray</span>
+<span class="sd">        Pre-event NIR and SWIR2 bands.</span>
+<span class="sd">    post_nir, post_swir2 : numpy.ndarray</span>
+<span class="sd">        Post-event NIR and SWIR2 bands.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    numpy.ndarray</span>
+<span class="sd">        ΔNBR array (same shape as inputs). Larger positive values generally indicate higher burn severity.</span>
+
+<span class="sd">    Notes</span>
+<span class="sd">    -----</span>
+<span class="sd">    Inputs may be any numeric dtype; internal coercion to float64.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">_delta_nbr</span><span class="p">(</span><span class="n">pre_nir</span><span class="p">,</span> <span class="n">pre_swir2</span><span class="p">,</span> <span class="n">post_nir</span><span class="p">,</span> <span class="n">post_swir2</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="nbr">
+<a class="viewcode-back" href="../api/functions/nbr.html#eo_processor.nbr">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">nbr</span><span class="p">(</span><span class="n">nir</span><span class="p">,</span> <span class="n">swir2</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Compute Normalized Burn Ratio (NBR).</span>
+
+<span class="sd">    NBR = (NIR - SWIR2) / (NIR + SWIR2)</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    nir : numpy.ndarray</span>
+<span class="sd">        Near-infrared band.</span>
+<span class="sd">    swir2 : numpy.ndarray</span>
+<span class="sd">        Short-wave infrared (SWIR2) band.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    numpy.ndarray</span>
+<span class="sd">        NBR values with same shape as inputs.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">_nbr</span><span class="p">(</span><span class="n">nir</span><span class="p">,</span> <span class="n">swir2</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="enhanced_vegetation_index">
+<a class="viewcode-back" href="../api/functions/enhanced_vegetation_index.html#eo_processor.enhanced_vegetation_index">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">enhanced_vegetation_index</span><span class="p">(</span><span class="n">nir</span><span class="p">,</span> <span class="n">red</span><span class="p">,</span> <span class="n">blue</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Compute EVI = 2.5 * (NIR - Red) / (NIR + 6*Red - 7.5*Blue + 1) via Rust core (1D or 2D).</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">_enhanced_vegetation_index</span><span class="p">(</span><span class="n">nir</span><span class="p">,</span> <span class="n">red</span><span class="p">,</span> <span class="n">blue</span><span class="p">)</span></div>
+
+
+
+<span class="c1"># Alias</span>
+<span class="n">evi</span> <span class="o">=</span> <span class="n">enhanced_vegetation_index</span>
+
+
+<div class="viewcode-block" id="median">
+<a class="viewcode-back" href="../api/functions/median.html#eo_processor.median">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">median</span><span class="p">(</span><span class="n">arr</span><span class="p">,</span> <span class="n">skip_na</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Compute median over the time axis of a 1D, 2D, 3D, or 4D array.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    arr : numpy.ndarray</span>
+<span class="sd">        Input array.</span>
+<span class="sd">    skip_na : bool, optional</span>
+<span class="sd">        Whether to skip NaN values, by default True. If False, the median</span>
+<span class="sd">        of any pixel containing a NaN will be NaN.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">_median</span><span class="p">(</span><span class="n">arr</span><span class="p">,</span> <span class="n">skip_na</span><span class="o">=</span><span class="n">skip_na</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="composite">
+<a class="viewcode-back" href="../api/functions/composite.html#eo_processor.composite">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">composite</span><span class="p">(</span><span class="n">arr</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="s2">&quot;median&quot;</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Composite convenience wrapper over temporal aggregation functions.</span>
+
+<span class="sd">    Currently only supports method=&quot;median&quot;. The composite is computed along the</span>
+<span class="sd">    leading time axis for arrays with shape:</span>
+<span class="sd">      - 1D: (time,)</span>
+<span class="sd">      - 2D: (time, bands|features)</span>
+<span class="sd">      - 3D: (time, y, x)</span>
+<span class="sd">      - 4D: (time, band, y, x)</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    arr : numpy.ndarray</span>
+<span class="sd">        Input array (1D–4D). Any numeric dtype accepted; coerced to float64 internally.</span>
+<span class="sd">    method : str, optional</span>
+<span class="sd">        Name of compositing method. Currently only &quot;median&quot; is implemented.</span>
+<span class="sd">        Providing any other value raises ValueError.</span>
+<span class="sd">    **kwargs</span>
+<span class="sd">        Passed through to the underlying method. For &quot;median&quot; this includes</span>
+<span class="sd">        skip_na (bool) to control NaN handling (default True).</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    numpy.ndarray</span>
+<span class="sd">        Composite with time axis removed. Output dimensionality:</span>
+<span class="sd">          - 1D input -&gt; scalar (float64)</span>
+<span class="sd">          - 2D input -&gt; (bands,)</span>
+<span class="sd">          - 3D input -&gt; (y, x)</span>
+<span class="sd">          - 4D input -&gt; (band, y, x)</span>
+
+<span class="sd">    Notes</span>
+<span class="sd">    -----</span>
+<span class="sd">    This wrapper centralizes dispatch so future methods (e.g. &quot;mean&quot;, &quot;std&quot;,</span>
+<span class="sd">    &quot;percentile&quot;) can be added without changing call sites. When new methods</span>
+<span class="sd">    are introduced: update README, type stubs, Sphinx autosummary entries,</span>
+<span class="sd">    and bump the minor version.</span>
+
+<span class="sd">    Raises</span>
+<span class="sd">    ------</span>
+<span class="sd">    ValueError</span>
+<span class="sd">        If method is not recognized.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">method</span> <span class="o">==</span> <span class="s2">&quot;median&quot;</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">median</span><span class="p">(</span><span class="n">arr</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unknown composite method: </span><span class="si">{</span><span class="n">method</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="temporal_mean">
+<a class="viewcode-back" href="../api/functions/temporal_mean.html#eo_processor.temporal_mean">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">temporal_mean</span><span class="p">(</span><span class="n">arr</span><span class="p">,</span> <span class="n">skip_na</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Compute the mean along the leading time axis of a 1D–4D time‑first array.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    arr : numpy.ndarray</span>
+<span class="sd">        Time‑first array (1D–4D). Shapes:</span>
+<span class="sd">        (T,), (T, F), (T, Y, X), (T, B, Y, X).</span>
+<span class="sd">    skip_na : bool, default True</span>
+<span class="sd">        If True, NaNs are excluded per pixel/band; all‑NaN series produce NaN.</span>
+<span class="sd">        If False, any NaN in a series propagates NaN to the output position.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    numpy.ndarray</span>
+<span class="sd">        Mean with time axis removed; float64 dtype. Scalar for 1D input.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">_temporal_mean</span><span class="p">(</span><span class="n">arr</span><span class="p">,</span> <span class="n">skip_na</span><span class="o">=</span><span class="n">skip_na</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="temporal_std">
+<a class="viewcode-back" href="../api/functions/temporal_std.html#eo_processor.temporal_std">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">temporal_std</span><span class="p">(</span><span class="n">arr</span><span class="p">,</span> <span class="n">skip_na</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Compute the sample standard deviation (ddof=1) along the leading time axis</span>
+<span class="sd">    of a 1D–4D time‑first array.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    arr : numpy.ndarray</span>
+<span class="sd">        Time‑first array (1D–4D). Shapes:</span>
+<span class="sd">        (T,), (T, F), (T, Y, X), (T, B, Y, X).</span>
+<span class="sd">    skip_na : bool, default True</span>
+<span class="sd">        If True, NaNs are excluded before variance; fewer than 2 valid values</span>
+<span class="sd">        yield NaN. If False, any NaN in a series propagates NaN.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    numpy.ndarray</span>
+<span class="sd">        Standard deviation with time axis removed; float64 dtype. Scalar for 1D input.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">_temporal_std</span><span class="p">(</span><span class="n">arr</span><span class="p">,</span> <span class="n">skip_na</span><span class="o">=</span><span class="n">skip_na</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="euclidean_distance">
+<a class="viewcode-back" href="../api/functions/euclidean_distance.html#eo_processor.euclidean_distance">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">euclidean_distance</span><span class="p">(</span><span class="n">points_a</span><span class="p">,</span> <span class="n">points_b</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Compute pairwise Euclidean distances between two point sets.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    points_a : numpy.ndarray (N, D)</span>
+<span class="sd">    points_b : numpy.ndarray (M, D)</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    numpy.ndarray (N, M)</span>
+<span class="sd">        Distance matrix where element (i, j) is distance between</span>
+<span class="sd">        points_a[i] and points_b[j].</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">_euclidean_distance</span><span class="p">(</span><span class="n">points_a</span><span class="p">,</span> <span class="n">points_b</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="manhattan_distance">
+<a class="viewcode-back" href="../api/functions/manhattan_distance.html#eo_processor.manhattan_distance">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">manhattan_distance</span><span class="p">(</span><span class="n">points_a</span><span class="p">,</span> <span class="n">points_b</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Compute pairwise Manhattan (L1) distances between two point sets.</span>
+<span class="sd">    See `euclidean_distance` for shape conventions.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">_manhattan_distance</span><span class="p">(</span><span class="n">points_a</span><span class="p">,</span> <span class="n">points_b</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="chebyshev_distance">
+<a class="viewcode-back" href="../api/functions/chebyshev_distance.html#eo_processor.chebyshev_distance">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">chebyshev_distance</span><span class="p">(</span><span class="n">points_a</span><span class="p">,</span> <span class="n">points_b</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Compute pairwise Chebyshev (L∞) distances between two point sets.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">_chebyshev_distance</span><span class="p">(</span><span class="n">points_a</span><span class="p">,</span> <span class="n">points_b</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="minkowski_distance">
+<a class="viewcode-back" href="../api/functions/minkowski_distance.html#eo_processor.minkowski_distance">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">minkowski_distance</span><span class="p">(</span><span class="n">points_a</span><span class="p">,</span> <span class="n">points_b</span><span class="p">,</span> <span class="n">p</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Compute pairwise Minkowski distances (order `p`) between two point sets.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    points_a : numpy.ndarray (N, D)</span>
+<span class="sd">        First point set.</span>
+<span class="sd">    points_b : numpy.ndarray (M, D)</span>
+<span class="sd">        Second point set.</span>
+<span class="sd">    p : float</span>
+<span class="sd">        Norm order (must be &gt;= 1). p=1 → Manhattan, p=2 → Euclidean,</span>
+<span class="sd">        large p → approximates Chebyshev (L∞).</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    numpy.ndarray (N, M)</span>
+<span class="sd">        Distance matrix.</span>
+
+<span class="sd">    Raises</span>
+<span class="sd">    ------</span>
+<span class="sd">    ValueError</span>
+<span class="sd">        If p &lt; 1.0 (propagated from the Rust implementation).</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">_minkowski_distance</span><span class="p">(</span><span class="n">points_a</span><span class="p">,</span> <span class="n">points_b</span><span class="p">,</span> <span class="n">p</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="mask_vals">
+<a class="viewcode-back" href="../api/functions/mask_vals.html#eo_processor.mask_vals">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">mask_vals</span><span class="p">(</span><span class="n">arr</span><span class="p">,</span> <span class="n">values</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">fill_value</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">nan_to</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Mask specified values (exact equality) and optionally replace NaNs.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    arr : numpy.ndarray (1D–4D)</span>
+<span class="sd">        Input array; any numeric dtype accepted (coerced to float64 internally).</span>
+<span class="sd">    values : sequence, optional</span>
+<span class="sd">        Iterable of numeric codes to mask. If None, no value masking is performed.</span>
+<span class="sd">    fill_value : float, optional</span>
+<span class="sd">        Value to write for masked codes. Defaults to NaN when None.</span>
+<span class="sd">    nan_to : float, optional</span>
+<span class="sd">        If provided, all NaNs (original or created by masking) are replaced with this value</span>
+<span class="sd">        after masking.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    numpy.ndarray (float64)</span>
+<span class="sd">        Masked array preserving original shape.</span>
+
+<span class="sd">    Notes</span>
+<span class="sd">    -----</span>
+<span class="sd">    This is a thin pass-through to the Rust implementation; see README “Masking Utilities”.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">_mask_vals</span><span class="p">(</span><span class="n">arr</span><span class="p">,</span> <span class="n">values</span><span class="o">=</span><span class="n">values</span><span class="p">,</span> <span class="n">fill_value</span><span class="o">=</span><span class="n">fill_value</span><span class="p">,</span> <span class="n">nan_to</span><span class="o">=</span><span class="n">nan_to</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="replace_nans">
+<a class="viewcode-back" href="../api/functions/replace_nans.html#eo_processor.replace_nans">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">replace_nans</span><span class="p">(</span><span class="n">arr</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Replace all NaNs in `arr` with `value`.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    arr : numpy.ndarray</span>
+<span class="sd">        Input array (1D–4D supported).</span>
+<span class="sd">    value : float</span>
+<span class="sd">        Replacement for every NaN.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    numpy.ndarray</span>
+<span class="sd">        Array with NaNs replaced.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">_replace_nans</span><span class="p">(</span><span class="n">arr</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="mask_out_range">
+<a class="viewcode-back" href="../api/functions/mask_out_range.html#eo_processor.mask_out_range">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">mask_out_range</span><span class="p">(</span><span class="n">arr</span><span class="p">,</span> <span class="n">min_val</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">max_val</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">fill_value</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Mask values outside a specified numeric range [min_val, max_val].</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    arr : numpy.ndarray</span>
+<span class="sd">        Input array (1D–4D).</span>
+<span class="sd">    min_val : float, optional</span>
+<span class="sd">        Minimum valid value (inclusive).</span>
+<span class="sd">    max_val : float, optional</span>
+<span class="sd">        Maximum valid value (inclusive).</span>
+<span class="sd">    fill_value : float, optional</span>
+<span class="sd">        Value for masked positions (default NaN).</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    numpy.ndarray</span>
+<span class="sd">        Masked array.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">_mask_out_range</span><span class="p">(</span><span class="n">arr</span><span class="p">,</span> <span class="nb">min</span><span class="o">=</span><span class="n">min_val</span><span class="p">,</span> <span class="nb">max</span><span class="o">=</span><span class="n">max_val</span><span class="p">,</span> <span class="n">fill_value</span><span class="o">=</span><span class="n">fill_value</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="mask_invalid">
+<a class="viewcode-back" href="../api/functions/mask_invalid.html#eo_processor.mask_invalid">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">mask_invalid</span><span class="p">(</span><span class="n">arr</span><span class="p">,</span> <span class="n">invalid_values</span><span class="p">,</span> <span class="n">fill_value</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Mask a list of common invalid sentinel values.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    arr : numpy.ndarray</span>
+<span class="sd">        Input array.</span>
+<span class="sd">    invalid_values : sequence</span>
+<span class="sd">        List of numeric codes to mask.</span>
+<span class="sd">    fill_value : float, optional</span>
+<span class="sd">        Value for masked positions (default NaN).</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    numpy.ndarray</span>
+<span class="sd">        Masked array.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">_mask_invalid</span><span class="p">(</span><span class="n">arr</span><span class="p">,</span> <span class="n">invalid_values</span><span class="o">=</span><span class="n">invalid_values</span><span class="p">,</span> <span class="n">fill_value</span><span class="o">=</span><span class="n">fill_value</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="mask_in_range">
+<a class="viewcode-back" href="../api/functions/mask_in_range.html#eo_processor.mask_in_range">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">mask_in_range</span><span class="p">(</span><span class="n">arr</span><span class="p">,</span> <span class="n">min_val</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">max_val</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">fill_value</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Mask values inside a specified numeric range [min_val, max_val].</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    arr : numpy.ndarray</span>
+<span class="sd">        Input array (1D–4D).</span>
+<span class="sd">    min_val : float, optional</span>
+<span class="sd">        Minimum value of range to mask (inclusive).</span>
+<span class="sd">    max_val : float, optional</span>
+<span class="sd">        Maximum value of range to mask (inclusive).</span>
+<span class="sd">    fill_value : float, optional</span>
+<span class="sd">        Value for masked positions (default NaN).</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    numpy.ndarray</span>
+<span class="sd">        Masked array.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">_mask_in_range</span><span class="p">(</span><span class="n">arr</span><span class="p">,</span> <span class="nb">min</span><span class="o">=</span><span class="n">min_val</span><span class="p">,</span> <span class="nb">max</span><span class="o">=</span><span class="n">max_val</span><span class="p">,</span> <span class="n">fill_value</span><span class="o">=</span><span class="n">fill_value</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="mask_scl">
+<a class="viewcode-back" href="../api/functions/mask_scl.html#eo_processor.mask_scl">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">mask_scl</span><span class="p">(</span><span class="n">scl</span><span class="p">,</span> <span class="n">keep_codes</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">fill_value</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Mask a Sentinel-2 Scene Classification Layer (SCL) array.</span>
+
+<span class="sd">    By default, keeps vegetation, water, bare soil, and snow.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    scl : numpy.ndarray</span>
+<span class="sd">        SCL array.</span>
+<span class="sd">    keep_codes : sequence, optional</span>
+<span class="sd">        List of SCL codes to keep. Defaults to [4, 5, 6, 7, 11].</span>
+<span class="sd">    fill_value : float, optional</span>
+<span class="sd">        Value for masked positions (default NaN).</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    numpy.ndarray</span>
+<span class="sd">        Masked SCL array.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">_mask_scl</span><span class="p">(</span><span class="n">scl</span><span class="p">,</span> <span class="n">keep_codes</span><span class="o">=</span><span class="n">keep_codes</span><span class="p">,</span> <span class="n">fill_value</span><span class="o">=</span><span class="n">fill_value</span><span class="p">)</span></div>
+
+</pre></div>
+        </article>
+      </div>
+      <footer>
+        
+        <div class="related-pages">
+          
+          
+        </div>
+        <div class="bottom-of-page">
+          <div class="left-details">
+            <div class="copyright">
+                Copyright &#169; 2025, Benjamin Smith
+            </div>
+            Made with <a href="https://www.sphinx-doc.org/">Sphinx</a> and <a class="muted-link" href="https://pradyunsg.me">@pradyunsg</a>'s
+            
+            <a href="https://github.com/pradyunsg/furo">Furo</a>
+            
+          </div>
+          <div class="right-details">
+            
+          </div>
+        </div>
+        
+      </footer>
+    </div>
+    <aside class="toc-drawer no-toc">
+      
+      
+      
+    </aside>
+  </div>
+</div><script src="../_static/documentation_options.js?v=8fa8b3e9"></script>
+    <script src="../_static/doctools.js?v=9a2dae69"></script>
+    <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/scripts/furo.js?v=46bd48cc"></script>
+    </body>
+</html>

@@ -2,7 +2,7 @@
 name = "eo-processor"
 version = "0.6.0"
 edition = "2021"
-authors = ["Ben"]
+authors = ["Benjamin Smith"]
 license = "MIT"
 description = "High-performance Rust UDFs for Earth Observation processing with Python bindings"
 readme = "README.md"

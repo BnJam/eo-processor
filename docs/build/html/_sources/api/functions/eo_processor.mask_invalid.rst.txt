@@ -1,0 +1,6 @@
+﻿eo\_processor.mask\_invalid
+===========================
+
+.. currentmodule:: eo_processor
+
+.. autofunction:: mask_invalid

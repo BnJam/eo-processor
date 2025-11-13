@@ -13,7 +13,7 @@ PYTEST_RUN = $(VENV_DIR)/bin/pytest
 # Default and Setup Targets
 # ==============================================================================
 
-.PHONY: all setup sync develop build install clean test lint help
+.PHONY: all setup sync develop build install clean test lint docs help
 
 all: develop
 
@@ -66,6 +66,10 @@ lint: ## Run linters (customize with your preferred uv-managed tools)
 	@echo "🔍 Running linters..."
 	tox -e lint
 
+docs: ## Build Sphinx HTML documentation (outputs to docs/build/html)
+	@echo "📘 Building Sphinx documentation..."
+	uv run sphinx-build -b html docs/source docs/build/html
+
 # ==============================================================================
 # Help Target
 # ==============================================================================
@@ -75,3 +79,30 @@ help:
 	@echo ""
 	@echo "Available targets:"
 	@grep -E '^$$a-zA-Z\_-$$+:.?## .$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-10s\033[0m %s\n", $$1, $$2}'
+
+# ------------------------------------------------------------------------------
+# Documentation Extended Targets
+# ------------------------------------------------------------------------------
+
+# Remove previously built Sphinx HTML to ensure a clean rebuild
+docs-clean: ## Remove built documentation (docs/build)
+	@echo "🧹 Cleaning built documentation..."
+	rm -rf docs/build
+
+# Build docs after cleaning (explicit full rebuild)
+docs-rebuild: docs-clean docs ## Clean and rebuild documentation
+
+# Open the local documentation index (macOS 'open', fallback to xdg-open)
+docs-open: ## Open docs in default browser (build first if missing)
+	@if [ ! -d docs/build/html ]; then \
+        echo "⚠️  Docs build directory missing. Building now..."; \
+        $(MAKE) docs; \
+    fi
+	@if [ ! -f docs/build/html/index.html ]; then \
+		echo "⚠️  Docs not built yet. Building now..."; \
+		$(MAKE) docs; \
+	fi
+	@echo "🌐 Opening documentation..."
+	@if command -v open >/dev/null 2>&1; then open docs/build/html/index.html; \
+	elif command -v xdg-open >/dev/null 2>&1; then xdg-open docs/build/html/index.html; \
+	else echo "Please open docs/build/html/index.html manually."; fi

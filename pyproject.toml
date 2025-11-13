@@ -5,7 +5,7 @@ description = "High-performance Rust UDFs for Earth Observation processing"
 # IMPROVED: Explicitly mention Rust, PyO3, and Dask acceleration
 readme = "README.md"
 license = { file = "LICENSE" }
-authors = [{ name = "Ben Smith" }]
+authors = [{ name = "Benjamin Smith" }]
 # 🚀 ADD KEYWORDS for better PyPI searchability
 keywords = ["earth-observation", "gis", "remote-sensing", "ndvi", "dask", "xarray", "rust", "pyo3", "numpy"]
 classifiers = [
@@ -16,6 +16,7 @@ classifiers = [
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "License :: OSI Approved :: MIT License",
     # Add a classifier for your domain
     "Topic :: Scientific/Engineering :: GIS",
@@ -43,6 +44,13 @@ dask = [
     "xarray>=2023.0.0",
     # PyArrow dropped support for Python 3.8 in version 18.0.0
     "pyarrow>=17.0.0"
+]
+docs = [
+    "sphinx>=7.0.0,<8.0.0",
+    "furo>=2024.1.0",
+    "myst-parser>=2.0.0",
+    "sphinx-autodoc-typehints>=2.0.0",
+    "linkify-it-py>=2.0.0"
 ]
 
 [tool.maturin]
