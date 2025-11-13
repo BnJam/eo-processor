@@ -1,6 +1,0 @@
-﻿eo\_processor.replace\_nans
-===========================
-
-.. currentmodule:: eo_processor
-
-.. autofunction:: replace_nans

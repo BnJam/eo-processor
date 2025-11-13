@@ -1,6 +1,0 @@
-﻿eo\_processor.euclidean\_distance
-=================================
-
-.. currentmodule:: eo_processor
-
-.. autofunction:: euclidean_distance

@@ -1,6 +1,0 @@
-﻿eo\_processor.mask\_scl
-=======================
-
-.. currentmodule:: eo_processor
-
-.. autofunction:: mask_scl

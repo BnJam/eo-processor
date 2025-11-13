@@ -1,6 +1,0 @@
-﻿eo\_processor.ndmi
-==================
-
-.. currentmodule:: eo_processor
-
-.. autofunction:: ndmi
