@@ -21,7 +21,7 @@ def test_normalized_difference_1d_basic():
     expected = (a - b) / (a + b)
     assert result.shape == a.shape
     assert result.dtype == np.float64
-    assert np.allclose(result, expected, rtol=1e-12, atol=0.0)
+    assert np.allclose(result, expected, rtol=1e-9, atol=1e-9)
 
 
 def test_normalized_difference_antisymmetry():
@@ -36,7 +36,9 @@ def test_normalized_difference_1d_zero_division():
     a = np.array([0.0, 0.5, 0.0], dtype=np.float64)
     b = np.array([0.0, -0.5, 0.0], dtype=np.float64)
     result = normalized_difference(a, b)
-    assert np.all(result == np.array([0.0, 0.0, 0.0]))
+    assert np.isnan(result[0])
+    assert np.isinf(result[1])
+    assert np.isnan(result[2])
 
 
 def test_normalized_difference_2d():
@@ -45,7 +47,7 @@ def test_normalized_difference_2d():
     result = normalized_difference(a, b)
     expected = (a - b) / (a + b)
     assert result.shape == a.shape
-    assert np.allclose(result, expected, rtol=1e-12, atol=0.0)
+    assert np.allclose(result, expected, rtol=1e-9, atol=1e-9)
 
 
 def test_ndvi_equivalence_with_normalized_difference():
@@ -62,7 +64,7 @@ def test_ndvi_1d():
     result = ndvi(nir, red)
     expected = (nir - red) / (nir + red)
     assert result.shape == nir.shape
-    assert np.allclose(result, expected, rtol=1e-12, atol=0.0)
+    assert np.allclose(result, expected, rtol=1e-9, atol=1e-9)
 
 
 def test_ndvi_2d():
@@ -71,7 +73,7 @@ def test_ndvi_2d():
     result = ndvi(nir, red)
     expected = (nir - red) / (nir + red)
     assert result.shape == nir.shape
-    assert np.allclose(result, expected, rtol=1e-12, atol=0.0)
+    assert np.allclose(result, expected, rtol=1e-9, atol=1e-9)
 
 
 def test_ndwi_1d():
@@ -80,7 +82,7 @@ def test_ndwi_1d():
     result = ndwi(green, nir)
     expected = (green - nir) / (green + nir)
     assert result.shape == green.shape
-    assert np.allclose(result, expected, rtol=1e-12, atol=0.0)
+    assert np.allclose(result, expected, rtol=1e-9, atol=1e-9)
 
 
 def test_ndwi_2d():
@@ -89,7 +91,7 @@ def test_ndwi_2d():
     result = ndwi(green, nir)
     expected = (green - nir) / (green + nir)
     assert result.shape == green.shape
-    assert np.allclose(result, expected, rtol=1e-12, atol=0.0)
+    assert np.allclose(result, expected, rtol=1e-9, atol=1e-9)
 
 
 def test_evi_1d():

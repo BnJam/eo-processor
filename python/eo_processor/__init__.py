@@ -10,62 +10,71 @@ in the Rust layer for consistent and stable computation.
 """
 
 from ._core import (
-    normalized_difference as _normalized_difference,
+    chebyshev_distance as _chebyshev_distance,
+    delta_nbr as _delta_nbr,
+    delta_ndvi as _delta_ndvi,
+    enhanced_vegetation_index as _enhanced_vegetation_index,
+    euclidean_distance as _euclidean_distance,
+    gci as _gci,
+    manhattan_distance as _manhattan_distance,
+    mask_in_range as _mask_in_range,
+    mask_invalid as _mask_invalid,
+    mask_out_range as _mask_out_range,
+    mask_scl as _mask_scl,
+    mask_vals as _mask_vals,
+    median as _median,
+    minkowski_distance as _minkowski_distance,
+    moving_average_temporal as _moving_average_temporal,
+    moving_average_temporal_stride as _moving_average_temporal_stride,
+    nbr as _nbr,
+    nbr2 as _nbr2,
+    ndmi as _ndmi,
     ndvi as _ndvi,
     ndwi as _ndwi,
+    normalized_difference as _normalized_difference,
+    pixelwise_transform as _pixelwise_transform,
+    replace_nans as _replace_nans,
     savi as _savi,
-    nbr as _nbr,
-    ndmi as _ndmi,
-    nbr2 as _nbr2,
-    gci as _gci,
-    enhanced_vegetation_index as _enhanced_vegetation_index,
-    median as _median,
     temporal_mean as _temporal_mean,
     temporal_std as _temporal_std,
-    euclidean_distance as _euclidean_distance,
-    manhattan_distance as _manhattan_distance,
-    chebyshev_distance as _chebyshev_distance,
-    minkowski_distance as _minkowski_distance,
-    delta_ndvi as _delta_ndvi,
-    delta_nbr as _delta_nbr,
-    mask_vals as _mask_vals,
-    replace_nans as _replace_nans,
-    mask_out_range as _mask_out_range,
-    mask_invalid as _mask_invalid,
-    mask_in_range as _mask_in_range,
-    mask_scl as _mask_scl,
+    temporal_sum as _temporal_sum,
+    temporal_composite as _temporal_composite,
 )
-
 
 __version__ = "0.6.0"
 
 __all__ = [
-    "normalized_difference",
+    "chebyshev_distance",
+    "composite",
+    "delta_nbr",
+    "delta_ndvi",
+    "enhanced_vegetation_index",
+    "euclidean_distance",
+    "evi",
+    "gci",
+    "manhattan_distance",
+    "mask_in_range",
+    "mask_invalid",
+    "mask_out_range",
+    "mask_scl",
+    "mask_vals",
+    "median",
+    "minkowski_distance",
+    "moving_average_temporal",
+    "moving_average_temporal_stride",
+    "nbr",
+    "nbr2",
+    "ndmi",
     "ndvi",
     "ndwi",
+    "normalized_difference",
+    "pixelwise_transform",
+    "replace_nans",
     "savi",
-    "nbr",
-    "ndmi",
-    "nbr2",
-    "gci",
-    "enhanced_vegetation_index",
-    "evi",
-    "delta_ndvi",
-    "delta_nbr",
-    "median",
-    "composite",
     "temporal_mean",
     "temporal_std",
-    "euclidean_distance",
-    "manhattan_distance",
-    "chebyshev_distance",
-    "minkowski_distance",
-    "mask_vals",
-    "replace_nans",
-    "mask_out_range",
-    "mask_invalid",
-    "mask_in_range",
-    "mask_scl",
+    "temporal_sum",
+    "temporal_composite",
 ]
 
 
@@ -573,3 +582,125 @@ def mask_scl(scl, keep_codes=None, fill_value=None):
         Masked SCL array.
     """
     return _mask_scl(scl, keep_codes=keep_codes, fill_value=fill_value)
+
+
+def moving_average_temporal(arr, window, skip_na=True, mode="same"):
+    """
+    Sliding window mean along leading time axis of a 1D–4D time-first array.
+
+    Parameters
+    ----------
+    arr : numpy.ndarray
+        Time-first array (T,...).
+    window : int
+        Window size (>=1).
+    skip_na : bool, default True
+        Exclude NaNs from window mean; if all NaN -> NaN.
+    mode : {"same","valid"}, default "same"
+        "same": output length equals T (edge windows shrink).
+        "valid": only full windows; output length = T - window + 1.
+
+    Returns
+    -------
+    numpy.ndarray
+    """
+    return _moving_average_temporal(arr, window, skip_na=skip_na, mode=mode)
+
+
+def moving_average_temporal_stride(arr, window, stride, skip_na=True, mode="same"):
+    """
+    Stride-based sliding window mean along leading time axis.
+
+    Computes moving_average_temporal then samples every `stride` steps
+    along the time axis to reduce temporal resolution.
+
+    Parameters
+    ----------
+    arr : numpy.ndarray
+        Time-first array (T,...).
+    window : int
+        Window size (>=1).
+    stride : int
+        Sampling interval along output time axis (>=1).
+    skip_na : bool, default True
+        Exclude NaNs from window mean; if all NaN -> NaN.
+    mode : {"same","valid"}, default "same"
+        "same": output length equals T (variable-size edges).
+        "valid": only full windows; base length = T - window + 1.
+
+    Returns
+    -------
+    numpy.ndarray
+        Downsampled moving average with time dimension approximately
+        ceil(base_length / stride).
+    """
+    return _moving_average_temporal_stride(
+        arr, window, stride, skip_na=skip_na, mode=mode
+    )
+
+
+def pixelwise_transform(arr, scale=1.0, offset=0.0, clamp_min=None, clamp_max=None):
+    """
+    Apply linear transform scale*arr + offset with optional clamping per element.
+
+    NaNs propagate unchanged.
+
+    Parameters
+    ----------
+    arr : numpy.ndarray
+    scale : float
+    offset : float
+    clamp_min : float or None
+    clamp_max : float or None
+
+    Returns
+    -------
+    numpy.ndarray
+    """
+    return _pixelwise_transform(
+        arr,
+        scale=scale,
+        offset=offset,
+        clamp_min=clamp_min,
+        clamp_max=clamp_max,
+    )
+
+
+def temporal_sum(arr, skip_na=True):
+    """
+    Compute the sum along the leading time axis of a 1D–4D time‑first array.
+
+    Parameters
+    ----------
+    arr : numpy.ndarray
+        Time‑first array (1D–4D).
+    skip_na : bool, default True
+        If True, NaNs are excluded.
+
+    Returns
+    -------
+    numpy.ndarray
+        Sum with time axis removed; float64 dtype. Scalar for 1D input.
+    """
+    return _temporal_sum(arr, skip_na=skip_na)
+
+
+def temporal_composite(arr, weights, skip_na=True):
+    """
+    Compute a temporal composite of a 4D array using a weighted median.
+
+    Parameters
+    ----------
+    arr : numpy.ndarray
+        4D array with shape (time, bands, y, x).
+    weights : numpy.ndarray
+        1D array of weights with the same length as the time dimension of arr.
+    skip_na : bool, default True
+        If True, NaNs are excluded.
+
+    Returns
+    -------
+    numpy.ndarray
+        Composited 3D array with shape (bands, y, x).
+    """
+    return _temporal_composite(arr, weights, skip_na=skip_na)

@@ -1,7 +1,9 @@
 pub mod indices;
 pub mod masking;
+pub mod processes;
 pub mod spatial;
 pub mod temporal;
+pub mod trends;
 
 use pyo3::prelude::*;
 
@@ -36,6 +38,7 @@ fn _core(_py: Python, m: &PyModule) -> PyResult<()> {
     // --- Temporal Functions ---
     m.add_function(wrap_pyfunction!(temporal::temporal_mean, m)?)?;
     m.add_function(wrap_pyfunction!(temporal::temporal_std, m)?)?;
+    m.add_function(wrap_pyfunction!(temporal::temporal_sum, m)?)?;
     // --- Masking Functions ---
     m.add_function(wrap_pyfunction!(masking::mask_vals, m)?)?;
     m.add_function(wrap_pyfunction!(masking::replace_nans, m)?)?;
@@ -43,6 +46,19 @@ fn _core(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(masking::mask_invalid, m)?)?;
     m.add_function(wrap_pyfunction!(masking::mask_in_range, m)?)?;
     m.add_function(wrap_pyfunction!(masking::mask_scl, m)?)?;
+    // --- Advanced Processes ---
+    m.add_function(wrap_pyfunction!(processes::moving_average_temporal, m)?)?;
+    m.add_function(wrap_pyfunction!(
+        processes::moving_average_temporal_stride,
+        m
+    )?)?;
+    m.add_function(wrap_pyfunction!(processes::pixelwise_transform, m)?)?;
+    m.add_function(wrap_pyfunction!(processes::temporal_composite, m)?)?;
+
+    // --- Trend Analysis ---
+    m.add_class::<trends::TrendSegment>()?;
+    m.add_function(wrap_pyfunction!(trends::trend_analysis, m)?)?;
+    m.add_function(wrap_pyfunction!(trends::linear_regression, m)?)?;
 
     Ok(())
 }
