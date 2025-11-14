@@ -2,6 +2,7 @@
 [![PyPI Version](https://img.shields.io/pypi/v/eo-processor.svg?color=blue)](https://pypi.org/project/eo-processor/)
 [![PyPI Downloads](https://static.pepy.tech/personalized-badge/eo-processor?period=total&units=INTERNATIONAL_SYSTEM&left_color=BLACK&right_color=GREEN&left_text=downloads)](https://pepy.tech/projects/eo-processor)
 [![Coverage](./coverage-badge.svg)](#test-coverage)
+[![Documentation Status](https://readthedocs.org/projects/eo-processor/badge/?version=latest)](https://eo-processor.readthedocs.io/en/latest/?badge=latest)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 High-performance Rust (PyO3) UDFs for Earth Observation (EO) processing with Python bindings.
@@ -120,6 +121,9 @@ All inputs may be any numeric NumPy dtype (int/uint/float); internal coercion to
 | `composite(arr, method="median")` | Compositing convenience (currently median only) |
 | `temporal_mean(arr, skip_na=True)` | Mean across time axis |
 | `temporal_std(arr, skip_na=True)` | Sample standard deviation (n-1) across time |
+| `moving_average_temporal(arr, window, skip_na=True, mode="same")` | Sliding window mean (same/valid edge modes, NaN skip/propagate) |
+| `moving_average_temporal_stride(arr, window, stride, skip_na=True, mode="same")` | Strided moving average (downsampled temporal smoothing) |
+| `pixelwise_transform(arr, scale=1.0, offset=0.0, clamp_min=None, clamp_max=None)` | Per-pixel linear transform with optional clamping |
 | `euclidean_distance(points_a, points_b)` | Pairwise Euclidean distances |
 | `manhattan_distance(points_a, points_b)` | Pairwise L1 distances |
 | `chebyshev_distance(points_a, points_b)` | Pairwise L∞ distances |
@@ -237,6 +241,98 @@ median_img = median(cube)
 ```
 
 `composite(cube, method="median")` currently routes to `median`.
+
+## Trend Analysis
+
+`eo-processor` provides a simple trend analysis UDF to detect breaks in a time series. This implementation is iterative and is more performant than the previous recursive version.
+
+| Function | Purpose |
+|----------|---------|
+| `trend_analysis(y, threshold)` | Detects breaks in a time series by iteratively fitting linear models. |
+
+**Note:** The current implementation of the trend analysis UDF is not optimized for large datasets and may time out on long time series.
+
+Example:
+
+```python
+import numpy as np
+from eo_processor._core import trend_analysis
+
+# Generate some sample time-series data with a break
+y = np.concatenate([
+    np.linspace(0, 10, 50),
+    np.linspace(10, 0, 50)
+]) + np.random.normal(0, 0.5, 100)
+
+# Run the trend analysis
+segments = trend_analysis(y.tolist(), threshold=5.0)
+
+# Print the results
+print("Trend Analysis Results:")
+for segment in segments:
+    print(
+        f"  Start: {segment.start_index}, "
+        f"End: {segment.end_index}, "
+        f"Slope: {segment.slope:.4f}, "
+        f"Intercept: {segment.intercept:.4f}"
+    )
+```
+
+## Advanced Temporal & Pixelwise Processing
+
+High-performance smoothing and per-pixel transforms for deep temporal stacks and large spatial tiles.
+
+Formulas:
+- Moving average: `MA_t = mean(x_{start..end})` where `[start, end]` is the window centered (same) or fixed (valid) around `t`.
+- Strided moving average: sample `MA_{k*stride}` for integer `k` to downsample temporal resolution.
+- Pixelwise transform: `y = clamp(scale * x + offset)` (clamping optional).
+
+Example (moving average with edge handling and NaN skipping):
+```python
+from eo_processor import moving_average_temporal
+import numpy as np
+
+series = np.array([1.0, 2.0, 3.0, 4.0])
+ma_same  = moving_average_temporal(series, window=3, mode="same")   # length preserved
+ma_valid = moving_average_temporal(series, window=3, mode="valid")  # only full windows
+```
+
+3D temporal cube smoothing (deep stack):
+```python
+cube = np.random.rand(48, 1024, 1024)
+smoothed = moving_average_temporal(cube, window=5, mode="same", skip_na=True)
+```
+
+Strided downsampling (reduce temporal resolution):
+```python
+from eo_processor import moving_average_temporal_stride
+downsampled = moving_average_temporal_stride(cube, window=5, stride=4, mode="same")
+print(downsampled.shape)  # (ceil(48/4), 1024, 1024)
+```
+
+Pixelwise transform (scale + offset + clamping):
+```python
+from eo_processor import pixelwise_transform
+arr = np.random.rand(2048, 2048)
+stretched = pixelwise_transform(arr, scale=1.2, offset=-0.1, clamp_min=0.0, clamp_max=1.0)
+```
+
+Chaining operations (temporal smoothing then per-pixel adjustment):
+```python
+ma = moving_average_temporal(cube, window=7)
+enhanced = pixelwise_transform(ma, scale=1.1, offset=0.05, clamp_min=0.0, clamp_max=1.0)
+```
+
+Performance Notes:
+- Prefix-sum approach makes moving average O(T) per pixel independent of window size.
+- Parallelization occurs over spatial/band pixels for 3D/4D arrays.
+- Strided variant reduces output size for downstream tasks (e.g., model inference, feature extraction).
+- Pixelwise transforms are single-pass and can be fused with other operations in custom workflows.
+
+Use Cases:
+- Smoothing noisy temporal reflectance or index stacks prior to trend analysis.
+- Reducing temporal dimension before ML model training (stride-based smoothing).
+- Intensity scaling & clamping for visualization or input normalization.
 
 ---
 
@@ -488,10 +584,7 @@ Open issues for bugs or enhancements. Provide:
 
 ---
 
-## Version Note
 
-`pyproject.toml` currently lists version `0.5.0`.
-If `__version__` in Python exports lags (e.g. shows `0.4.0`), synchronize by updating `python/eo_processor/__init__.py` and stubs, then follow the version bump checklist.
 
 ---
 

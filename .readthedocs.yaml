@@ -1,0 +1,59 @@
+# Read the Docs configuration for eo-processor
+# See https://docs.readthedocs.io/en/stable/config-file/v2.html
+
+version: 2
+
+sphinx:
+  configuration: docs/source/conf.py
+  fail_on_warning: false
+
+# Build environment
+build:
+  os: ubuntu-22.04
+  tools:
+    python: "3.11"
+    # rust: "1.78"  # Uncomment if RTD supports explicit Rust tool selection
+  jobs:
+    pre_install:
+      - echo "Installing optional Rust toolchain (required to build PyO3 extension)..."
+      - curl https://sh.rustup.rs -sSf | sh -s -- -y
+      - export PATH=$HOME/.cargo/bin:$PATH
+      - rustc --version || echo "Rust install failed; docs will fall back to mocked extension."
+
+# Python dependencies
+python:
+  install:
+    # 1. Docs stack (Sphinx, theme, myst). Mocks eo_processor._core.
+    - requirements: docs/requirements.txt
+    # 2. (Optional) Install project itself to expose runtime metadata (__version__)
+    #    This will trigger a maturin build of the extension module if Rust is available.
+    - method: pip
+      path: .
+      extra_requirements:
+        - dask
+  system_packages: false
+
+# Formats to build (HTML always included)
+formats:
+  - htmlzip
+  - pdf
+  - epub
+
+# Define which submodules (if any) to include
+submodules:
+  include: all
+# Environment variables (optional tuning)
+# env:
+#   RUST_BACKTRACE: "1"
+#   PYO3_PYTHON: python3.11
+
+# Explanation:
+# - The docs/requirements.txt mocks the Rust extension if Rust is NOT installed.
+# - pre_install job installs Rust so that 'pip install .' can build the native module.
+#   If the Rust install fails, autodoc still works due to mocking in conf.py.
+# - Remove the pre_install section if you prefer faster builds using only mocked imports.
+
+# To fully disable building the extension on RTD, comment out the pip install step above
+# (leaving only docs/requirements.txt). In that case, version will appear as 0.0.0 in docs.
+
+# End of .readthedocs.yaml

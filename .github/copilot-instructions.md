@@ -219,12 +219,65 @@ Sequence:
 
 ## 13. Documentation Updates
 
-For new features:
-- Add function signature to README
-- Add usage snippet
-- Provide formula
-- Mention typical EO use-case
-- Optional: scientific reference (if standard index)
+For ANY new feature, public API change, performance model change, or behavior adjustment you MUST keep ALL documentation layers in sync before proposing a commit or PR.
+
+Minimum required updates (if applicable):
+- README:
+  - Add / update function entry in the API summary table
+  - Add or adjust usage snippet
+  - Include the mathematical formula for new spectral / temporal indices
+  - Note expected input range (e.g. reflectance 0–1) and typical output interpretation
+- QUICKSTART:
+  - Only update if the change materially helps onboarding (avoid bloating the quick start)
+- Sphinx Docs (docs/):
+  - Add/remove function in `docs/source/api/functions.rst` autosummary list
+  - Update `docs/source/api/architecture.rst` if:
+    - Parallelism strategy, thresholds, or internal design changed
+    - Numerical stability approach (EPSILON handling, dtype coercion) changed
+    - New module or category was introduced
+  - Rebuild locally: `make docs` (or `tox -e docs`) and open `docs/build/html/index.html`
+  - Ensure new function page is generated (autosummary) and cross-links resolve
+- Python Wrapper:
+  - Add/expand docstring in `python/eo_processor/__init__.py`
+  - Keep docstring style NumPy/Google compatible (Napoleon parses it)
+- Type Stubs:
+  - Update `python/eo_processor/__init__.pyi` with precise signature (no broad *args unless required)
+- Rust Source:
+  - Add `///` doc comments (formula, parameter notes, numeric stability, shape expectations)
+- Version Synchronization:
+  - Ensure `__version__` (Python), `pyproject.toml`, and any badges or docs display agree
+  - Bump version (SemVer) if a public API was added (minor) or changed incompatibly (major)
+- CHANGELOG (if maintained): succinct entry describing addition / change
+
+Performance / architecture refactor:
+- Add a short subsection under "Architecture & Performance Model" summarizing:
+  - What changed & why (e.g. fused loops, lowered parallel threshold)
+  - Benchmark (array shape, old vs new timings, speedup)
+  - Numerical equivalence tolerance
+- Remove or adjust obsolete claims in existing text
+
+Read the Docs considerations:
+- If new doc dependencies added: update `[project.optional-dependencies].docs` and `docs/requirements.txt`
+- If real extension build is newly required on RTD: adjust `.readthedocs.yaml`
+- Validate that mocked import strategy (`autodoc_mock_imports`) still works when extension absent
+
+Validation checklist (run locally before commit):
+1. `make docs` succeeds without new warnings (or `tox -e docs`)
+2. New/changed function appears in:
+   - README API summary
+   - Sphinx functions autosummary
+3. Architecture page still accurate (no stale performance statements)
+4. All internal links resolve (scan Sphinx build output)
+5. No orphaned removed functions remain in autosummary or README
+6. Version numbers consistent everywhere
+7. If coverage changed due to added tests, badge regenerated
+
+Prohibited:
+- Merging feature code without doc updates
+- Leaving placeholder “TODO” lines in published docs
+- Claiming performance gains without benchmark snippet
+
+Failing to meet documentation requirements = BLOCKED COMMIT (fix before proceeding).
 
 ---
 

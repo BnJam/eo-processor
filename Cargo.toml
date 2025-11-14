@@ -2,7 +2,7 @@
 name = "eo-processor"
 version = "0.6.0"
 edition = "2021"
-authors = ["Ben"]
+authors = ["Benjamin Smith"]
 license = "MIT"
 description = "High-performance Rust UDFs for Earth Observation processing with Python bindings"
 readme = "README.md"
@@ -16,6 +16,7 @@ pyo3 = { version = "0.20", features = ["extension-module"] }
 numpy = "0.20"
 ndarray = { version = "0.15", features = ["rayon"] }
 rayon = "1.9"
+ndarray-stats = "0.5"
 
 [dev-dependencies]
 approx = "0.5"

@@ -96,3 +96,46 @@ jobs:
           path: benchmark-results.json
           if-no-files-found: warn
           retention-days: 7
+
+  docs:
+    name: Build & Validate Documentation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain (for potential extension build)
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+
+      - name: Install docs dependencies
+        run: |
+          set -e
+          uv pip install --system .[docs]
+
+      - name: Build Sphinx documentation
+        run: |
+          set -e
+          make docs
+
+      - name: Basic link / warning scan
+        run: |
+          set -e
+          # Fail on common unresolved references or undefined warnings
+          if grep -R "WARNING: unknown document" -n docs/build/html || \
+             grep -R "WARNING: undefined label" -n docs/build/html ; then
+             echo "Documentation build warnings detected"; exit 1; fi
+
+      - name: Upload built docs artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: site-docs
+          path: docs/build/html
+          if-no-files-found: error

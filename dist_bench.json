@@ -1,0 +1,99 @@
+{
+  "meta": {
+    "python": "3.10.18",
+    "platform": "macOS-15.6.1-arm64-arm-64bit",
+    "loops": 2,
+    "warmups": 1,
+    "seed": 42,
+    "group": "distances",
+    "functions": [
+      "euclidean_distance",
+      "manhattan_distance",
+      "chebyshev_distance",
+      "minkowski_distance"
+    ],
+    "shape_info": {
+      "height": 2048,
+      "width": 2048,
+      "time": 12,
+      "points_a": 800,
+      "points_b": 600,
+      "point_dim": 32
+    }
+  },
+  "results": [
+    {
+      "name": "euclidean_distance",
+      "loops": 2,
+      "warmups": 1,
+      "mean_s": 0.001850374974310398,
+      "stdev_s": 6.660120561718941e-07,
+      "min_s": 0.0018497089622542262,
+      "max_s": 0.00185104098636657,
+      "throughput_elems": 259406880.58585936,
+      "elements": 480000,
+      "shape_description": "N=800, M=600, D=32",
+      "memory_mb": null,
+      "baseline_mean_s": 0.0014758124889340252,
+      "baseline_min_s": 0.0014400419895537198,
+      "baseline_max_s": 0.0015115829883143306,
+      "speedup_vs_numpy": 0.7975748210083928,
+      "baseline_throughput_elems": 325244571.10855764
+    },
+    {
+      "name": "manhattan_distance",
+      "loops": 2,
+      "warmups": 1,
+      "mean_s": 0.002572229510406032,
+      "stdev_s": 0.00014031250611878932,
+      "min_s": 0.002431917004287243,
+      "max_s": 0.0027125420165248215,
+      "throughput_elems": 186608542.53407228,
+      "elements": 480000,
+      "shape_description": "N=800, M=600, D=32",
+      "memory_mb": null,
+      "baseline_mean_s": 0.034455542016075924,
+      "baseline_min_s": 0.03427729202667251,
+      "baseline_max_s": 0.034633792005479336,
+      "speedup_vs_numpy": 13.395205162169622,
+      "baseline_throughput_elems": 13930995.4774778
+    },
+    {
+      "name": "chebyshev_distance",
+      "loops": 2,
+      "warmups": 1,
+      "mean_s": 0.0026698125002440065,
+      "stdev_s": 9.372949716635048e-05,
+      "min_s": 0.002576083003077656,
+      "max_s": 0.002763541997410357,
+      "throughput_elems": 179787906.43767327,
+      "elements": 480000,
+      "shape_description": "N=800, M=600, D=32",
+      "memory_mb": null,
+      "baseline_mean_s": 0.04358839601627551,
+      "baseline_min_s": 0.04319300001952797,
+      "baseline_max_s": 0.04398379201302305,
+      "speedup_vs_numpy": 16.326388468213317,
+      "baseline_throughput_elems": 11012105.14424005
+    },
+    {
+      "name": "minkowski_distance",
+      "loops": 2,
+      "warmups": 1,
+      "mean_s": 0.022620021016336977,
+      "stdev_s": 6.881199078634381e-05,
+      "min_s": 0.022551209025550634,
+      "max_s": 0.02268883300712332,
+      "throughput_elems": 21220139.435472984,
+      "elements": 480000,
+      "shape_description": "N=800, M=600, D=32",
+      "memory_mb": null,
+      "baseline_mean_s": 0.24393754202174023,
+      "baseline_min_s": 0.2423599170288071,
+      "baseline_max_s": 0.24551516701467335,
+      "speedup_vs_numpy": 10.784143031766412,
+      "baseline_throughput_elems": 1967716.801693531
+    }
+  ],
+  "compare_numpy": true
+}

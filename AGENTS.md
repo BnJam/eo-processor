@@ -177,7 +177,7 @@ Before ANY commit:
     - `tox -e coverage`
     - Regenerate badge: `python scripts/generate_coverage_badge.py coverage.xml coverage-badge.svg`
     - Confirm SVG renders correctly (open file locally)
-11. Update `README.md` and stubs if public API changed
+11. Update `README.md`, stubs, and Sphinx docs (autosummary lists, architecture or functions pages) if public API or performance model changed; rebuild locally with `make docs`
 12. Increment version in `pyproject.toml` if semantic change:
     - Patch: bug fixes
     - Minor: new backward-compatible features
@@ -309,12 +309,55 @@ Agents MUST:
 
 ## 13. Documentation Consistency Rules
 
-When adding features:
-- README function list updated
-- QUICKSTART if onboarding value
-- Inline Rust doc comments added (`///` + example)
-- Python docstring added
-- If new index: include formula, domain relevance, references (if applicable)
+When adding features or modifying behavior, keep ALL documentation layers synchronized:
+
+Mandatory updates:
+- README: function table, usage snippet, and (for indices) mathematical formula
+- QUICKSTART: add only if it materially improves newcomer onboarding (avoid bloat)
+- Sphinx docs (docs/):
+  - `docs/source/api/functions.rst` autosummary list (add/remove function names)
+  - `docs/source/api/architecture.rst` if parallel strategy, performance thresholds, or internal design rationale changes
+  - Regenerate local HTML via `make docs` and verify new/changed pages render
+- Python wrapper docstring (in `python/eo_processor/__init__.py`)
+- Type stub (`__init__.pyi`) signature coherence with implementation
+- Inline Rust doc comments (`///`) including formula, assumptions (units, value ranges), and numeric stability notes (EPSILON usage, NaN handling)
+- CHANGELOG entry summarizing addition or change (if project policy requires)
+
+If adding a new spectral or temporal index:
+- Provide canonical formula with symbols explained
+- Reference standard source (paper / NASA spec) if widely recognized
+- Note expected input scaling (e.g., surface reflectance 0–1 vs radiance)
+- Describe valid output range and typical interpretation bands
+
+If performance refactor:
+- Update architecture page with:
+  - What changed (e.g. fused loops, new parallel threshold)
+  - Rationale (cache locality, reduced temporaries, etc.)
+  - Benchmark summary (array shape, old/new timings, speedup)
+- Remove or adjust outdated statements about the old approach
+
+Version / metadata alignment:
+- Ensure `__version__` in Python package, `pyproject.toml`, and any version badge references match
+- If a new function is added (minor bump) or a breaking doc-codified behavior changes (major bump), update version before publishing docs
+
+Read the Docs considerations:
+- If new doc build dependencies introduced, update `[project.optional-dependencies].docs` and (if required) `docs/requirements.txt`
+- If environment changes (e.g., need Rust for signature introspection), adjust `.readthedocs.yaml` accordingly
+
+Validation checklist before commit (docs-related):
+1. Search for stale references to removed/renamed functions
+2. Open generated HTML (`docs/build/html/index.html`) and navigate to:
+   - API functions page
+   - Architecture page (if modified)
+   - Any new function page
+3. Confirm autosummary generated a page for each new function
+4. Confirm internal cross-links (e.g., :doc:, :ref:) resolve (no broken links in Sphinx build output)
+5. Confirm README and Sphinx descriptions do not diverge materially
+
+Prohibited:
+- Adding large narrative sections unrelated to EO processing scope
+- Leaving placeholder TODOs in published docs
+- Claiming unverified performance improvements
 
 ---
 

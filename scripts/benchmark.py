@@ -54,7 +54,7 @@ import platform
 import statistics
 import sys
 import time
-from dataclasses import dataclass, asdict
+from dataclasses import asdict, dataclass
 from typing import Any, Callable, List, Optional, Sequence, Tuple
 
 try:
@@ -73,24 +73,27 @@ except Exception:  # pragma: no cover
 # Import eo_processor functions
 try:
     from eo_processor import (
+        chebyshev_distance,
+        delta_nbr,
+        delta_ndvi,
+        euclidean_distance,
+        evi,
+        gci,
+        manhattan_distance,
+        median,
+        minkowski_distance,
+        moving_average_temporal,
+        moving_average_temporal_stride,
+        nbr,
+        nbr2,
+        ndmi,
         ndvi,
         ndwi,
-        evi,
-        savi,
-        nbr,
-        ndmi,
-        nbr2,
-        gci,
-        delta_ndvi,
-        delta_nbr,
         normalized_difference,
+        pixelwise_transform,
+        savi,
         temporal_mean,
         temporal_std,
-        median,
-        euclidean_distance,
-        manhattan_distance,
-        chebyshev_distance,
-        minkowski_distance,
     )
 except ImportError as exc:  # pragma: no cover
     print("Failed to import eo_processor. Have you installed/built it?", exc, file=sys.stderr)
@@ -109,15 +112,55 @@ class BenchmarkResult:
     stdev_s: float
     min_s: float
     max_s: float
-    throughput_elems: Optional[float]  # elements/sec
+    throughput_elems: Optional[float]
     elements: Optional[int]
     shape_description: str
     memory_mb: Optional[float]
-    # Optional NumPy baseline metrics (present when --compare-numpy used and function supports baseline)
     baseline_mean_s: Optional[float] = None
     baseline_min_s: Optional[float] = None
     baseline_max_s: Optional[float] = None
-    speedup_vs_numpy: Optional[float] = None  # baseline_mean_s / mean_s (values >1 mean Rust faster)
+    speedup_vs_numpy: Optional[float] = None
+    baseline_throughput_elems: Optional[float] = None
+    baseline_kind: Optional[str] = None  # e.g. 'broadcast', 'streaming', 'naive', 'prefix'
+
+# --------------------------------------------------------------------------------------
+# Argument Parsing
+# --------------------------------------------------------------------------------------
+def parse_args(argv: Sequence[str]) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description="Benchmark eo-processor Rust-accelerated functions."
+    )
+    parser.add_argument("--compare-numpy", action="store_true",
+                        help="Time a NumPy baseline where feasible.")
+    parser.add_argument("--functions", nargs="+",
+                        help="Explicit list of functions to benchmark (overrides --group).")
+    parser.add_argument("--group", choices=["spectral", "temporal", "distances", "processes", "all"],
+                        default="spectral", help="Predefined function group.")
+    parser.add_argument("--height", type=int, default=2048)
+    parser.add_argument("--width", type=int, default=2048)
+    parser.add_argument("--time", type=int, default=12)
+    parser.add_argument("--points-a", type=int, default=2000)
+    parser.add_argument("--points-b", type=int, default=2000)
+    parser.add_argument("--point-dim", type=int, default=4)
+    parser.add_argument("--minkowski-p", type=float, default=3.0)
+    parser.add_argument("--ma-window", type=int, default=5)
+    parser.add_argument("--ma-stride", type=int, default=4)
+    parser.add_argument("--ma-baseline", choices=["naive", "prefix"], default="naive",
+                        help="Baseline style for moving averages: naive (O(T*W)) or prefix (O(T)).")
+    parser.add_argument("--loops", type=int, default=3)
+    parser.add_argument("--warmups", type=int, default=1)
+    parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument("--json-out", type=str)
+    parser.add_argument("--quiet", action="store_true")
+    parser.add_argument("--md-out", type=str)
+    parser.add_argument("--rst-out", type=str)
+    parser.add_argument("--size-sweep", nargs="+",
+                        help="List of sizes: HxW or T=val:HxW for sweeps.")
+    parser.add_argument("--distance-baseline", choices=["broadcast", "streaming", "both"],
+                        default="broadcast")
+    parser.add_argument("--stress", action="store_true",
+                        help="Use larger stress-test sizes.")
+    return parser.parse_args(argv)
 
 
 # --------------------------------------------------------------------------------------
@@ -150,7 +193,10 @@ def time_call(fn: Callable[[], Any]) -> float:
 
 def compute_elements(func_name: str, shape_info: dict[str, int]) -> Optional[int]:
     """
-    Estimate number of elements processed for throughput metrics.
+    Estimate number of scalar elements processed for throughput metrics.
+    For distance functions this counts pairwise component operations (N*M*D).
+    For moving average stride variant we count the full input processed (T*H*W)
+    rather than just output samples, reflecting total arithmetic volume.
     """
     if func_name in {
         "ndvi",
@@ -167,7 +213,9 @@ def compute_elements(func_name: str, shape_info: dict[str, int]) -> Optional[int
     }:
         h, w = shape_info["height"], shape_info["width"]
         return h * w
-    if func_name in {"temporal_mean", "temporal_std", "median"}:
+    if func_name in {"temporal_mean", "temporal_std", "median",
+                     "moving_average_temporal", "moving_average_temporal_stride",
+                     "pixelwise_transform"}:
         t, h, w = shape_info["time"], shape_info["height"], shape_info["width"]
         return t * h * w
     if func_name in {
@@ -176,8 +224,8 @@ def compute_elements(func_name: str, shape_info: dict[str, int]) -> Optional[int
         "chebyshev_distance",
         "minkowski_distance",
     }:
-        n, m = shape_info["points_a"], shape_info["points_b"]
-        return n * m
+        n, m, d = shape_info["points_a"], shape_info["points_b"], shape_info["point_dim"]
+        return n * m * d
     return None
 
 
@@ -215,6 +263,11 @@ def run_single_benchmark(
     minkowski_p: float,
     seed: int,
     compare_numpy: bool = False,
+    distance_baseline: str = "broadcast",
+    name_override: Optional[str] = None,
+    ma_window: int = 5,
+    ma_stride: int = 4,
+    ma_baseline_style: str = "naive",
 ) -> BenchmarkResult:
     # Predeclare delta arrays to satisfy static type checkers (overwritten when used).
     pre_nir: np.ndarray = np.empty((0, 0))
@@ -223,6 +276,13 @@ def run_single_benchmark(
     post_red: np.ndarray = np.empty((0, 0))
     pre_swir2: np.ndarray = np.empty((0, 0))
     post_swir2: np.ndarray = np.empty((0, 0))
+    
+    # Initialize baseline variables
+    baseline_kind: Optional[str] = None
+    baseline_timings: List[float] = []
+    supports_baseline = False
+    baseline_fn: Optional[Callable[[], Any]] = None
+    
     # Prepare inputs
     if func_name in {
         "ndvi",
@@ -279,6 +339,21 @@ def run_single_benchmark(
         else:
             call = lambda: median(cube)
         shape_desc = f"{shape_info['time']}x{shape_info['height']}x{shape_info['width']}"
+    elif func_name in {"moving_average_temporal", "moving_average_temporal_stride", "pixelwise_transform"}:
+        cube = make_temporal_stack(shape_info["time"], shape_info["height"], shape_info["width"], seed)
+        if func_name == "moving_average_temporal":
+            call = lambda: moving_average_temporal(cube, window=ma_window, skip_na=True, mode="same")
+        elif func_name == "moving_average_temporal_stride":
+            call = lambda: moving_average_temporal_stride(cube, window=ma_window, stride=ma_stride, skip_na=True, mode="same")
+        else:  # pixelwise_transform
+            call = lambda: pixelwise_transform(cube, scale=1.2, offset=-0.1, clamp_min=0.0, clamp_max=1.0)
+        extra = ""
+        if func_name.startswith("moving_average"):
+            extra = f"(win={ma_window}"
+            if func_name == "moving_average_temporal_stride":
+                extra += f", stride={ma_stride}"
+            extra += ")"
+        shape_desc = f"{shape_info['time']}x{shape_info['height']}x{shape_info['width']}{extra}"
 
     elif func_name in {
         "euclidean_distance",
@@ -298,17 +373,12 @@ def run_single_benchmark(
         else:
             call = lambda: minkowski_distance(pts_a, pts_b, minkowski_p)
         shape_desc = f"N={shape_info['points_a']}, M={shape_info['points_b']}, D={shape_info['point_dim']}"
-
     else:  # pragma: no cover
         raise ValueError(f"Unknown function: {func_name}")
 
     # Warmups
     for _ in range(warmups):
         call()
-
-    baseline_timings: List[float] = []
-    supports_baseline = False
-    baseline_fn: Optional[Callable[[], Any]] = None
 
     if compare_numpy:
         # Provide NumPy baseline implementations where feasible
@@ -360,7 +430,133 @@ def run_single_benchmark(
         elif func_name == "median":
             supports_baseline = True
             baseline_fn = lambda: np.median(cube, axis=0)
-        # Distance baselines would require pairwise loops; skip for fairness/performance.
+        elif func_name == "moving_average_temporal":
+            supports_baseline = True
+            if ma_baseline_style == "naive":
+                baseline_kind = "naive"
+                # Naive same-mode baseline (variable edges) O(T*W); skip NaN logic mirrored
+                def _ma_baseline():
+                    arr = cube
+                    T = arr.shape[0]
+                    half_left = ma_window // 2
+                    half_right = ma_window - half_left - 1
+                    out = np.empty_like(arr)
+                    for t in range(T):
+                        start = max(0, t - half_left)
+                        end = min(T - 1, t + half_right)
+                        window = arr[start : end + 1]
+                        # skip_na=True: exclude NaNs
+                        valid = window[~np.isnan(window)]
+                        if valid.size == 0:
+                            out[t] = np.nan
+                        else:
+                            out[t] = valid.mean(axis=0)
+                    return out
+                baseline_fn = _ma_baseline
+            else:
+                baseline_kind = "prefix"
+                # Prefix-sum baseline with NaN handling
+                def _ma_prefix():
+                    arr = cube
+                    T = arr.shape[0]
+                    # Replace NaNs with 0 for sum; build valid mask
+                    valid_mask = ~np.isnan(arr)
+                    arr_zero = np.nan_to_num(arr, nan=0.0)
+                    csum = np.cumsum(arr_zero, axis=0)
+                    ccount = np.cumsum(valid_mask.astype(np.int64), axis=0)
+                    out = np.empty_like(arr)
+                    half_left = ma_window // 2
+                    half_right = ma_window - half_left - 1
+                    for t in range(T):
+                        start = max(0, t - half_left)
+                        end = min(T - 1, t + half_right)
+                        total_sum = csum[end] - (csum[start - 1] if start > 0 else 0)
+                        total_count = ccount[end] - (ccount[start - 1] if start > 0 else 0)
+                        with np.errstate(invalid="ignore", divide="ignore"):
+                            out[t] = np.where(total_count > 0, total_sum / total_count, np.nan)
+                    return out
+                baseline_fn = _ma_prefix
+        elif func_name == "moving_average_temporal_stride":
+            supports_baseline = True
+            def _ma_stride_baseline():
+                # Compute naive moving average then stride sample
+                arr = cube
+                T = arr.shape[0]
+                half_left = ma_window // 2
+                half_right = ma_window - half_left - 1
+                full = []
+                for t in range(T):
+                    start = max(0, t - half_left)
+                    end = min(T - 1, t + half_right)
+                    window = arr[start : end + 1]
+                    valid = window[~np.isnan(window)]
+                    if valid.size == 0:
+                        full.append(np.full(arr.shape[1:], np.nan))
+                    else:
+                        full.append(valid.mean(axis=0))
+                full_arr = np.stack(full, axis=0)
+                return full_arr[::ma_stride]
+            baseline_fn = _ma_stride_baseline
+        elif func_name == "pixelwise_transform":
+            supports_baseline = True
+            baseline_fn = lambda: np.clip(cube * 1.2 - 0.1, 0.0, 1.0)
+        # Distance baselines (now enabled for NumPy comparison using vectorized formulations).
+        elif func_name == "euclidean_distance":
+            supports_baseline = True
+            baseline_kind = distance_baseline
+            # Broadcast baseline (allocates N x M x D implicitly via math identity)
+            broadcast_euclid = lambda: np.sqrt(
+                np.clip(
+                    (pts_a**2).sum(axis=1)[:, None]
+                    + (pts_b**2).sum(axis=1)[None, :]
+                    - 2 * (pts_a @ pts_b.T),
+                    0.0,
+                    None,
+                )
+            )
+            # Streaming baseline (no large 3D temporary; pure Python loop, shows algorithmic parity)
+            def streaming_euclid():
+                out = np.empty((pts_a.shape[0], pts_b.shape[0]), dtype=np.float64)
+                for i in range(pts_a.shape[0]):
+                    diff = pts_a[i] - pts_b
+                    out[i] = np.sqrt(np.sum(diff * diff, axis=1))
+                return out
+            baseline_fn = broadcast_euclid if distance_baseline == "broadcast" else streaming_euclid
+        elif func_name == "manhattan_distance":
+            supports_baseline = True
+            baseline_kind = distance_baseline
+            broadcast_manhattan = lambda: np.abs(pts_a[:, None, :] - pts_b[None, :, :]).sum(axis=2)
+            def streaming_manhattan():
+                out = np.empty((pts_a.shape[0], pts_b.shape[0]), dtype=np.float64)
+                for i in range(pts_a.shape[0]):
+                    diff = np.abs(pts_a[i] - pts_b)
+                    out[i] = np.sum(diff, axis=1)
+                return out
+            baseline_fn = broadcast_manhattan if distance_baseline == "broadcast" else streaming_manhattan
+        elif func_name == "chebyshev_distance":
+            supports_baseline = True
+            baseline_kind = distance_baseline
+            broadcast_cheby = lambda: np.abs(pts_a[:, None, :] - pts_b[None, :, :]).max(axis=2)
+            def streaming_cheby():
+                out = np.empty((pts_a.shape[0], pts_b.shape[0]), dtype=np.float64)
+                for i in range(pts_a.shape[0]):
+                    diff = np.abs(pts_a[i] - pts_b)
+                    out[i] = np.max(diff, axis=1)
+                return out
+            baseline_fn = broadcast_cheby if distance_baseline == "broadcast" else streaming_cheby
+        elif func_name == "minkowski_distance":
+            supports_baseline = True
+            baseline_kind = distance_baseline
+            broadcast_minkowski = lambda: (
+                np.abs(pts_a[:, None, :] - pts_b[None, :, :]) ** minkowski_p
+            ).sum(axis=2) ** (1.0 / minkowski_p)
+            def streaming_minkowski():
+                out = np.empty((pts_a.shape[0], pts_b.shape[0]), dtype=np.float64)
+                for i in range(pts_a.shape[0]):
+                    diff = np.abs(pts_a[i] - pts_b) ** minkowski_p
+                    out[i] = np.sum(diff, axis=1) ** (1.0 / minkowski_p)
+                return out
+            baseline_fn = broadcast_minkowski if distance_baseline == "broadcast" else streaming_minkowski
 
     # Timed loops
     timings: List[float] = []
@@ -392,8 +588,13 @@ def run_single_benchmark(
             # speedup (baseline_mean / rust_mean) > 1 means Rust faster
             speedup = baseline_mean / mean_s
 
+    # Compute baseline throughput (elements/sec) if we have a NumPy baseline
+    baseline_throughput = None
+    if supports_baseline and baseline_mean and elements:
+        baseline_throughput = elements / baseline_mean if baseline_mean > 0 else None
+
     return BenchmarkResult(
-        name=func_name,
+        name=name_override or func_name,
         loops=loops,
         warmups=warmups,
         mean_s=mean_s,
@@ -408,6 +609,8 @@ def run_single_benchmark(
         baseline_min_s=baseline_min,
         baseline_max_s=baseline_max,
         speedup_vs_numpy=speedup,
+        baseline_throughput_elems=baseline_throughput,
+        baseline_kind=baseline_kind,
     )
 
 
@@ -443,57 +646,6 @@ def print_header():
     print("-" * 115)
 
 
-# --------------------------------------------------------------------------------------
-# Argument Parsing
-# --------------------------------------------------------------------------------------
-def parse_args(argv: Sequence[str]) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(
-        description="Benchmark eo-processor Rust-accelerated functions."
-    )
-    parser.add_argument(
-        "--compare-numpy",
-        action="store_true",
-        help="Also time a pure NumPy baseline (supported for spectral + temporal functions).",
-    )
-    parser.add_argument(
-        "--functions",
-        nargs="+",
-        help="Explicit list of functions to benchmark (overrides --group).",
-    )
-    parser.add_argument(
-        "--group",
-        choices=["spectral", "temporal", "distances", "all"],
-        default="spectral",
-        help="Predefined function group to benchmark.",
-    )
-    parser.add_argument("--height", type=int, default=2048, help="Spatial height.")
-    parser.add_argument("--width", type=int, default=2048, help="Spatial width.")
-    parser.add_argument("--time", type=int, default=12, help="Temporal length (for temporal functions).")
-    parser.add_argument("--points-a", type=int, default=2000, help="Number of points in set A for distances.")
-    parser.add_argument("--points-b", type=int, default=2000, help="Number of points in set B for distances.")
-    parser.add_argument("--point-dim", type=int, default=4, help="Dimensionality of point space (D).")
-    parser.add_argument("--minkowski-p", type=float, default=3.0, help="Order p for Minkowski distance.")
-    parser.add_argument("--loops", type=int, default=3, help="Number of timed loops.")
-    parser.add_argument("--warmups", type=int, default=1, help="Number of warmup runs.")
-    parser.add_argument("--seed", type=int, default=42, help="Random seed.")
-    parser.add_argument(
-        "--json-out",
-        type=str,
-        help="Write benchmark results to JSON file.",
-    )
-    parser.add_argument(
-        "--quiet",
-        action="store_true",
-        help="Suppress table output (still writes JSON if requested).",
-    )
-    parser.add_argument(
-        "--md-out",
-        type=str,
-        help="Write benchmark results as a Markdown table to the specified file.",
-    )
-    return parser.parse_args(argv)
-
-
 def resolve_functions(group: str, explicit: Optional[List[str]]) -> List[str]:
     if explicit:
         return explicit
@@ -520,6 +672,12 @@ def resolve_functions(group: str, explicit: Optional[List[str]]) -> List[str]:
             "chebyshev_distance",
             "minkowski_distance",
         ]
+    if group == "processes":
+        return [
+            "moving_average_temporal",
+            "moving_average_temporal_stride",
+            "pixelwise_transform",
+        ]
     if group == "all":
         return [
             "ndvi",
@@ -540,6 +698,9 @@ def resolve_functions(group: str, explicit: Optional[List[str]]) -> List[str]:
             "manhattan_distance",
             "chebyshev_distance",
             "minkowski_distance",
+            "moving_average_temporal",
+            "moving_average_temporal_stride",
+            "pixelwise_transform",
         ]
     raise ValueError(f"Unknown group: {group}")
 
@@ -550,6 +711,16 @@ def resolve_functions(group: str, explicit: Optional[List[str]]) -> List[str]:
 def main(argv: Optional[Sequence[str]] = None) -> int:
     args = parse_args(argv or sys.argv[1:])
     funcs = resolve_functions(args.group, args.functions)
+    # Stress mode: override sizes to large defaults
+    if args.stress:
+        # Larger spatial and point set sizes for stress tests (tunable)
+        if not args.size_sweep:
+            args.height = max(args.height, 4096)
+            args.width = max(args.width, 4096)
+        args.points_a = max(args.points_a, 10000)
+        args.points_b = max(args.points_b, 10000)
+        args.point_dim = max(args.point_dim, 16)
+        args.time = max(args.time, 48)
 
     shape_info = {
         "height": args.height,
@@ -560,18 +731,83 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         "point_dim": args.point_dim,
     }
 
+    # Build list of shape infos for size sweep (if requested)
+    sweep_specs = args.size_sweep or []
+    shape_infos: List[Dict[str, int]] = []
+    if sweep_specs:
+        for spec in sweep_specs:
+            spec = spec.strip()
+            if not spec:
+                continue
+            t_val = args.time
+            # Allow T=<time>:HxW pattern
+            if "T=" in spec:
+                try:
+                    t_part, rest = spec.split(":", 1)
+                    t_val = int(t_part.split("=", 1)[1])
+                    spec = rest
+                except Exception:
+                    raise ValueError(f"Invalid size sweep temporal syntax: {spec}")
+            if "x" not in spec.lower():
+                raise ValueError(f"Invalid size sweep entry (expected HxW): {spec}")
+            h_str, w_str = spec.lower().split("x", 1)
+            try:
+                h_val = int(h_str)
+                w_val = int(w_str)
+            except ValueError:
+                raise ValueError(f"Non-integer size components in sweep entry: {spec}")
+            shape_infos.append(
+                {
+                    "height": h_val,
+                    "width": w_val,
+                    "time": t_val,
+                    "points_a": args.points_a,
+                    "points_b": args.points_b,
+                    "point_dim": args.point_dim,
+                }
+            )
+    else:
+        shape_infos.append(shape_info)
+
     results: List[BenchmarkResult] = []
-    for f in funcs:
-        res = run_single_benchmark(
-            func_name=f,
-            loops=args.loops,
-            warmups=args.warmups,
-            shape_info=shape_info,
-            minkowski_p=args.minkowski_p,
-            seed=args.seed,
-            compare_numpy=args.compare_numpy,
-        )
-        results.append(res)
+    for shp in shape_infos:
+        for f in funcs:
+            # For distance functions with --distance-baseline=both, run twice.
+            is_distance = f in {
+                "euclidean_distance",
+                "manhattan_distance",
+                "chebyshev_distance",
+                "minkowski_distance",
+            }
+            if is_distance and args.distance_baseline == "both":
+                for mode in ("broadcast", "streaming"):
+                    res = run_single_benchmark(
+                        func_name=f,
+                        loops=args.loops,
+                        warmups=args.warmups,
+                        shape_info=shp,
+                        minkowski_p=args.minkowski_p,
+                        seed=args.seed,
+                        compare_numpy=args.compare_numpy,
+                        distance_baseline=mode,
+                        name_override=f"{f}[{mode}]",
+                    )
+                    results.append(res)
+            else:
+                res = run_single_benchmark(
+                    func_name=f,
+                    loops=args.loops,
+                    warmups=args.warmups,
+                    shape_info=shp,
+                    minkowski_p=args.minkowski_p,
+                    seed=args.seed,
+                    compare_numpy=args.compare_numpy,
+                    distance_baseline=args.distance_baseline,
+                    name_override=None,
+                    ma_window=args.ma_window,
+                    ma_stride=args.ma_stride,
+                )
+                results.append(res)
 
     if not args.quiet:
         print()
@@ -585,7 +821,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         for r in results:
             extra = ""
             if args.compare_numpy and r.baseline_mean_s is not None:
-                extra = f" | NumPy mean: {r.baseline_mean_s*1000:.2f} ms speedup: {r.speedup_vs_numpy:.2f}x"
+                bt = f"{r.baseline_throughput_elems/1e6:.2f}M elems/s" if r.baseline_throughput_elems else "-"
+                extra = f" | NumPy mean: {r.baseline_mean_s*1000:.2f} ms NumPy throughput: {bt} speedup: {r.speedup_vs_numpy:.2f}x"
             print(f"{format_result_row(r)}{extra}")
         print("-" * 115)
         print("Throughput reported as processed elements per second (approximation).")
@@ -602,6 +839,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                 "group": args.group,
                 "functions": funcs,
                 "shape_info": shape_info,
+                "size_sweep": args.size_sweep,
+                "sweep_shape_infos": shape_infos if args.size_sweep else None,
             },
             "results": [asdict(r) for r in results],
             "compare_numpy": args.compare_numpy,
@@ -610,8 +849,32 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             json.dump(payload, f, indent=2)
         if not args.quiet:
             print(f"Wrote JSON results to: {args.json_out}")
+    # Precompute meta_rows (unconditional) so both md_out and rst_out blocks can use it
+    meta_rows = {
+        "Python": platform.python_version(),
+        "Platform": platform.platform(),
+        "Group": args.group,
+        "Functions": ", ".join(funcs),
+        "Distance Baseline": args.distance_baseline,
+        "Stress Mode": str(args.stress),
+        "Loops": str(args.loops),
+        "Warmups": str(args.warmups),
+        "Seed": str(args.seed),
+        "Compare NumPy": str(args.compare_numpy),
+        "Height": str(shape_info["height"]),
+        "Width": str(shape_info["width"]),
+        "Time": str(shape_info["time"]),
+        "Points A": str(shape_info["points_a"]),
+        "Points B": str(shape_info["points_b"]),
+        "Point Dim": str(shape_info["point_dim"]),
+        "Size Sweep": str(args.size_sweep),
+        "MA Window": str(args.ma_window),
+        "MA Stride": str(args.ma_stride),
+        "MA Baseline": args.ma_baseline,
+    }
+
     if getattr(args, "md_out", None):
-        # Build Markdown report
+        # Build Markdown (GitHub-style) report
         lines = []
         lines.append(f"# eo-processor Benchmark Report")
         lines.append("")
@@ -619,28 +882,12 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         lines.append("")
         lines.append("| Key | Value |")
         lines.append("|-----|-------|")
-        meta_rows = {
-            "Python": platform.python_version(),
-            "Platform": platform.platform(),
-            "Group": args.group,
-            "Functions": ", ".join(funcs),
-            "Loops": str(args.loops),
-            "Warmups": str(args.warmups),
-            "Seed": str(args.seed),
-            "Compare NumPy": str(args.compare_numpy),
-            "Height": str(shape_info["height"]),
-            "Width": str(shape_info["width"]),
-            "Time": str(shape_info["time"]),
-            "Points A": str(shape_info["points_a"]),
-            "Points B": str(shape_info["points_b"]),
-            "Point Dim": str(shape_info["point_dim"]),
-        }
         for k, v in meta_rows.items():
             lines.append(f"| {k} | {v} |")
         lines.append("")
         lines.append("## Results")
         lines.append("")
-        lines.append("| Function | Mean (ms) | StDev (ms) | Min (ms) | Max (ms) | Elements | Throughput (M elems/s) | Speedup vs NumPy | Shape |")
+        lines.append("| Function | Mean (ms) | StDev (ms) | Min (ms) | Max (ms) | Elements | Rust Throughput (M elems/s) | NumPy Throughput (M elems/s) | Speedup vs NumPy | Shape |")
         lines.append("|----------|-----------|------------|----------|----------|----------|------------------------|------------------|-------|")
         for r in results:
             mean_ms = r.mean_s * 1000
@@ -650,16 +897,85 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             elems = f"{r.elements:,}" if r.elements is not None else "-"
             tput = f"{(r.throughput_elems/1e6):.2f}" if r.throughput_elems is not None else "-"
             speedup = f"{r.speedup_vs_numpy:.2f}x" if r.speedup_vs_numpy is not None else "-"
-            lines.append(f"| {r.name} | {mean_ms:.2f} | {stdev_ms:.2f} | {min_ms:.2f} | {max_ms:.2f} | {elems} | {tput} | {speedup} | {r.shape_description} |")
+            btput = f"{(r.baseline_throughput_elems/1e6):.2f}" if r.baseline_throughput_elems is not None else "-"
+            lines.append(f"| {r.name} | {mean_ms:.2f} | {stdev_ms:.2f} | {min_ms:.2f} | {max_ms:.2f} | {elems} | {tput} | {btput} | {speedup} | {r.shape_description} |")
         lines.append("")
-        if args.compare_numpy:
+        if args.compare_numpy and r.baseline_kind is not None:
             lines.append("> Speedup vs NumPy = (NumPy mean time / Rust mean time); values > 1 indicate Rust is faster.")
-        with open(args.md_out, "w", encoding="utf-8") as f:
-            f.write("\n".join(lines))
+            if r.baseline_kind:
+                lines.append(f"> NumPy baseline kind used: {r.baseline_kind}.")
+        with open(args.md_out, "w", encoding="utf-8") as f_md:
+            f_md.write("\n".join(lines))
         if not args.quiet:
             print(f"Wrote Markdown report to: {args.md_out}")
 
-    return 0
+    # Optional Sphinx reST output (grid tables) if --rst-out was provided.
+    if getattr(args, "rst_out", None):
+        rst = []
+        rst.append("Benchmark Report")
+        rst.append("================")
+        rst.append("")
+        rst.append("Meta")
+        rst.append("----")
+        # Meta as simple definition list
+        for k, v in meta_rows.items():
+            rst.append(f"{k}: {v}")
+        rst.append("")
+        rst.append("Results")
+        rst.append("-------")
+        # Build grid table
+        header_cols = [
+            "Function",
+            "Mean (ms)",
+            "StDev (ms)",
+            "Min (ms)",
+            "Max (ms)",
+            "Elements",
+            "Rust Throughput (M elems/s)",
+            "NumPy Throughput (M elems/s)",
+            "Speedup vs NumPy",
+            "Shape",
+        ]
+        # Determine column widths
+        rows = []
+        for r in results:
+            mean_ms = f"{r.mean_s*1000:.2f}"
+            stdev_ms = f"{r.stdev_s*1000:.2f}"
+            min_ms = f"{r.min_s*1000:.2f}"
+            max_ms = f"{r.max_s*1000:.2f}"
+            elems = f"{r.elements:,}" if r.elements is not None else "-"
+            tput = f"{(r.throughput_elems/1e6):.2f}" if r.throughput_elems is not None else "-"
+            btput = f"{(r.baseline_throughput_elems/1e6):.2f}" if r.baseline_throughput_elems is not None else "-"
+            speedup = f"{r.speedup_vs_numpy:.2f}x" if r.speedup_vs_numpy is not None else "-"
+            rows.append([r.name, mean_ms, stdev_ms, min_ms, max_ms, elems, tput, btput, speedup, r.shape_description])
+
+        # Compute column widths
+        col_widths = [max(len(h), *(len(row[i]) for row in rows)) for i, h in enumerate(header_cols)]
+
+        def grid_sep(char="="):
+            return "+" + "+".join(char * (w + 2) for w in col_widths) + "+"
+
+        def grid_row(values):
+            return "|" + "|".join(f" {v}{' ' * (w - len(v))} " for v, w in zip(values, col_widths)) + "|"
+
+        # Header
+        rst.append(grid_sep("="))
+        rst.append(grid_row(header_cols))
+        rst.append(grid_sep("="))
+        # Data rows
+        for row in rows:
+            rst.append(grid_row(row))
+        rst.append(grid_sep("="))
+        rst.append("")
+        if args.compare_numpy:
+            rst.append("Speedup vs NumPy = (NumPy mean time / Rust mean time); values > 1 indicate Rust is faster.")
+            rst.append("")
+        with open(args.rst_out, "w", encoding="utf-8") as f_rst:
+            f_rst.write("\n".join(rst))
+        if not args.quiet:
+            print(f"Wrote reST report to: {args.rst_out}")
+
+        return 0
 
 
 if __name__ == "__main__":  # pragma: no cover

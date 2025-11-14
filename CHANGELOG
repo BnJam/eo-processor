@@ -5,6 +5,45 @@ The format loosely follows Keep a Changelog and Semantic Versioning (SemVer).
 Categories: Added | Changed | Fixed | Removed | Performance | Docs | Internal.
 
 ---
+## [0.6.0] - 2025-11-12
+Patch release (documentation workflow, stub corrections, version sync).
+
+### Added
+- Sphinx documentation pipeline (Furo theme, MyST Markdown, autosummary, napoleon, intersphinx) with `architecture` page and autosummary-driven function index.
+- Read the Docs configuration (`.readthedocs.yaml`) enabling hosted builds.
+- Injected high-level Rust acceleration note (GIL release, float64 coercion, parallel thresholds) via `conf.py`.
+
+### Changed
+- Type stubs (`__init__.pyi`): updated `__version__` literal from "0.4.0" to "0.6.0"; added detailed dimensionality notes (1D–4D dispatch, delta indices limited to 1D/2D, distance functions 2D only).
+- Expanded `composite()` docstring to formalize method semantics and future extensibility guidance.
+- Architecture documentation elaborated on memory efficiency, NaN handling, and parallel strategy.
+
+### Fixed
+- Version synchronization across `pyproject.toml`, `Cargo.toml`, and `python/eo_processor/__init__.py` (all now 0.6.0).
+- Eliminated mismatch that previously showed stale version in type stubs.
+- Ensured autosummary list fully reflects current public API (including delta indices and masking utilities).
+
+### Docs
+- README: Added Read the Docs badge; clarified performance philosophy & benchmark usage.
+- New Sphinx pages: `architecture` (performance model & extensibility) and consolidated index with autosummary of all functions.
+- Clarified dimensional dispatch (1D–4D) and NaN skip behavior in temporal & masking functions.
+- Cross-linked contribution, security, and agent governance documents from Sphinx index.
+
+### Internal
+- `conf.py`: automatic inclusion of `README.md` and `QUICKSTART.md` into docs source; mock import of compiled extension for RTD builds; injected `rust_arch_note`.
+- CI: Documentation build job (artifact upload + reference validation) integrated to catch broken links or autodoc issues.
+- Governance (`AGENTS.md`, copilot instructions): reinforced mandatory doc updates for any public API or performance claim.
+
+### Performance
+- No new kernels; benchmarks unchanged. Existing claims retained (no modified speedup statements).
+
+### Removed
+- None.
+
+### Notes
+- Future feature additions (new indices or compositing methods) will require minor version bump per SemVer.
+- Patch classification chosen because changes are confined to documentation, metadata, and non-breaking stub/doc improvements.
+
 
 ## [0.4.0] - 2025-11-10
 Minor release (new non-breaking features).

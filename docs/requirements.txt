@@ -1,0 +1,33 @@
+# Documentation build requirements for Read the Docs (RTD)
+# -------------------------------------------------------
+# RTD creates an isolated environment using this file. We avoid building the Rust
+# extension module (`eo_processor._core`) because it requires a Rust toolchain
+# which is not available by default on RTD. The Sphinx configuration mocks that
+# module (see `autodoc_mock_imports`) so imports succeed and docstrings for the
+# Python wrappers are still collected.
+#
+# If RTD later enables a Rust toolchain for your project, you can add:
+#   maturin>=1.9.6
+# and install the package in editable mode (`-e ..`) to pull real signatures
+# from the compiled extension. For now, mocking is adequate.
+#
+# Core documentation stack:
+sphinx>=7.0.0,<8.0.0
+furo>=2024.1.0
+myst-parser>=2.0.0
+sphinx-autodoc-typehints>=2.0.0
+sphinx-copybutton>=0.5.2
+sphinx-tabs>=3.4.4
+
+# Optional: linkify support (already enabled via myst if available)
+linkify-it-py>=2.0.0
+
+# Runtime imports needed for type evaluation & examples
+numpy>=1.20.0
+
+# If you decide to build the package inside RTD (requires Rust toolchain),
+# uncomment the following lines:
+# maturin>=1.9.6
+# -e ..
+
+# End of requirements

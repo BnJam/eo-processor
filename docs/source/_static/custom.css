@@ -1,0 +1,129 @@
+/* ==========================================================================
+   eo-processor Sphinx Documentation Custom Styles
+   ==========================================================================
+
+   Purpose:
+     - Provide subtle branding / readability improvements.
+     - Harmonize code, tables, admonitions, and navigation for both light & dark themes.
+     - Keep overrides minimal to avoid fighting upstream theme (Furo).
+
+   Notes:
+     - Furo exposes data-theme="light" / "dark" on <html>. We scope certain colors accordingly.
+     - Avoid !important unless absolutely necessary (here we keep it minimal).
+     - All colors chosen for sufficient contrast (WCAG AA-ish).
+   ========================================================================== */
+
+/* Typography refinements -------------------------------------------------- */
+body {
+  font-feature-settings: "kern", "liga", "clig", "calt";
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Headings: tighten spacing */
+h1, h2, h3, h4, h5 {
+  letter-spacing: 0.25px;
+  line-height: 1.15;
+}
+
+/* Code blocks ------------------------------------------------------------- */
+div.highlight pre,
+pre {
+  border-radius: 6px;
+  padding: 0.9em 1em;
+  font-size: 0.9rem;
+  line-height: 1.35;
+}
+
+/* Inline code */
+code, tt {
+  padding: 0.15em 0.35em;
+  border-radius: 4px;
+  background: var(--code-bg, rgba(0,0,0,0.05));
+}
+
+/* Light / Dark theme adjustments */
+html[data-theme="light"] code,
+html[data-theme="light"] tt {
+  background: #f4f6f8;
+  color: #24292e;
+}
+
+html[data-theme="dark"] code,
+html[data-theme="dark"] tt {
+  background: #2d333b;
+  color: #dfe2e5;
+}
+
+/* Tables ------------------------------------------------------------------ */
+table.docutils {
+  font-size: 0.9rem;
+}
+table.docutils th {
+  background: linear-gradient(180deg, #eef2f6, #e3e8ed);
+  font-weight: 600;
+}
+html[data-theme="dark"] table.docutils th {
+  background: linear-gradient(180deg, #2d333b, #22272e);
+}
+
+/* Autosummary / function lists */
+.toctree-wrapper ul,
+ul.simple {
+  list-style: none;
+  padding-left: 0;
+}
+.toctree-wrapper li,
+ul.simple li {
+  margin: 0.4em 0;
+  padding-left: 0;
+}
+
+/* Admonitions ------------------------------------------------------------- */
+.admonition {
+  border-left: 4px solid #3b82f6;
+  padding: 0.6em 0.9em;
+  border-radius: 4px;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.08);
+}
+html[data-theme="dark"] .admonition {
+  border-left-color: #60a5fa;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.4);
+}
+
+/* Tip / Note color tweaks */
+.admonition.tip {
+  border-left-color: #10b981;
+}
+.admonition.note {
+  border-left-color: #6366f1;
+}
+.admonition.warning {
+  border-left-color: #f59e0b;
+}
+.admonition.danger {
+  border-left-color: #ef4444;
+}
+
+/* Footer / small print ---------------------------------------------------- */
+footer,
+div#searchbox {
+  font-size: 0.8rem;
+  opacity: 0.85;
+}
+
+/* Links ------------------------------------------------------------------- */
+a {
+  transition: color 0.15s ease, background 0.15s ease;
+}
+a:hover {
+  text-decoration: none;
+}
+
+/* Responsive tweaks ------------------------------------------------------- */
+@media (min-width: 1400px) {
+  .content {
+    max-width: 900px;
+  }
+}
+
+/* End of custom.css */
