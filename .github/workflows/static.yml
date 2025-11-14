@@ -9,6 +9,12 @@ on:
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 
+  # Also run after the build & publish (release) workflow completes
+  workflow_run:
+    workflows: ["Build and Publish Wheels"]
+    types:
+      - completed
+
 # Sets permissions of the GITHUB_TOKEN to allow deployment to GitHub Pages
 permissions:
   contents: read
@@ -32,6 +38,19 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Checkout latest version tag (post-release)
+        if: github.event_name == 'workflow_run'
+        run: |
+          set -e
+          git fetch --tags --force
+          TAG=$(git tag --list 'v*' --sort=-creatordate | head -1)
+          echo "Latest tag detected: $TAG"
+          if [ -n "$TAG" ]; then
+            git checkout "$TAG"
+          else
+            echo "No version tag found; using current branch."
+          fi
+
       - name: Install Rust toolchain (for potential extension build)
         uses: dtolnay/rust-toolchain@stable
 
@@ -39,7 +58,7 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-  
+
       - name: Install uv
         uses: astral-sh/setup-uv@v3
 
@@ -47,6 +66,18 @@ jobs:
         run: |
           set -e
           uv pip install --system .[docs]
+
+      - name: Verify version consistency
+        run: |
+          set -e
+          PYPROJECT_VERSION=$(grep -E '^version = "' pyproject.toml | head -1 | cut -d'"' -f2)
+          PKG_VERSION=$(python -c 'import eo_processor; print(eo_processor.__version__)')
+          echo "pyproject.toml version: $PYPROJECT_VERSION"
+          echo "eo_processor.__version__: $PKG_VERSION"
+          if [ "$PYPROJECT_VERSION" != "$PKG_VERSION" ]; then
+            echo "Version mismatch detected (pyproject vs package)."
+            exit 1
+          fi
 
       - name: Build Sphinx documentation
         run: |
@@ -56,11 +87,11 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: 'docs/build/html'
+          path: "docs/build/html"
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
-        
+
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
