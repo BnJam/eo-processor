@@ -2,13 +2,27 @@
 [![PyPI Version](https://img.shields.io/pypi/v/eo-processor.svg?color=blue)](https://pypi.org/project/eo-processor/)
 [![PyPI Downloads](https://static.pepy.tech/personalized-badge/eo-processor?period=total&units=INTERNATIONAL_SYSTEM&left_color=BLACK&right_color=GREEN&left_text=downloads)](https://pepy.tech/projects/eo-processor)
 [![Coverage](./coverage-badge.svg)](#test-coverage)
-[![Documentation Status](https://readthedocs.org/projects/eo-processor/badge/?version=latest)](https://eo-processor.readthedocs.io/en/latest/?badge=latest)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 High-performance Rust (PyO3) UDFs for Earth Observation (EO) processing with Python bindings.
 Fast spectral indices, temporal statistics, masking utilities, and spatial distance functions.
 
 ---
+
+## Documentation 
+
+Full documentation is hosted online: https://bnjam.dev/eo-processor/
+
+The site contains:
+- Quick start guides and worked examples (NDVI, EVI, compositing, masking)
+- Complete API reference with function signatures, expected input shapes/dtypes, and return types
+- CLI usage and examples for batch processing and PNG preview generation
+- Tutorials for integrating with XArray / Dask and for building reproducible benchmarks
+- Developer & contribution notes (how to add Rust UDFs, register Python bindings, test, and create type stubs)
+- Guidance on building from source, running the benchmark harness, and regenerating coverage badges
+- Release notes / changelog and citation information
+
+--- 
 
 ## Overview
 

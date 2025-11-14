@@ -4,6 +4,69 @@ All notable changes to this project will be documented in this file.
 The format loosely follows Keep a Changelog and Semantic Versioning (SemVer).
 Categories: Added | Changed | Fixed | Removed | Performance | Docs | Internal.
 
+## [0.7.0] - 2025-11-15
+Minor release (new non-breaking features).
+
+### Added
+- New Rust modules & functions:
+  - `processes.rs`: `moving_average_temporal`, `moving_average_temporal_stride`, `pixelwise_transform`, `temporal_composite` (weighted 4D temporal compositing).
+  - `trends.rs`: `TrendSegment` class, `trend_analysis`, `linear_regression`.
+  - `temporal_sum` added to `temporal.rs` and exported (time-axis summation with NaN skip/propagate semantics).
+- Benchmark & distribution artifacts: `benchmark-*.json` (per Python version), `benchmark-test.json`, `dist_bench.json`, `dist_bench.md`.
+- Trend analysis benchmark script: `scripts/benchmark_trends.py`.
+- Sphinx documentation expansion:
+  - Per-function API pages under `docs/source/api/functions/*.rst`.
+  - Benchmark and distribution pages (`benchmarks.rst`, individual benchmark rst files, `dist_bench.rst`).
+  - Custom CSS `_static/custom.css`.
+- GitHub Pages deployment workflow (`.github/workflows/static.yml`) for published documentation site.
+- `.readthedocs.yaml` configuration (enables RTD builds).
+- Advanced temporal processing & trend analysis sections in README (moving average, stride variant, pixelwise transform, trend analysis example).
+- New examples: `examples/processes_examples.py`, `examples/temporal_sum_composite_example.py`.
+
+### Changed
+- Version bumped to `0.7.0` in `pyproject.toml` and `Cargo.toml` (public API expansion).
+- README substantially expanded (Trend Analysis, Advanced Temporal & Pixelwise Processing).
+- CI workflow (`.github/workflows/ci.yml`) updated to reflect new build/test/documentation steps.
+- Benchmarks: default array sizes reduced (performance commit) to speed up CI runtime.
+- `scripts/benchmark.py` updated (array size reduction & processes integration).
+- Makefile updated to ensure docs build integration.
+- Expanded `lib.rs` registrations for new temporal, processes, and trend functions.
+
+### Fixed
+- Corrected EPSILON comments and baseline variable initialization in `scripts/benchmark.py`.
+- Cleaned repository of prior unwanted documentation build artifacts; updated `.gitignore` to prevent re-adding.
+- Improved consistency of moving average NaN handling across dimensional dispatch paths.
+
+### Performance
+- Moving average & strided moving average use prefix-sum (O(T) per pixel independent of window size).
+- Parallelization (Rayon) applied to 3D/4D temporal reducers and processes for better multi-core throughput.
+- Reduced benchmark array dimensions accelerate CI without altering algorithmic complexity.
+- Strided temporal moving average reduces output temporal length → downstream memory & compute savings.
+
+### Docs
+- Added full per-function Sphinx reference pages (indices, temporal, masking, processes, trends).
+- README new sections: Trend Analysis; Advanced Temporal & Pixelwise Processing.
+- Benchmark and distribution documentation pages added.
+- GitHub Pages static deployment pipeline documented.
+- Clarified temporal dimensionality (1D–4D) for new processes in docs.
+
+### Internal
+- New modules integrated: `processes`, `trends`; extended `lib.rs` for bindings.
+- Added weighted temporal compositing (`temporal_composite`) for 4D stacks.
+- Added linear regression helper function to support trend residual analysis.
+- Extended test suite: `tests/test_processes.py`, `tests/test_processes_stride.py` (stride sampling correctness, NaN semantics).
+- Updated type stubs (`__init__.pyi`) to include new processes (though version literal not yet bumped—see Notes).
+
+### Removed
+- `architecture/ADR-template.md` (deprecated placeholder file).
+- Legacy generated doc build artifacts removed from version control (now ignored).
+
+### Notes
+- Stub & Python `__version__` remain at `"0.6.0"`; requires follow-up patch to synchronize with `0.7.0`.
+- Next patch should update `python/eo_processor/__init__.py` and `__init__.pyi` version literals and add a changelog "Fixed" entry for version sync.
+- No breaking changes; all new APIs are additive → SemVer minor release justified.
+- Trend analysis UDF is iterative and may require future optimization for very large series; current implementation favors clarity over advanced segmentation heuristics.
+
 ---
 ## [0.6.0] - 2025-11-12
 Patch release (documentation workflow, stub corrections, version sync).
