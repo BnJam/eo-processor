@@ -68,15 +68,19 @@ jobs:
           set -e
           PYPROJECT_VERSION=$(grep -E '^version = "' pyproject.toml | head -1 | cut -d'"' -f2)
           echo "Pyproject version: $PYPROJECT_VERSION"
-          # Overwrite __version__ in Python package
+          # Overwrite __version__ in Python package source before install
           sed -i.bak -E "s/__version__ = \".*\"/__version__ = \"$PYPROJECT_VERSION\"/" python/eo_processor/__init__.py
           # Overwrite Literal version in type stubs if present
           sed -i.bak -E "s/__version__: Literal\\[\"[^\"]+\"\\]/__version__: Literal[\"$PYPROJECT_VERSION\"]/" python/eo_processor/__init__.pyi || true
-          # Show resulting versions
+          echo "Re-installing package with synchronized version..."
+          uv pip install --system .[docs]
+          # Prefer local source for import precedence (conf.py adds path but we ensure here)
+          echo "PYTHONPATH=$PWD/python:$PYTHONPATH" >> $GITHUB_ENV
+          # Validate imported version matches pyproject
           PKG_VERSION=$(python -c 'import eo_processor; print(eo_processor.__version__)')
-          echo "Package __version__ after override: $PKG_VERSION"
+          echo "Post-install package __version__: $PKG_VERSION"
           if [ "$PKG_VERSION" != "$PYPROJECT_VERSION" ]; then
-            echo "Failed to synchronize versions"; exit 1
+            echo "Version synchronization failed"; exit 1
           fi
 
       - name: Build Sphinx documentation (forced version)
