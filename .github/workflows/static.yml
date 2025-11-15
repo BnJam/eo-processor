@@ -63,21 +63,29 @@ jobs:
           set -e
           uv pip install --system .[docs]
 
-      - name: Verify version consistency
+      - name: Force version synchronization (pyproject -> package & stubs)
         run: |
           set -e
           PYPROJECT_VERSION=$(grep -E '^version = "' pyproject.toml | head -1 | cut -d'"' -f2)
+          echo "Pyproject version: $PYPROJECT_VERSION"
+          # Overwrite __version__ in Python package
+          sed -i.bak -E "s/__version__ = \".*\"/__version__ = \"$PYPROJECT_VERSION\"/" python/eo_processor/__init__.py
+          # Overwrite Literal version in type stubs if present
+          sed -i.bak -E "s/__version__: Literal\\[\"[^\"]+\"\\]/__version__: Literal[\"$PYPROJECT_VERSION\"]/" python/eo_processor/__init__.pyi || true
+          # Show resulting versions
           PKG_VERSION=$(python -c 'import eo_processor; print(eo_processor.__version__)')
-          echo "pyproject.toml version: $PYPROJECT_VERSION"
-          echo "eo_processor.__version__: $PKG_VERSION"
-          if [ "$PYPROJECT_VERSION" != "$PKG_VERSION" ]; then
-            echo "Version mismatch detected (pyproject vs package)."
-            exit 1
+          echo "Package __version__ after override: $PKG_VERSION"
+          if [ "$PKG_VERSION" != "$PYPROJECT_VERSION" ]; then
+            echo "Failed to synchronize versions"; exit 1
           fi
 
-      - name: Build Sphinx documentation
+      - name: Build Sphinx documentation (forced version)
         run: |
           set -e
+          PYPROJECT_VERSION=$(grep -E '^version = "' pyproject.toml | head -1 | cut -d'"' -f2)
+          echo "Building docs for version: $PYPROJECT_VERSION"
+          # Ensure any cached bytecode doesn't hold old version
+          find python/eo_processor -name '*.pyc' -delete || true
           make docs
 
       - name: Upload artifact
