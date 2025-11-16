@@ -413,7 +413,7 @@ wheels = [
 
 [[package]]
 name = "eo-processor"
-version = "0.6.0"
+version = "0.7.2"
 source = { editable = "." }
 dependencies = [
     { name = "maturin" },
