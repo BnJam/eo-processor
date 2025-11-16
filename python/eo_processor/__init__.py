@@ -23,6 +23,7 @@ from ._core import (
     mask_scl as _mask_scl,
     mask_vals as _mask_vals,
     median as _median,
+    median_along_axis as _median_along_axis,
     minkowski_distance as _minkowski_distance,
     moving_average_temporal as _moving_average_temporal,
     moving_average_temporal_stride as _moving_average_temporal_stride,
@@ -59,6 +60,7 @@ __all__ = [
     "mask_scl",
     "mask_vals",
     "median",
+    "median_along_axis",
     "minkowski_distance",
     "moving_average_temporal",
     "moving_average_temporal_stride",
@@ -293,6 +295,22 @@ def median(arr, skip_na=True):
         of any pixel containing a NaN will be NaN.
     """
     return _median(arr, skip_na=skip_na)
+
+
+def median_along_axis(arr, axis, skip_na=True):
+    """
+    Compute median over a specified axis of a 4D array.
+
+    Parameters
+    ----------
+    arr : numpy.ndarray
+        Input 4D array.
+    axis : int
+        Axis along which to compute the median.
+    skip_na : bool, optional
+        Whether to skip NaN values, by default True.
+    """
+    return _median_along_axis(arr, axis=axis, skip_na=skip_na)
 
 
 def composite(arr, method="median", **kwargs):

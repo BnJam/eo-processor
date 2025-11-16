@@ -34,6 +34,7 @@ fn _core(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(spatial::chebyshev_distance, m)?)?;
     m.add_function(wrap_pyfunction!(spatial::minkowski_distance, m)?)?;
     m.add_function(wrap_pyfunction!(spatial::median, m)?)?;
+    m.add_function(wrap_pyfunction!(spatial::median_along_axis, m)?)?;
 
     // --- Temporal Functions ---
     m.add_function(wrap_pyfunction!(temporal::temporal_mean, m)?)?;
