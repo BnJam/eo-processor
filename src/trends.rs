@@ -1,3 +1,4 @@
+
 // src/trends.rs
 
 use ndarray::Array1;
@@ -19,48 +20,43 @@ pub struct TrendSegment {
 #[pyfunction]
 pub fn trend_analysis(y: Vec<f64>, threshold: f64) -> PyResult<Vec<TrendSegment>> {
     let mut segments = Vec::new();
-    let mut start = 0;
+    recursive_trend_analysis(&y, 0, &mut segments, threshold);
+    Ok(segments)
+}
 
-    while start < y.len() {
-        let mut end = start + 1;
-        let mut best_slope = 0.0;
-        let mut best_intercept = 0.0;
-
-        while end <= y.len() {
-            let segment_y = &y[start..end];
-            if segment_y.len() < 2 {
-                end += 1;
-                continue;
-            }
-
-            let (slope, intercept) = calculate_linear_regression(segment_y);
-            let residuals: Vec<f64> = segment_y
-                .iter()
-                .enumerate()
-                .map(|(i, &yi)| yi - (slope * i as f64 + intercept))
-                .collect();
-            let max_residual = residuals.iter().map(|&r| r.abs()).fold(0.0, f64::max);
-
-            if max_residual > threshold {
-                break;
-            }
-
-            best_slope = slope;
-            best_intercept = intercept;
-            end += 1;
-        }
-
-        segments.push(TrendSegment {
-            start_index: start,
-            end_index: end - 2,
-            slope: best_slope,
-            intercept: best_intercept,
-        });
-
-        start = end - 1;
+fn recursive_trend_analysis(y: &[f64], start_index: usize, segments: &mut Vec<TrendSegment>, threshold: f64) {
+    if y.len() < 2 {
+        return;
     }
 
-    Ok(segments)
+    let (slope, intercept) = calculate_linear_regression(y);
+    let residuals: Vec<f64> = y
+        .iter()
+        .enumerate()
+        .map(|(i, &yi)| yi - (slope * i as f64 + intercept))
+        .collect();
+
+    let max_residual = residuals.iter().map(|&r| r.abs()).fold(0.0, f64::max);
+
+    if max_residual <= threshold {
+        segments.push(TrendSegment {
+            start_index,
+            end_index: start_index + y.len() - 1,
+            slope,
+            intercept,
+        });
+    } else {
+        let max_residual_index = residuals
+            .iter()
+            .enumerate()
+            .max_by(|(_, a), (_, b)| a.abs().partial_cmp(&b.abs()).unwrap())
+            .map(|(i, _)| i)
+            .unwrap();
+
+        let (left, right) = y.split_at(max_residual_index);
+        recursive_trend_analysis(left, start_index, segments, threshold);
+        recursive_trend_analysis(right, start_index + max_residual_index, segments, threshold);
+    }
 }
 
 fn calculate_linear_regression(y: &[f64]) -> (f64, f64) {

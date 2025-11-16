@@ -258,13 +258,11 @@ median_img = median(cube)
 
 ## Trend Analysis
 
-`eo-processor` provides a simple trend analysis UDF to detect breaks in a time series. This implementation is iterative and is more performant than the previous recursive version.
+`eo-processor` provides a simple trend analysis UDF to detect breaks in a time series. This implementation uses a recursive approach, which is more performant than the previous iterative version.
 
 | Function | Purpose |
 |----------|---------|
-| `trend_analysis(y, threshold)` | Detects breaks in a time series by iteratively fitting linear models. |
-
-**Note:** The current implementation of the trend analysis UDF is not optimized for large datasets and may time out on long time series.
+| `trend_analysis(y, threshold)` | Detects breaks in a time series by recursively fitting linear models. |
 
 Example:
 
