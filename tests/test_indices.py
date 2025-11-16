@@ -147,7 +147,7 @@ def test_shape_mismatch_evi():
 def test_invalid_dimension():
     nir = np.random.rand(2, 2, 2, 2, 2)
     red = np.random.rand(2, 2, 2, 2, 2)
-    with pytest.raises(TypeError):
+    with pytest.raises(ValueError):
         ndvi(nir, red)
 
 
@@ -344,6 +344,13 @@ def test_gci_2d():
     mask = np.isclose(green, 0.0, atol=1e-12)
     expected[mask] = 0.0
     assert np.allclose(out, expected, rtol=1e-12)
+
+
+def test_savi_invalid_l_value():
+    nir = np.array([0.7, 0.6], dtype=np.float64)
+    red = np.array([0.2, 0.3], dtype=np.float64)
+    with pytest.raises(ValueError):
+        savi(nir, red, l=-0.1)
 
 
 if __name__ == "__main__":  # pragma: no cover
