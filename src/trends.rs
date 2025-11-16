@@ -1,4 +1,3 @@
-
 // src/trends.rs
 
 use ndarray::Array1;
@@ -24,7 +23,12 @@ pub fn trend_analysis(y: Vec<f64>, threshold: f64) -> PyResult<Vec<TrendSegment>
     Ok(segments)
 }
 
-fn recursive_trend_analysis(y: &[f64], start_index: usize, segments: &mut Vec<TrendSegment>, threshold: f64) {
+fn recursive_trend_analysis(
+    y: &[f64],
+    start_index: usize,
+    segments: &mut Vec<TrendSegment>,
+    threshold: f64,
+) {
     if y.len() < 2 {
         return;
     }
