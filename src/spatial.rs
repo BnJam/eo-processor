@@ -9,20 +9,35 @@ use rayon::prelude::*;
 /// Spatial processing functions for Earth Observation data.
 /// Dispatches median to 3D or 4D implementation based on array dimensions.
 #[pyfunction]
-#[pyo3(signature = (arr, skip_na=true))]
-pub fn median(py: Python<'_>, arr: &PyAny, skip_na: bool) -> PyResult<PyObject> {
-    if let Ok(arr1d) = arr.downcast::<numpy::PyArray1<f64>>() {
-        Ok(median_1d(arr1d.readonly(), skip_na).into_py(py))
-    } else if let Ok(arr2d) = arr.downcast::<numpy::PyArray2<f64>>() {
-        Ok(median_2d(py, arr2d.readonly(), skip_na).into_py(py))
-    } else if let Ok(arr3d) = arr.downcast::<numpy::PyArray3<f64>>() {
-        Ok(median_3d(py, arr3d.readonly(), skip_na).into_py(py))
-    } else if let Ok(arr4d) = arr.downcast::<numpy::PyArray4<f64>>() {
-        Ok(median_4d(py, arr4d.readonly(), skip_na)?.into_py(py))
+#[pyo3(signature = (arr, axis=None, skip_na=true))]
+pub fn median(
+    py: Python<'_>,
+    arr: &PyAny,
+    axis: Option<usize>,
+    skip_na: bool,
+) -> PyResult<PyObject> {
+    if let Some(axis) = axis {
+        if let Ok(arr4d) = arr.downcast::<numpy::PyArray4<f64>>() {
+            Ok(median_along_axis(py, arr4d.readonly(), axis, skip_na)?.into_py(py))
+        } else {
+            Err(pyo3::exceptions::PyTypeError::new_err(
+                "median_along_axis is only supported for 4D arrays.",
+            ))
+        }
     } else {
-        Err(pyo3::exceptions::PyTypeError::new_err(
-            "Expected a 1D, 2D, 3D, or 4D NumPy array.",
-        ))
+        if let Ok(arr1d) = arr.downcast::<numpy::PyArray1<f64>>() {
+            Ok(median_1d(arr1d.readonly(), skip_na).into_py(py))
+        } else if let Ok(arr2d) = arr.downcast::<numpy::PyArray2<f64>>() {
+            Ok(median_2d(py, arr2d.readonly(), skip_na).into_py(py))
+        } else if let Ok(arr3d) = arr.downcast::<numpy::PyArray3<f64>>() {
+            Ok(median_3d(py, arr3d.readonly(), skip_na).into_py(py))
+        } else if let Ok(arr4d) = arr.downcast::<numpy::PyArray4<f64>>() {
+            Ok(median_4d(py, arr4d.readonly(), skip_na)?.into_py(py))
+        } else {
+            Err(pyo3::exceptions::PyTypeError::new_err(
+                "Expected a 1D, 2D, 3D, or 4D NumPy array.",
+            ))
+        }
     }
 }
 
@@ -166,7 +181,7 @@ fn median_4d<'py>(
                 series.sort_by(|a, b| a.total_cmp(b));
                 let mid = series.len() / 2;
                 // Correctly handle even-length series
-                *pixel = if series.len() % 2 == 0 {
+                *pixel = if series.len().is_multiple_of(2) {
                     (series[mid - 1] + series[mid]) / 2.0
                 } else {
                     series[mid]
@@ -177,10 +192,8 @@ fn median_4d<'py>(
     Ok(result.into_pyarray(py))
 }
 
-#[pyfunction]
-#[pyo3(signature = (arr, axis, skip_na=true))]
-pub fn median_along_axis(
-    py: Python<'_>,
+fn median_along_axis<'py>(
+    py: Python<'py>,
     arr: PyReadonlyArray4<f64>,
     axis: usize,
     skip_na: bool,
@@ -226,7 +239,7 @@ pub fn median_along_axis(
             } else {
                 series.sort_by(|a, b| a.total_cmp(b));
                 let mid = series.len() / 2;
-                *median_val = if series.len() % 2 == 0 {
+                *median_val = if series.len().is_multiple_of(2) {
                     (series[mid - 1] + series[mid]) / 2.0
                 } else {
                     series[mid]

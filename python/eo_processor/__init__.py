@@ -23,7 +23,6 @@ from ._core import (
     mask_scl as _mask_scl,
     mask_vals as _mask_vals,
     median as _median,
-    median_along_axis as _median_along_axis,
     minkowski_distance as _minkowski_distance,
     moving_average_temporal as _moving_average_temporal,
     moving_average_temporal_stride as _moving_average_temporal_stride,
@@ -60,7 +59,6 @@ __all__ = [
     "mask_scl",
     "mask_vals",
     "median",
-    "median_along_axis",
     "minkowski_distance",
     "moving_average_temporal",
     "moving_average_temporal_stride",
@@ -282,7 +280,7 @@ def enhanced_vegetation_index(nir, red, blue):
 evi = enhanced_vegetation_index
 
 
-def median(arr, skip_na=True):
+def median(arr, axis=None, skip_na=True):
     """
     Compute median over the time axis of a 1D, 2D, 3D, or 4D array.
 
@@ -290,27 +288,15 @@ def median(arr, skip_na=True):
     ----------
     arr : numpy.ndarray
         Input array.
+    axis : int, optional
+        Axis along which to compute the median. If None, the median is
+        computed over the first axis. Currently, this is only supported for 4D
+        arrays.
     skip_na : bool, optional
         Whether to skip NaN values, by default True. If False, the median
         of any pixel containing a NaN will be NaN.
     """
-    return _median(arr, skip_na=skip_na)
-
-
-def median_along_axis(arr, axis, skip_na=True):
-    """
-    Compute median over a specified axis of a 4D array.
-
-    Parameters
-    ----------
-    arr : numpy.ndarray
-        Input 4D array.
-    axis : int
-        Axis along which to compute the median.
-    skip_na : bool, optional
-        Whether to skip NaN values, by default True.
-    """
-    return _median_along_axis(arr, axis=axis, skip_na=skip_na)
+    return _median(arr, axis=axis, skip_na=skip_na)
 
 
 def composite(arr, method="median", **kwargs):

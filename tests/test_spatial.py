@@ -1,5 +1,5 @@
 import numpy as np
-from eo_processor import median, composite, median_along_axis
+from eo_processor import median, composite
 
 
 def test_median_along_axis():
@@ -8,7 +8,7 @@ def test_median_along_axis():
     arr = np.arange(2 * 3 * 4 * 5, dtype=np.float64).reshape((2, 3, 4, 5))
 
     # Calculate median along the 'bands' axis (axis=1)
-    result = median_along_axis(arr, axis=1)
+    result = median(arr, axis=1)
     expected = np.median(arr, axis=1)
 
     # The result should have shape (time, y, x) = (2, 4, 5)
