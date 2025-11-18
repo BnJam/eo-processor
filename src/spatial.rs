@@ -24,20 +24,18 @@ pub fn median(
                 "median_along_axis is only supported for 4D arrays.",
             ))
         }
+    } else if let Ok(arr1d) = arr.downcast::<numpy::PyArray1<f64>>() {
+        Ok(median_1d(arr1d.readonly(), skip_na).into_py(py))
+    } else if let Ok(arr2d) = arr.downcast::<numpy::PyArray2<f64>>() {
+        Ok(median_2d(py, arr2d.readonly(), skip_na).into_py(py))
+    } else if let Ok(arr3d) = arr.downcast::<numpy::PyArray3<f64>>() {
+        Ok(median_3d(py, arr3d.readonly(), skip_na).into_py(py))
+    } else if let Ok(arr4d) = arr.downcast::<numpy::PyArray4<f64>>() {
+        Ok(median_4d(py, arr4d.readonly(), skip_na)?.into_py(py))
     } else {
-        if let Ok(arr1d) = arr.downcast::<numpy::PyArray1<f64>>() {
-            Ok(median_1d(arr1d.readonly(), skip_na).into_py(py))
-        } else if let Ok(arr2d) = arr.downcast::<numpy::PyArray2<f64>>() {
-            Ok(median_2d(py, arr2d.readonly(), skip_na).into_py(py))
-        } else if let Ok(arr3d) = arr.downcast::<numpy::PyArray3<f64>>() {
-            Ok(median_3d(py, arr3d.readonly(), skip_na).into_py(py))
-        } else if let Ok(arr4d) = arr.downcast::<numpy::PyArray4<f64>>() {
-            Ok(median_4d(py, arr4d.readonly(), skip_na)?.into_py(py))
-        } else {
-            Err(pyo3::exceptions::PyTypeError::new_err(
-                "Expected a 1D, 2D, 3D, or 4D NumPy array.",
-            ))
-        }
+        Err(pyo3::exceptions::PyTypeError::new_err(
+            "Expected a 1D, 2D, 3D, or 4D NumPy array.",
+        ))
     }
 }
 
