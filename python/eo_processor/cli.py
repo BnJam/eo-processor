@@ -41,6 +41,7 @@ import numpy as np
 
 # Import public API (ensures delta indices are available)
 from . import (
+    log,
     normalized_difference,
     ndvi,
     ndwi,
@@ -242,12 +243,12 @@ def save_png(path: str, arr: NumericArray, clamp: Optional[List[float]]) -> None
     try:
         from PIL import Image
     except Exception:
-        print("[WARN] Pillow not installed; PNG preview skipped.", file=sys.stderr)
+        log.warn("Pillow not installed; PNG preview skipped.")
         return
     data = np.asarray(arr)
     finite = data[np.isfinite(data)]
     if finite.size == 0:
-        print("[WARN] All values NaN; PNG skipped.", file=sys.stderr)
+        log.warn("All values NaN; PNG skipped.")
         return
     if clamp:
         lo, hi = clamp
@@ -342,7 +343,7 @@ def cli(argv: Optional[List[str]] = None) -> int:
         try:
             mask_arr = load_npy(args.mask)
         except Exception as exc:
-            print(f"[ERROR] Failed loading mask: {exc}", file=sys.stderr)
+            log.error("Failed loading mask", exc_info=exc)
             return 1
 
     # Map of band name -> numpy array
@@ -366,7 +367,7 @@ def cli(argv: Optional[List[str]] = None) -> int:
     try:
         required = _gather_required_bands(indices)
     except KeyError as e:
-        print(f"[ERROR] Unsupported index '{e.args[0]}'", file=sys.stderr)
+        log.error("Unsupported index", index=e.args[0])
         return 1
     loaded: Dict[str, NumericArray] = {}
 
@@ -374,10 +375,10 @@ def cli(argv: Optional[List[str]] = None) -> int:
         path = band_path_map.get(band)
         if not path:
             if args.allow_missing:
-                print(f"[WARN] Missing band '{band}' (some indices may be skipped)")
+                log.warn("Missing band (some indices may be skipped)", band=band)
                 continue
             else:
-                print(f"[ERROR] Missing required band '{band}'", file=sys.stderr)
+                log.error("Missing required band", band=band)
                 return 1
         try:
             arr = load_npy(path)
@@ -385,35 +386,33 @@ def cli(argv: Optional[List[str]] = None) -> int:
                 arr = apply_mask(arr, mask_arr)
             loaded[band] = arr
         except Exception as exc:
-            print(
-                f"[ERROR] Failed loading '{band}' from {path}: {exc}", file=sys.stderr
-            )
+            log.error("Failed loading band", band=band, path=path, exc_info=exc)
             return 1
 
     results: Dict[str, NumericArray] = {}
     for idx in indices:
         spec = INDEX_SPECS.get(idx)
         if not spec:
-            print(f"[ERROR] Unsupported index '{idx}'", file=sys.stderr)
+            log.error("Unsupported index", index=idx)
             return 1
         if any(b not in loaded for b in spec.required_bands):
             if args.allow_missing:
-                print(f"[INFO] Skipping {idx} (missing bands)")
+                log.info("Skipping index (missing bands)", index=idx)
                 continue
             else:
                 missing = [b for b in spec.required_bands if b not in loaded]
-                print(f"[ERROR] Missing bands for {idx}: {missing}", file=sys.stderr)
+                log.error("Missing bands for index", index=idx, missing=missing)
                 return 1
         try:
             res = compute(spec, loaded, args.savi_l)
             results[idx] = res
-            print(f"[OK] Computed {idx} shape={res.shape}")
+            log.info("Computed index", index=idx, shape=res.shape)
         except Exception as exc:
-            print(f"[ERROR] Failed computing {idx}: {exc}", file=sys.stderr)
+            log.error("Failed computing index", index=idx, exc_info=exc)
             return 2
 
     if not results:
-        print("[WARN] No results produced.", file=sys.stderr)
+        log.warn("No results produced.")
         return 0
 
     if multi:
@@ -430,7 +429,7 @@ def cli(argv: Optional[List[str]] = None) -> int:
         if args.png_preview:
             save_png(args.png_preview, arr, args.clamp)
 
-    print("[DONE] All requested indices processed.")
+    log.info("All requested indices processed.")
     return 0
 
 

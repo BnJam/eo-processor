@@ -25,6 +25,7 @@ requires-python = ">=3.8"
 dependencies = [
     "maturin>=1.9.6",
     "numpy>=1.20.0",
+    "structlog>=23.1.0",
 ]
 
 [project.scripts]

@@ -17,6 +17,7 @@ numpy = "0.20"
 ndarray = { version = "0.15", features = ["rayon"] }
 rayon = "1.9"
 ndarray-stats = "0.5"
+thiserror = "1.0"
 
 [dev-dependencies]
 approx = "0.5"

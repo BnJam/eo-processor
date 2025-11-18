@@ -6,6 +6,25 @@ pub mod temporal;
 pub mod trends;
 
 use pyo3::prelude::*;
+use pyo3::exceptions::PyValueError;
+use thiserror::Error;
+
+#[derive(Error, Debug)]
+pub enum CoreError {
+    #[error("Invalid argument: {0}")]
+    InvalidArgument(String),
+    #[error("Computation error: {0}")]
+    ComputationError(String),
+}
+
+impl From<CoreError> for PyErr {
+    fn from(err: CoreError) -> PyErr {
+        match err {
+            CoreError::InvalidArgument(msg) => PyValueError::new_err(msg),
+            CoreError::ComputationError(msg) => PyValueError::new_err(msg),
+        }
+    }
+}
 
 /// Python module for high-performance Earth Observation processing.
 ///
