@@ -312,7 +312,7 @@ def enhanced_vegetation_index(nir, red, blue):
 evi = enhanced_vegetation_index
 
 
-def median(arr, skip_na=True):
+def median(arr, axis=None, skip_na=True):
     """
     Compute median over the time axis of a 1D, 2D, 3D, or 4D array.
 
@@ -320,11 +320,15 @@ def median(arr, skip_na=True):
     ----------
     arr : numpy.ndarray
         Input array.
+    axis : int, optional
+        Axis along which to compute the median. If None, the median is
+        computed over the first axis. Currently, this is only supported for 4D
+        arrays.
     skip_na : bool, optional
         Whether to skip NaN values, by default True. If False, the median
         of any pixel containing a NaN will be NaN.
     """
-    return _median(arr, skip_na=skip_na)
+    return _median(arr, axis=axis, skip_na=skip_na)
 
 
 def composite(arr, method="median", **kwargs):

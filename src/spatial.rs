@@ -9,16 +9,29 @@ use rayon::prelude::*;
 /// Spatial processing functions for Earth Observation data.
 /// Dispatches median to 3D or 4D implementation based on array dimensions.
 #[pyfunction]
-#[pyo3(signature = (arr, skip_na=true))]
-pub fn median(py: Python<'_>, arr: &PyAny, skip_na: bool) -> PyResult<PyObject> {
-    if let Ok(arr1d) = arr.downcast::<numpy::PyArray1<f64>>() {
+#[pyo3(signature = (arr, axis=None, skip_na=true))]
+pub fn median(
+    py: Python<'_>,
+    arr: &PyAny,
+    axis: Option<usize>,
+    skip_na: bool,
+) -> PyResult<PyObject> {
+    if let Some(axis) = axis {
+        if let Ok(arr4d) = arr.downcast::<numpy::PyArray4<f64>>() {
+            Ok(median_along_axis(py, arr4d.readonly(), axis, skip_na)?.into_py(py))
+        } else {
+            Err(pyo3::exceptions::PyTypeError::new_err(
+                "median_along_axis is only supported for 4D arrays.",
+            ))
+        }
+    } else if let Ok(arr1d) = arr.downcast::<numpy::PyArray1<f64>>() {
         Ok(median_1d(arr1d.readonly(), skip_na).into_py(py))
     } else if let Ok(arr2d) = arr.downcast::<numpy::PyArray2<f64>>() {
         Ok(median_2d(py, arr2d.readonly(), skip_na).into_py(py))
     } else if let Ok(arr3d) = arr.downcast::<numpy::PyArray3<f64>>() {
         Ok(median_3d(py, arr3d.readonly(), skip_na).into_py(py))
     } else if let Ok(arr4d) = arr.downcast::<numpy::PyArray4<f64>>() {
-        Ok(median_4d(py, arr4d.readonly(), skip_na).into_py(py))
+        Ok(median_4d(py, arr4d.readonly(), skip_na)?.into_py(py))
     } else {
         Err(pyo3::exceptions::PyTypeError::new_err(
             "Expected a 1D, 2D, 3D, or 4D NumPy array.",
@@ -134,12 +147,18 @@ fn median_4d<'py>(
     py: Python<'py>,
     arr: PyReadonlyArray4<f64>,
     skip_na: bool,
-) -> &'py PyArray3<f64> {
+) -> PyResult<&'py PyArray3<f64>> {
     let array = arr.as_array();
     let shape = array.shape();
     let (num_bands, height, width) = (shape[1], shape[2], shape[3]);
     let mut result = Array3::<f64>::zeros((num_bands, height, width));
 
+    // The original implementation is restored because the `to_owned()` call
+    // in the previous version introduced a significant performance regression
+    // by creating a deep copy of the input array. While reshaping can improve
+    // memory access patterns, the cost of the copy outweighs the benefits.
+    // The slicing approach below operates on a view of the data and is more
+    // memory-efficient.
     result
         .indexed_iter_mut()
         .par_bridge()
@@ -159,6 +178,7 @@ fn median_4d<'py>(
             } else {
                 series.sort_by(|a, b| a.total_cmp(b));
                 let mid = series.len() / 2;
+                // Correctly handle even-length series
                 *pixel = if series.len().is_multiple_of(2) {
                     (series[mid - 1] + series[mid]) / 2.0
                 } else {
@@ -167,7 +187,66 @@ fn median_4d<'py>(
             }
         });
 
-    result.into_pyarray(py)
+    Ok(result.into_pyarray(py))
+}
+
+fn median_along_axis<'py>(
+    py: Python<'py>,
+    arr: PyReadonlyArray4<f64>,
+    axis: usize,
+    skip_na: bool,
+) -> PyResult<Py<PyArray3<f64>>> {
+    if axis >= 4 {
+        return Err(pyo3::exceptions::PyValueError::new_err(
+            "Axis must be less than 4 for a 4D array.",
+        ));
+    }
+
+    // Permute the axes to move the target axis to the front.
+    let mut axes_vec: Vec<usize> = (0..4).collect();
+    axes_vec.remove(axis);
+    axes_vec.insert(0, axis);
+    let mut axes = [0; 4];
+    axes.copy_from_slice(&axes_vec);
+
+    let array = arr.as_array().permuted_axes(axes);
+    let shape = array.shape();
+    let (dim0, dim1, dim2, dim3) = (shape[0], shape[1], shape[2], shape[3]);
+
+    let reshaped = array.to_shape((dim0, dim1 * dim2 * dim3)).unwrap();
+    let mut medians = Array1::<f64>::zeros(dim1 * dim2 * dim3);
+
+    medians
+        .iter_mut()
+        .enumerate()
+        .par_bridge()
+        .for_each(|(i, median_val)| {
+            let mut series: Vec<f64> = reshaped.column(i).to_vec();
+
+            if series.iter().any(|v| v.is_nan()) {
+                if skip_na {
+                    series.retain(|v| !v.is_nan());
+                } else {
+                    *median_val = f64::NAN;
+                    return;
+                }
+            }
+
+            if series.is_empty() {
+                *median_val = f64::NAN;
+            } else {
+                series.sort_by(|a, b| a.total_cmp(b));
+                let mid = series.len() / 2;
+                *median_val = if series.len().is_multiple_of(2) {
+                    (series[mid - 1] + series[mid]) / 2.0
+                } else {
+                    series[mid]
+                };
+            }
+        });
+
+    let result_3d = medians.into_shape((dim1, dim2, dim3)).unwrap();
+    Ok(result_3d.into_pyarray(py).to_owned())
 }
 
 /// 1. Euclidean Distance
