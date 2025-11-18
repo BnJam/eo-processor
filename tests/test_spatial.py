@@ -2,6 +2,20 @@ import numpy as np
 from eo_processor import median, composite
 
 
+def test_median_along_axis():
+    # Create a 4D array with a shape that's easy to reason about
+    # (time, bands, y, x) = (2, 3, 4, 5)
+    arr = np.arange(2 * 3 * 4 * 5, dtype=np.float64).reshape((2, 3, 4, 5))
+
+    # Calculate median along the 'bands' axis (axis=1)
+    result = median(arr, axis=1)
+    expected = np.median(arr, axis=1)
+
+    # The result should have shape (time, y, x) = (2, 4, 5)
+    assert result.shape == (2, 4, 5)
+    np.testing.assert_array_equal(result, expected)
+
+
 def test_median_3d():
     arr = np.array(
         [[[1.0, 2.0], [3.0, 4.0]], [[5.0, 6.0], [7.0, 8.0]], [[3.0, 4.0], [5.0, 6.0]]]
