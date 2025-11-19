@@ -83,6 +83,7 @@ __all__ = [
     "euclidean_distance",
     "evi",
     "gci",
+    "log",
     "manhattan_distance",
     "mask_in_range",
     "mask_invalid",
