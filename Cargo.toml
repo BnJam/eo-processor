@@ -1,6 +1,6 @@
 [package]
 name = "eo-processor"
-version = "0.10.0"
+version = "0.10.1"
 edition = "2021"
 authors = ["Benjamin Smith"]
 license = "MIT"
