@@ -5,6 +5,7 @@ use numpy::{
 };
 use pyo3::prelude::*;
 use rayon::prelude::*;
+use crate::CoreError;
 
 #[pyfunction]
 #[pyo3(signature = (arr, skip_na=true))]
@@ -18,9 +19,9 @@ pub fn temporal_mean(py: Python<'_>, arr: &PyAny, skip_na: bool) -> PyResult<PyO
     } else if let Ok(arr4d) = arr.downcast::<numpy::PyArray4<f64>>() {
         Ok(temporal_mean_4d(py, arr4d.readonly(), skip_na).into_py(py))
     } else {
-        Err(pyo3::exceptions::PyTypeError::new_err(
-            "Expected a 1D, 2D, 3D, or 4D NumPy array.",
-        ))
+        Err(CoreError::InvalidArgument(
+            "Expected a 1D, 2D, 3D, or 4D NumPy array.".to_string(),
+        ).into())
     }
 }
 
@@ -36,9 +37,9 @@ pub fn temporal_std(py: Python<'_>, arr: &PyAny, skip_na: bool) -> PyResult<PyOb
     } else if let Ok(arr4d) = arr.downcast::<numpy::PyArray4<f64>>() {
         Ok(temporal_std_4d(py, arr4d.readonly(), skip_na).into_py(py))
     } else {
-        Err(pyo3::exceptions::PyTypeError::new_err(
-            "Expected a 1D, 2D, 3D, or 4D NumPy array.",
-        ))
+        Err(CoreError::InvalidArgument(
+            "Expected a 1D, 2D, 3D, or 4D NumPy array.".to_string(),
+        ).into())
     }
 }
 
@@ -118,9 +119,9 @@ pub fn temporal_sum(py: Python<'_>, arr: &PyAny, skip_na: bool) -> PyResult<PyOb
     } else if let Ok(arr4d) = arr.downcast::<numpy::PyArray4<f64>>() {
         Ok(temporal_sum_4d(py, arr4d.readonly(), skip_na).into_py(py))
     } else {
-        Err(pyo3::exceptions::PyTypeError::new_err(
-            "Expected a 1D, 2D, 3D, or 4D NumPy array.",
-        ))
+        Err(CoreError::InvalidArgument(
+            "Expected a 1D, 2D, 3D, or 4D NumPy array.".to_string(),
+        ).into())
     }
 }
 

@@ -16,6 +16,7 @@ Notes:
 from typing import Literal, Optional, Sequence
 
 import numpy as np
+import structlog
 from numpy.typing import NDArray
 
 # Dimensional summary kept in sync with README & Sphinx:
@@ -29,6 +30,9 @@ from numpy.typing import NDArray
 NumericArray = NDArray[np.generic]
 
 __version__: Literal["0.6.0"]
+
+# Logging
+log: structlog.stdlib.BoundLogger
 
 # Spectral & change detection
 def normalized_difference(a: NumericArray, b: NumericArray) -> NDArray[np.float64]: ...

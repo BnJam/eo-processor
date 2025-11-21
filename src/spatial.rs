@@ -5,6 +5,7 @@ use numpy::{
 };
 use pyo3::prelude::*;
 use rayon::prelude::*;
+use crate::CoreError;
 
 /// Spatial processing functions for Earth Observation data.
 /// Dispatches median to 3D or 4D implementation based on array dimensions.
@@ -33,9 +34,9 @@ pub fn median(
     } else if let Ok(arr4d) = arr.downcast::<numpy::PyArray4<f64>>() {
         Ok(median_4d(py, arr4d.readonly(), skip_na)?.into_py(py))
     } else {
-        Err(pyo3::exceptions::PyTypeError::new_err(
-            "Expected a 1D, 2D, 3D, or 4D NumPy array.",
-        ))
+        Err(CoreError::InvalidArgument(
+            "Expected a 1D, 2D, 3D, or 4D NumPy array.".to_string(),
+        ).into())
     }
 }
 
@@ -437,10 +438,10 @@ pub fn minkowski_distance(
     p: f64,
 ) -> PyResult<Py<PyArray2<f64>>> {
     if p < 1.0 {
-        return Err(pyo3::exceptions::PyValueError::new_err(format!(
+        return Err(CoreError::InvalidArgument(format!(
             "p must be >= 1.0, got {}",
             p
-        )));
+        )).into());
     }
     let a = points_a.as_array();
     let b = points_b.as_array();

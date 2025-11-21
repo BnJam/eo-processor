@@ -40,6 +40,37 @@ from ._core import (
     temporal_sum as _temporal_sum,
     temporal_composite as _temporal_composite,
 )
+import logging
+import structlog
+
+# Configure structlog for structured, extensible logging
+structlog.configure(
+    processors=[
+        structlog.stdlib.add_log_level,
+        structlog.stdlib.PositionalArgumentsFormatter(),
+        structlog.processors.TimeStamper(fmt="iso"),
+        structlog.processors.StackInfoRenderer(),
+        structlog.processors.format_exc_info,
+        structlog.processors.UnicodeDecoder(),
+        structlog.processors.JSONRenderer(),
+    ],
+    context_class=dict,
+    logger_factory=structlog.stdlib.LoggerFactory(),
+    wrapper_class=structlog.stdlib.BoundLogger,
+    cache_logger_on_first_use=True,
+)
+
+# Set up a standard logger
+log = structlog.get_logger()
+# Add a handler to print logs to stdout
+handler = logging.StreamHandler()
+# Use a simple formatter for the handler
+formatter = logging.Formatter("%(message)s")
+handler.setFormatter(formatter)
+log.addHandler(handler)
+# Set the log level to INFO
+log.setLevel(logging.INFO)
+
 
 __version__ = "0.6.0"
 
@@ -52,6 +83,7 @@ __all__ = [
     "euclidean_distance",
     "evi",
     "gci",
+    "log",
     "manhattan_distance",
     "mask_in_range",
     "mask_invalid",

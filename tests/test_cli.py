@@ -414,5 +414,38 @@ def test_missing_file_handling(tmp_path):
     assert not out_path.exists()
 
 
+import io
+import logging
+from eo_processor import log
+
+def test_cli_logging(tmp_path):
+    # Redirect logging to a string buffer
+    log_stream = io.StringIO()
+    handler = logging.StreamHandler(log_stream)
+    log.addHandler(handler)
+
+    nir = make_band(tmp_path, "nir", [0.8, 0.7, 0.6])
+    red = make_band(tmp_path, "red", [0.2, 0.1, 0.3])
+    out_path = tmp_path / "ndvi_out.npy"
+    cli(
+        [
+            "--index",
+            "ndvi",
+            "--nir",
+            nir,
+            "--red",
+            red,
+            "--out",
+            str(out_path),
+        ]
+    )
+
+    # Get the log output
+    log_output = log_stream.getvalue()
+    assert "Computed index" in log_output
+    assert "ndvi" in log_output
+    assert "All requested indices processed" in log_output
+
+
 if __name__ == "__main__":  # pragma: no cover
     pytest.main([__file__])
