@@ -70,8 +70,8 @@
 
 use numpy::{IntoPyArray, PyReadonlyArray1, PyReadonlyArray2, PyReadonlyArray3, PyReadonlyArray4};
 
-use pyo3::prelude::*;
 use crate::CoreError;
+use pyo3::prelude::*;
 
 /// Attempt to coerce an arbitrary Python object to a readonly 1D float64 NumPy array.
 fn coerce_1d<'py>(obj: &'py PyAny) -> PyResult<PyReadonlyArray1<'py, f64>> {
@@ -211,9 +211,10 @@ pub fn mask_vals(
         return Ok(out.into_pyarray(py).into_py(py));
     }
 
-    Err(CoreError::InvalidArgument(
-        "Expected a 1D, 2D, 3D, or 4D numeric NumPy array.".to_string(),
-    ).into())
+    Err(
+        CoreError::InvalidArgument("Expected a 1D, 2D, 3D, or 4D numeric NumPy array.".to_string())
+            .into(),
+    )
 }
 
 /// Replace NaNs with a specified numeric value across 1D–4D arrays.
@@ -304,9 +305,10 @@ pub fn mask_out_range(
         return Ok(out.into_pyarray(py).into_py(py));
     }
 
-    Err(CoreError::InvalidArgument(
-        "Expected a 1D, 2D, 3D, or 4D numeric NumPy array.".to_string(),
-    ).into())
+    Err(
+        CoreError::InvalidArgument("Expected a 1D, 2D, 3D, or 4D numeric NumPy array.".to_string())
+            .into(),
+    )
 }
 
 /// Convenience wrapper to mask a list of common invalid sentinel values.
@@ -403,9 +405,10 @@ pub fn mask_in_range(
         return Ok(out.into_pyarray(py).into_py(py));
     }
 
-    Err(CoreError::InvalidArgument(
-        "Expected a 1D, 2D, 3D, or 4D numeric NumPy array.".to_string(),
-    ).into())
+    Err(
+        CoreError::InvalidArgument("Expected a 1D, 2D, 3D, or 4D numeric NumPy array.".to_string())
+            .into(),
+    )
 }
 
 /// Mask a Sentinel-2 Scene Classification Layer (SCL) array.

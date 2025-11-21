@@ -1,8 +1,8 @@
 // src/trends.rs
 
+use crate::CoreError;
 use ndarray::Array1;
 use pyo3::prelude::*;
-use crate::CoreError;
 
 #[pyclass]
 #[derive(Debug, Clone)]
@@ -20,9 +20,9 @@ pub struct TrendSegment {
 #[pyfunction]
 pub fn trend_analysis(y: Vec<f64>, threshold: f64) -> PyResult<Vec<TrendSegment>> {
     if threshold < 0.0 {
-        return Err(CoreError::InvalidArgument(
-            "Threshold must be non-negative".to_string(),
-        ).into());
+        return Err(
+            CoreError::InvalidArgument("Threshold must be non-negative".to_string()).into(),
+        );
     }
     let mut segments = Vec::new();
     recursive_trend_analysis(&y, 0, &mut segments, threshold);
