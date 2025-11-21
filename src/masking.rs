@@ -69,7 +69,7 @@
 //! - Composable predicates (greater-than / less-than) integrated with value sets.
 
 use numpy::{IntoPyArray, PyReadonlyArray1, PyReadonlyArray2, PyReadonlyArray3, PyReadonlyArray4};
-use pyo3::exceptions::PyTypeError;
+
 use pyo3::prelude::*;
 use crate::CoreError;
 
