@@ -36,9 +36,9 @@ def test_normalized_difference_1d_zero_division():
     a = np.array([0.0, 0.5, 0.0], dtype=np.float64)
     b = np.array([0.0, -0.5, 0.0], dtype=np.float64)
     result = normalized_difference(a, b)
-    assert np.isnan(result[0])
-    assert np.isinf(result[1])
-    assert np.isnan(result[2])
+    assert result[0] == 0.0
+    assert result[1] == 0.0  # Denom is 0.0 + (-0.0) = 0.0
+    assert result[2] == 0.0
 
 
 def test_normalized_difference_2d():

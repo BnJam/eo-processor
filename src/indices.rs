@@ -1,10 +1,10 @@
-use ndarray::{Array1, Array2, Zip};
+use crate::CoreError;
+use ndarray::{Array1, Array2, Array3, Array4, Zip};
 use numpy::{
     IntoPyArray, PyArray1, PyArray2, PyArray3, PyArray4, PyReadonlyArray1, PyReadonlyArray2,
     PyReadonlyArray3, PyReadonlyArray4,
 };
 use pyo3::prelude::*;
-use crate::CoreError;
 
 /// Threshold for detecting near-zero values to avoid division by zero
 const EPSILON: f64 = 1e-10;
@@ -43,7 +43,8 @@ pub fn normalized_difference(py: Python<'_>, a: &PyAny, b: &PyAny) -> PyResult<P
                 "Shape mismatch for 1D arrays: a {:?} vs b {:?}",
                 a_1d.shape(),
                 b_1d.shape()
-            )).into());
+            ))
+            .into());
         }
         normalized_difference_1d(py, a_1d, b_1d).map(|res| res.into_py(py))
     } else if let Ok(a_2d) = try_coerce_array2(a) {
@@ -53,7 +54,8 @@ pub fn normalized_difference(py: Python<'_>, a: &PyAny, b: &PyAny) -> PyResult<P
                 "Shape mismatch for 2D arrays: a {:?} vs b {:?}",
                 a_2d.shape(),
                 b_2d.shape()
-            )).into());
+            ))
+            .into());
         }
         normalized_difference_2d(py, a_2d, b_2d).map(|res| res.into_py(py))
     } else if let Ok(a_3d) = a.extract::<PyReadonlyArray3<f64>>() {
@@ -63,7 +65,8 @@ pub fn normalized_difference(py: Python<'_>, a: &PyAny, b: &PyAny) -> PyResult<P
                 "Shape mismatch for 3D arrays: a {:?} vs b {:?}",
                 a_3d.shape(),
                 b_3d.shape()
-            )).into());
+            ))
+            .into());
         }
         normalized_difference_3d(py, a_3d, b_3d).map(|res| res.into_py(py))
     } else if let Ok(a_4d) = a.extract::<PyReadonlyArray4<f64>>() {
@@ -73,13 +76,16 @@ pub fn normalized_difference(py: Python<'_>, a: &PyAny, b: &PyAny) -> PyResult<P
                 "Shape mismatch for 4D arrays: a {:?} vs b {:?}",
                 a_4d.shape(),
                 b_4d.shape()
-            )).into());
+            ))
+            .into());
         }
         normalized_difference_4d(py, a_4d, b_4d).map(|res| res.into_py(py))
     } else {
         Err(CoreError::InvalidArgument(
-            "Inputs must be numeric 1D, 2D, 3D, or 4D numpy arrays (will be coerced to float64).".to_string(),
-        ).into())
+            "Inputs must be numeric 1D, 2D, 3D, or 4D numpy arrays (will be coerced to float64)."
+                .to_string(),
+        )
+        .into())
     }
 }
 
@@ -111,11 +117,20 @@ fn normalized_difference_1d<'py>(
 ) -> PyResult<&'py PyArray1<f64>> {
     let a_arr = a.as_array();
     let b_arr = b.as_array();
-    // Branchless division; zero denominators yield NaN or Inf per IEEE 754.
-    let out = py.allow_threads(|| {
-        let numerator = &a_arr - &b_arr;
-        let denom = &a_arr + &b_arr;
-        numerator / denom
+    let mut out = Array1::<f64>::zeros(a_arr.dim());
+
+    py.allow_threads(|| {
+        Zip::from(&mut out)
+            .and(&a_arr)
+            .and(&b_arr)
+            .for_each(|r, &a, &b| {
+                let denom = a + b;
+                *r = if denom.abs() < EPSILON {
+                    0.0
+                } else {
+                    (a - b) / denom
+                };
+            });
     });
     Ok(out.into_pyarray(py))
 }
@@ -148,10 +163,20 @@ fn normalized_difference_2d<'py>(
 ) -> PyResult<&'py PyArray2<f64>> {
     let a_arr = a.as_array();
     let b_arr = b.as_array();
-    let out = py.allow_threads(|| {
-        let numerator = &a_arr - &b_arr;
-        let denom = &a_arr + &b_arr;
-        numerator / denom
+    let mut out = Array2::<f64>::zeros(a_arr.dim());
+
+    py.allow_threads(|| {
+        Zip::from(&mut out)
+            .and(&a_arr)
+            .and(&b_arr)
+            .for_each(|r, &a, &b| {
+                let denom = a + b;
+                *r = if denom.abs() < EPSILON {
+                    0.0
+                } else {
+                    (a - b) / denom
+                };
+            });
     });
     Ok(out.into_pyarray(py))
 }
@@ -181,10 +206,20 @@ fn normalized_difference_3d<'py>(
 ) -> PyResult<&'py PyArray3<f64>> {
     let a_arr = a.as_array();
     let b_arr = b.as_array();
-    let out = py.allow_threads(|| {
-        let numerator = &a_arr - &b_arr;
-        let denom = &a_arr + &b_arr;
-        numerator / denom
+    let mut out = Array3::<f64>::zeros(a_arr.dim());
+
+    py.allow_threads(|| {
+        Zip::from(&mut out)
+            .and(&a_arr)
+            .and(&b_arr)
+            .for_each(|r, &a, &b| {
+                let denom = a + b;
+                *r = if denom.abs() < EPSILON {
+                    0.0
+                } else {
+                    (a - b) / denom
+                };
+            });
     });
     Ok(out.into_pyarray(py))
 }
@@ -215,10 +250,20 @@ fn normalized_difference_4d<'py>(
 ) -> PyResult<&'py PyArray4<f64>> {
     let a_arr = a.as_array();
     let b_arr = b.as_array();
-    let out = py.allow_threads(|| {
-        let numerator = &a_arr - &b_arr;
-        let denom = &a_arr + &b_arr;
-        numerator / denom
+    let mut out = Array4::<f64>::zeros(a_arr.dim());
+
+    py.allow_threads(|| {
+        Zip::from(&mut out)
+            .and(&a_arr)
+            .and(&b_arr)
+            .for_each(|r, &a, &b| {
+                let denom = a + b;
+                *r = if denom.abs() < EPSILON {
+                    0.0
+                } else {
+                    (a - b) / denom
+                };
+            });
     });
     Ok(out.into_pyarray(py))
 }
@@ -287,7 +332,8 @@ pub fn delta_ndvi(
         if pre1.len() != post1.len() {
             return Err(CoreError::InvalidArgument(
                 "Shape mismatch in delta_ndvi (1D)".to_string(),
-            ).into());
+            )
+            .into());
         }
         let pre_view = pre1.readonly();
         let post_view = post1.readonly();
@@ -305,7 +351,8 @@ pub fn delta_ndvi(
         if pre2.shape() != post2.shape() {
             return Err(CoreError::InvalidArgument(
                 "Shape mismatch in delta_ndvi (2D)".to_string(),
-            ).into());
+            )
+            .into());
         }
         let pre_view = pre2.readonly();
         let post_view = post2.readonly();
@@ -387,9 +434,9 @@ pub fn delta_nbr(
     if let Ok(pre1) = pre.extract::<&PyArray1<f64>>(py) {
         let post1 = post.extract::<&PyArray1<f64>>(py)?;
         if pre1.len() != post1.len() {
-            return Err(CoreError::InvalidArgument(
-                "Shape mismatch in delta_nbr (1D)".to_string(),
-            ).into());
+            return Err(
+                CoreError::InvalidArgument("Shape mismatch in delta_nbr (1D)".to_string()).into(),
+            );
         }
         let pre_view = pre1.readonly();
         let post_view = post1.readonly();
@@ -405,9 +452,9 @@ pub fn delta_nbr(
         let pre2 = pre.extract::<&PyArray2<f64>>(py)?;
         let post2 = post.extract::<&PyArray2<f64>>(py)?;
         if pre2.shape() != post2.shape() {
-            return Err(CoreError::InvalidArgument(
-                "Shape mismatch in delta_nbr (2D)".to_string(),
-            ).into());
+            return Err(
+                CoreError::InvalidArgument("Shape mismatch in delta_nbr (2D)".to_string()).into(),
+            );
         }
         let pre_view = pre2.readonly();
         let post_view = post2.readonly();
@@ -432,10 +479,9 @@ pub fn delta_nbr(
 #[pyfunction(signature = (nir, red, l=0.5))]
 pub fn savi(py: Python<'_>, nir: &PyAny, red: &PyAny, l: f64) -> PyResult<PyObject> {
     if l < 0.0 {
-        return Err(CoreError::InvalidArgument(format!(
-            "SAVI L must be non-negative, got {}",
-            l
-        )).into());
+        return Err(
+            CoreError::InvalidArgument(format!("SAVI L must be non-negative, got {}", l)).into(),
+        );
     }
     if let Ok(nir_1d) = nir.extract::<PyReadonlyArray1<f64>>() {
         let red_1d = red.extract::<PyReadonlyArray1<f64>>()?;
@@ -444,7 +490,8 @@ pub fn savi(py: Python<'_>, nir: &PyAny, red: &PyAny, l: f64) -> PyResult<PyObje
                 "Shape mismatch for 1D SAVI inputs: nir {:?}, red {:?}",
                 nir_1d.shape(),
                 red_1d.shape()
-            )).into());
+            ))
+            .into());
         }
         savi_1d(py, nir_1d, red_1d, l).map(|res| res.into_py(py))
     } else if let Ok(nir_2d) = nir.extract::<PyReadonlyArray2<f64>>() {
@@ -454,7 +501,8 @@ pub fn savi(py: Python<'_>, nir: &PyAny, red: &PyAny, l: f64) -> PyResult<PyObje
                 "Shape mismatch for 2D SAVI inputs: nir {:?}, red {:?}",
                 nir_2d.shape(),
                 red_2d.shape()
-            )).into());
+            ))
+            .into());
         }
         savi_2d(py, nir_2d, red_2d, l).map(|res| res.into_py(py))
     } else if let Ok(nir_3d) = nir.extract::<PyReadonlyArray3<f64>>() {
@@ -464,7 +512,8 @@ pub fn savi(py: Python<'_>, nir: &PyAny, red: &PyAny, l: f64) -> PyResult<PyObje
                 "Shape mismatch for 3D SAVI inputs: nir {:?}, red {:?}",
                 nir_3d.shape(),
                 red_3d.shape()
-            )).into());
+            ))
+            .into());
         }
         savi_3d(py, nir_3d, red_3d, l).map(|res| res.into_py(py))
     } else if let Ok(nir_4d) = nir.extract::<PyReadonlyArray4<f64>>() {
@@ -474,13 +523,16 @@ pub fn savi(py: Python<'_>, nir: &PyAny, red: &PyAny, l: f64) -> PyResult<PyObje
                 "Shape mismatch for 4D SAVI inputs: nir {:?}, red {:?}",
                 nir_4d.shape(),
                 red_4d.shape()
-            )).into());
+            ))
+            .into());
         }
         savi_4d(py, nir_4d, red_4d, l).map(|res| res.into_py(py))
     } else {
         Err(CoreError::InvalidArgument(
-            "Input arrays must be either 1D, 2D, 3D, or 4D numpy arrays of type float64 for SAVI.".to_string(),
-        ).into())
+            "Input arrays must be either 1D, 2D, 3D, or 4D numpy arrays of type float64 for SAVI."
+                .to_string(),
+        )
+        .into())
     }
 }
 
@@ -613,7 +665,8 @@ pub fn gci(py: Python<'_>, nir: &PyAny, green: &PyAny) -> PyResult<PyObject> {
                 "Shape mismatch for 1D GCI inputs: nir {:?}, green {:?}",
                 nir_1d.shape(),
                 green_1d.shape()
-            )).into());
+            ))
+            .into());
         }
         let nir_arr = nir_1d.as_array();
         let green_arr = green_1d.as_array();
@@ -636,7 +689,8 @@ pub fn gci(py: Python<'_>, nir: &PyAny, green: &PyAny) -> PyResult<PyObject> {
                 "Shape mismatch for 2D GCI inputs: nir {:?}, green {:?}",
                 nir_2d.shape(),
                 green_2d.shape()
-            )).into());
+            ))
+            .into());
         }
         let nir_arr = nir_2d.as_array();
         let green_arr = green_2d.as_array();
@@ -660,7 +714,8 @@ pub fn gci(py: Python<'_>, nir: &PyAny, green: &PyAny) -> PyResult<PyObject> {
                 "Shape mismatch for 3D GCI inputs: nir {:?}, green {:?}",
                 nir_3d.shape(),
                 green_3d.shape()
-            )).into());
+            ))
+            .into());
         }
         let nir_arr = nir_3d.as_array();
         let green_arr = green_3d.as_array();
@@ -684,7 +739,8 @@ pub fn gci(py: Python<'_>, nir: &PyAny, green: &PyAny) -> PyResult<PyObject> {
                 "Shape mismatch for 4D GCI inputs: nir {:?}, green {:?}",
                 nir_4d.shape(),
                 green_4d.shape()
-            )).into());
+            ))
+            .into());
         }
         let nir_arr = nir_4d.as_array();
         let green_arr = green_4d.as_array();
@@ -704,7 +760,8 @@ pub fn gci(py: Python<'_>, nir: &PyAny, green: &PyAny) -> PyResult<PyObject> {
     } else {
         Err(CoreError::InvalidArgument(
             "Input arrays must be 1D, 2D, 3D, or 4D numpy float64 arrays for GCI.".to_string(),
-        ).into())
+        )
+        .into())
     }
 }
 
@@ -770,7 +827,8 @@ pub fn enhanced_vegetation_index(
                 nir_1d.shape(),
                 red_1d.shape(),
                 blue_1d.shape()
-            )).into());
+            ))
+            .into());
         }
         enhanced_vegetation_index_1d(py, nir_1d, red_1d, blue_1d).map(|res| res.into_py(py))
     } else if let Ok(nir_2d) = nir.extract::<PyReadonlyArray2<f64>>() {
@@ -782,7 +840,8 @@ pub fn enhanced_vegetation_index(
                 nir_2d.shape(),
                 red_2d.shape(),
                 blue_2d.shape()
-            )).into());
+            ))
+            .into());
         }
         enhanced_vegetation_index_2d(py, nir_2d, red_2d, blue_2d).map(|res| res.into_py(py))
     } else if let Ok(nir_3d) = nir.extract::<PyReadonlyArray3<f64>>() {
@@ -794,7 +853,8 @@ pub fn enhanced_vegetation_index(
                 nir_3d.shape(),
                 red_3d.shape(),
                 blue_3d.shape()
-            )).into());
+            ))
+            .into());
         }
         enhanced_vegetation_index_3d(py, nir_3d, red_3d, blue_3d).map(|res| res.into_py(py))
     } else if let Ok(nir_4d) = nir.extract::<PyReadonlyArray4<f64>>() {
@@ -806,13 +866,16 @@ pub fn enhanced_vegetation_index(
                 nir_4d.shape(),
                 red_4d.shape(),
                 blue_4d.shape()
-            )).into());
+            ))
+            .into());
         }
         enhanced_vegetation_index_4d(py, nir_4d, red_4d, blue_4d).map(|res| res.into_py(py))
     } else {
         Err(CoreError::InvalidArgument(
-            "Input arrays must be either 1D, 2D, 3D, or 4D numpy arrays of type float64.".to_string(),
-        ).into())
+            "Input arrays must be either 1D, 2D, 3D, or 4D numpy arrays of type float64."
+                .to_string(),
+        )
+        .into())
     }
 }
 

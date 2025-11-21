@@ -86,7 +86,7 @@ jobs:
         run: |
           set -e
           echo "Running benchmark suite (with NumPy baseline comparisons)..."
-          uv run python scripts/benchmark.py --group all --height 1024 --width 1024 --time 8 --points-a 500 --points-b 500 --point-dim 8 --loops 2 --warmups 1 --compare-numpy --json-out benchmark-results.json --quiet
+          uv run python -m benchmarking --group all --height 1024 --width 1024 --time 8 --points-a 500 --points-b 500 --point-dim 8 --loops 2 --warmups 1 --compare-numpy --json-out benchmark-results.json --quiet
           echo "Benchmark JSON generated: benchmark-results.json"
       - name: 📦 Upload Benchmark Artifact
         if: matrix.python-version == '3.12' && env.RUN_BENCHMARKS == 'true'

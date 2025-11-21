@@ -5,8 +5,8 @@ pub mod spatial;
 pub mod temporal;
 pub mod trends;
 
-use pyo3::prelude::*;
 use pyo3::exceptions::PyValueError;
+use pyo3::prelude::*;
 use thiserror::Error;
 
 #[derive(Error, Debug)]

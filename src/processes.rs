@@ -1,3 +1,4 @@
+use crate::CoreError;
 use ndarray::{s, Array1, Array2, Array3, Array4, ArrayView4, Axis};
 use numpy::{
     IntoPyArray, PyArray1, PyArray2, PyArray3, PyArray4, PyReadonlyArray1, PyReadonlyArray2,
@@ -5,7 +6,6 @@ use numpy::{
 };
 use pyo3::prelude::*;
 use rayon::prelude::*;
-use crate::CoreError;
 
 /// Advanced temporal and pixel-wise processing utilities.
 ///
@@ -61,14 +61,12 @@ pub fn moving_average_temporal(
     mode: &str,
 ) -> PyResult<PyObject> {
     if window == 0 {
-        return Err(CoreError::InvalidArgument(
-            "window must be >= 1".to_string(),
-        ).into());
+        return Err(CoreError::InvalidArgument("window must be >= 1".to_string()).into());
     }
     if mode != "same" && mode != "valid" {
-        return Err(CoreError::InvalidArgument(
-            "mode must be 'same' or 'valid'".to_string(),
-        ).into());
+        return Err(
+            CoreError::InvalidArgument("mode must be 'same' or 'valid'".to_string()).into(),
+        );
     }
 
     // Dispatch by dimensionality.
@@ -86,9 +84,10 @@ pub fn moving_average_temporal(
         return Ok(out.into_py(py));
     }
 
-    Err(CoreError::InvalidArgument(
-        "Expected 1D, 2D, 3D, or 4D NumPy float64 array.".to_string(),
-    ).into())
+    Err(
+        CoreError::InvalidArgument("Expected 1D, 2D, 3D, or 4D NumPy float64 array.".to_string())
+            .into(),
+    )
 }
 
 /// Compute moving average for a 1D (T,) series.
@@ -104,7 +103,8 @@ fn moving_avg_1d<'py>(
     if mode == "valid" && window > t {
         return Err(CoreError::InvalidArgument(
             "window cannot exceed series length in 'valid' mode".to_string(),
-        ).into());
+        )
+        .into());
     }
 
     let owned_a = a.to_owned();
@@ -160,7 +160,8 @@ fn moving_avg_2d<'py>(
     if mode == "valid" && window > t {
         return Err(CoreError::InvalidArgument(
             "window cannot exceed time length in 'valid' mode".to_string(),
-        ).into());
+        )
+        .into());
     }
     let out_t = if mode == "same" { t } else { t - window + 1 };
     let mut out = Array2::<f64>::zeros((out_t, f));
@@ -228,7 +229,8 @@ fn moving_avg_3d<'py>(
     if mode == "valid" && window > t {
         return Err(CoreError::InvalidArgument(
             "window cannot exceed time length in 'valid' mode".to_string(),
-        ).into());
+        )
+        .into());
     }
     let out_t = if mode == "same" { t } else { t - window + 1 };
 
@@ -298,7 +300,8 @@ fn moving_avg_4d<'py>(
     if mode == "valid" && window > t {
         return Err(CoreError::InvalidArgument(
             "window cannot exceed time length in 'valid' mode".to_string(),
-        ).into());
+        )
+        .into());
     }
     let out_t = if mode == "same" { t } else { t - window + 1 };
 
@@ -496,9 +499,7 @@ pub fn pixelwise_transform(
         return Ok(out_arr.into_pyarray(py).into_py(py));
     }
 
-    Err(CoreError::InvalidArgument(
-        "Expected float64 NumPy array (1D–4D).".to_string(),
-    ).into())
+    Err(CoreError::InvalidArgument("Expected float64 NumPy array (1D–4D).".to_string()).into())
 }
 
 /// Stride-based moving average along time axis.
@@ -549,19 +550,15 @@ pub fn moving_average_temporal_stride(
     mode: &str,
 ) -> PyResult<PyObject> {
     if window == 0 {
-        return Err(CoreError::InvalidArgument(
-            "window must be >= 1".to_string(),
-        ).into());
+        return Err(CoreError::InvalidArgument("window must be >= 1".to_string()).into());
     }
     if stride == 0 {
-        return Err(CoreError::InvalidArgument(
-            "stride must be >= 1".to_string(),
-        ).into());
+        return Err(CoreError::InvalidArgument("stride must be >= 1".to_string()).into());
     }
     if mode != "same" && mode != "valid" {
-        return Err(CoreError::InvalidArgument(
-            "mode must be 'same' or 'valid'".to_string(),
-        ).into());
+        return Err(
+            CoreError::InvalidArgument("mode must be 'same' or 'valid'".to_string()).into(),
+        );
     }
 
     // Helper to stride a 1D first axis out of an ndarray and return owned Array
@@ -585,7 +582,8 @@ pub fn moving_average_temporal_stride(
         if mode == "valid" && window > t {
             return Err(CoreError::InvalidArgument(
                 "window cannot exceed time length in 'valid' mode".to_string(),
-            ).into());
+            )
+            .into());
         }
         let full = moving_avg_2d(py, a2.readonly(), window, skip_na, mode)?;
         // Convert to an owned ndarray::Array2<f64>
@@ -609,7 +607,8 @@ pub fn moving_average_temporal_stride(
         if mode == "valid" && window > t {
             return Err(CoreError::InvalidArgument(
                 "window cannot exceed time length in 'valid' mode".to_string(),
-            ).into());
+            )
+            .into());
         }
         let full = moving_avg_3d(py, a3.readonly(), window, skip_na, mode)?;
         let full_owned = full.readonly().as_array().to_owned();
@@ -634,7 +633,8 @@ pub fn moving_average_temporal_stride(
         if mode == "valid" && window > t {
             return Err(CoreError::InvalidArgument(
                 "window cannot exceed time length in 'valid' mode".to_string(),
-            ).into());
+            )
+            .into());
         }
         let full = moving_avg_4d(py, a4.readonly(), window, skip_na, mode)?;
         let full_owned = full.readonly().as_array().to_owned();
@@ -658,9 +658,10 @@ pub fn moving_average_temporal_stride(
         return Ok(sampled.into_pyarray(py).into_py(py));
     }
 
-    Err(CoreError::InvalidArgument(
-        "Expected 1D, 2D, 3D, or 4D NumPy float64 array.".to_string(),
-    ).into())
+    Err(
+        CoreError::InvalidArgument("Expected 1D, 2D, 3D, or 4D NumPy float64 array.".to_string())
+            .into(),
+    )
 }
 #[pyfunction]
 #[pyo3(signature = (arr, weights, skip_na = true))]
@@ -676,9 +677,10 @@ pub fn temporal_composite(
         let arr4d_f64 = arr4d_u16.readonly().as_array().mapv(|x| x as f64);
         Ok(temporal_composite_4d(py, arr4d_f64.view(), weights, skip_na)?.into_py(py))
     } else {
-        Err(CoreError::InvalidArgument(
-            "Expected a 4D NumPy array of f64 or u16.".to_string(),
-        ).into())
+        Err(
+            CoreError::InvalidArgument("Expected a 4D NumPy array of f64 or u16.".to_string())
+                .into(),
+        )
     }
 }
 
@@ -694,8 +696,10 @@ pub fn temporal_composite_4d<'py>(
 
     if shape[0] != weights_array.len() {
         return Err(CoreError::InvalidArgument(
-            "The length of the weights array must match the temporal dimension of the input array.".to_string(),
-        ).into());
+            "The length of the weights array must match the temporal dimension of the input array."
+                .to_string(),
+        )
+        .into());
     }
 
     let mut result = Array3::<f64>::zeros((num_bands, height, width));
