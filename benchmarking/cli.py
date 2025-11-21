@@ -48,6 +48,7 @@ License: MIT
 from __future__ import annotations
 
 import argparse
+import gc
 import json
 import os
 import platform
@@ -56,6 +57,14 @@ import sys
 import time
 from dataclasses import asdict, dataclass
 from typing import Any, Callable, List, Optional, Sequence, Tuple
+
+# Enforce single-threaded execution for NumPy to ensure fair comparison
+# with the currently single-threaded Rust implementation.
+os.environ["OMP_NUM_THREADS"] = "1"
+os.environ["MKL_NUM_THREADS"] = "1"
+os.environ["OPENBLAS_NUM_THREADS"] = "1"
+os.environ["VECLIB_MAXIMUM_THREADS"] = "1"
+os.environ["NUMEXPR_NUM_THREADS"] = "1"
 
 try:
     import numpy as np
@@ -95,6 +104,7 @@ try:
         temporal_mean,
         temporal_std,
     )
+    from eo_processor._core import trend_analysis
 except ImportError as exc:  # pragma: no cover
     print("Failed to import eo_processor. Have you installed/built it?", exc, file=sys.stderr)
     sys.exit(1)
@@ -147,8 +157,8 @@ def parse_args(argv: Sequence[str]) -> argparse.Namespace:
     parser.add_argument("--ma-stride", type=int, default=4)
     parser.add_argument("--ma-baseline", choices=["naive", "prefix"], default="naive",
                         help="Baseline style for moving averages: naive (O(T*W)) or prefix (O(T)).")
-    parser.add_argument("--loops", type=int, default=3)
-    parser.add_argument("--warmups", type=int, default=1)
+    parser.add_argument("--loops", type=int, default=10)
+    parser.add_argument("--warmups", type=int, default=5)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--json-out", type=str)
     parser.add_argument("--quiet", action="store_true")
@@ -218,6 +228,9 @@ def compute_elements(func_name: str, shape_info: dict[str, int]) -> Optional[int
                      "pixelwise_transform"}:
         t, h, w = shape_info["time"], shape_info["height"], shape_info["width"]
         return t * h * w
+    if func_name == "trend_analysis":
+        # trend_analysis operates on 1D list of length T
+        return shape_info["time"]
     if func_name in {
         "euclidean_distance",
         "manhattan_distance",
@@ -243,6 +256,16 @@ def make_spectral_inputs(height: int, width: int, seed: int) -> Tuple[np.ndarray
 def make_temporal_stack(time_dim: int, height: int, width: int, seed: int) -> np.ndarray:
     rng = np.random.default_rng(seed)
     return rng.uniform(0.0, 1.0, size=(time_dim, height, width)).astype(np.float64)
+
+
+def make_trend_series(length: int, seed: int) -> List[float]:
+    rng = np.random.default_rng(seed)
+    # Generate a sample time series with a break (similar to benchmark_trend.py)
+    y = np.concatenate([
+        np.linspace(0, 10, length // 2),
+        np.linspace(10, 0, length // 2)
+    ]) + rng.normal(0, 0.5, length)
+    return y.tolist()
 
 
 def make_distance_points(n: int, m: int, dim: int, seed: int) -> Tuple[np.ndarray, np.ndarray]:
@@ -339,6 +362,12 @@ def run_single_benchmark(
         else:
             call = lambda: median(cube)
         shape_desc = f"{shape_info['time']}x{shape_info['height']}x{shape_info['width']}"
+
+    elif func_name == "trend_analysis":
+        series = make_trend_series(shape_info["time"], seed)
+        # threshold=5.0 from benchmark_trend.py
+        call = lambda: trend_analysis(series, threshold=5.0)
+        shape_desc = f"T={shape_info['time']}"
     elif func_name in {"moving_average_temporal", "moving_average_temporal_stride", "pixelwise_transform"}:
         cube = make_temporal_stack(shape_info["time"], shape_info["height"], shape_info["width"], seed)
         if func_name == "moving_average_temporal":
@@ -560,9 +589,14 @@ def run_single_benchmark(
 
     # Timed loops
     timings: List[float] = []
-    for _ in range(loops):
-        elapsed = time_call(call)
-        timings.append(elapsed)
+    gc.disable()
+    try:
+        for _ in range(loops):
+            gc.collect()
+            elapsed = time_call(call)
+            timings.append(elapsed)
+    finally:
+        gc.enable()
 
     mean_s = statistics.mean(timings)
     stdev_s = statistics.pstdev(timings) if len(timings) > 1 else 0.0
@@ -580,6 +614,7 @@ def run_single_benchmark(
         for _ in range(warmups):
             baseline_fn()
         for _ in range(loops):
+            gc.collect()
             baseline_timings.append(time_call(baseline_fn))
         baseline_mean = statistics.mean(baseline_timings)
         baseline_min = min(baseline_timings)
@@ -617,7 +652,7 @@ def run_single_benchmark(
 # --------------------------------------------------------------------------------------
 # Reporting
 # --------------------------------------------------------------------------------------
-def format_result_row(r: BenchmarkResult) -> str:
+def format_result_row(r: BenchmarkResult, compare_numpy: bool = False, show_elements: bool = True, show_shape: bool = True) -> str:
     tput = (
         f"{r.throughput_elems/1e6:.2f}M elems/s"
         if r.throughput_elems is not None
@@ -625,25 +660,66 @@ def format_result_row(r: BenchmarkResult) -> str:
     )
     elem_str = f"{r.elements:,}" if r.elements is not None else "-"
     mem_str = f"{r.memory_mb:.1f} MB" if r.memory_mb is not None else "-"
-    return (
+    row = (
         f"{r.name:22} "
         f"{r.mean_s*1000:9.2f} ms "
         f"{r.stdev_s*1000:7.2f} ms "
         f"{r.min_s*1000:7.2f} ms "
         f"{r.max_s*1000:7.2f} ms "
-        f"{elem_str:>12} "
+    )
+    if show_elements:
+        row += f"{elem_str:>12} "
+    
+    row += (
         f"{tput:>15} "
         f"{mem_str:>10} "
-        f"{r.shape_description}"
     )
+    
+    if compare_numpy:
+        if r.baseline_mean_s is not None:
+            base_mean = f"{r.baseline_mean_s*1000:9.2f} ms"
+            base_tput = (
+                f"{r.baseline_throughput_elems/1e6:.2f}M elems/s"
+                if r.baseline_throughput_elems
+                else "-"
+            )
+            speedup = f"{r.speedup_vs_numpy:.2f}x"
+            
+            # Calculate throughput difference
+            if r.throughput_elems is not None and r.baseline_throughput_elems is not None:
+                diff = r.throughput_elems - r.baseline_throughput_elems
+                arrow = "↑" if diff >= 0 else "↓"
+                diff_str = f"{arrow} {abs(diff)/1e6:.2f}M"
+            else:
+                diff_str = "-"
+
+            row += f"{base_mean:>12} {base_tput:>15} {speedup:>9} {diff_str:>12} "
+        else:
+            row += f"{'-':>12} {'-':>15} {'-':>9} {'-':>12} "
+
+    if show_shape:
+        row += f"{r.shape_description}"
+    
+    return row
 
 
-def print_header():
-    print(
+def print_header(compare_numpy: bool = False, show_elements: bool = True, show_shape: bool = True):
+    header = (
         f"{'Function':22} {'Mean':>9} {'StDev':>7} {'Min':>7} {'Max':>7} "
-        f"{'Elements':>12} {'Throughput':>15} {'RSS Mem':>10} {'Shape'}"
     )
-    print("-" * 115)
+    if show_elements:
+        header += f"{'Elements':>12} "
+    
+    header += f"{'Throughput':>15} {'RSS Mem':>10} "
+
+    if compare_numpy:
+        header += f"{'NumPy Mean':>12} {'NumPy Tput':>15} {'Speedup':>9} {'Tput Diff':>12} "
+    
+    if show_shape:
+        header += "Shape"
+    
+    print(header)
+    print("-" * len(header))
 
 
 def resolve_functions(group: str, explicit: Optional[List[str]]) -> List[str]:
@@ -664,7 +740,7 @@ def resolve_functions(group: str, explicit: Optional[List[str]]) -> List[str]:
             "normalized_difference",
         ]
     if group == "temporal":
-        return ["temporal_mean", "temporal_std", "median"]
+        return ["temporal_mean", "temporal_std", "median", "trend_analysis"]
     if group == "distances":
         return [
             "euclidean_distance",
@@ -694,6 +770,7 @@ def resolve_functions(group: str, explicit: Optional[List[str]]) -> List[str]:
             "temporal_mean",
             "temporal_std",
             "median",
+            "trend_analysis",
             "euclidean_distance",
             "manhattan_distance",
             "chebyshev_distance",
@@ -815,15 +892,42 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         print("=" * 34)
         print(f"Python: {platform.python_version()}  Platform: {platform.platform()}")
         print(f"Loops: {args.loops}  Warmups: {args.warmups}  Seed: {args.seed}")
+        
+        # Log threading configuration
+        thread_vars = [
+            "OMP_NUM_THREADS", 
+            "MKL_NUM_THREADS", 
+            "OPENBLAS_NUM_THREADS", 
+            "VECLIB_MAXIMUM_THREADS", 
+            "NUMEXPR_NUM_THREADS"
+        ]
+        env_settings = [f"{var}={os.environ.get(var, 'Not Set')}" for var in thread_vars]
+        print(f"Threading: {', '.join(env_settings)}")
+        
         print(f"Group: {args.group}  Functions: {', '.join(funcs)}")
+        
+        # Check uniformity of elements
+        all_elements = [r.elements for r in results if r.elements is not None]
+        unique_elements = set(all_elements)
+        uniform_elements = len(unique_elements) == 1
+        elements_val = all_elements[0] if uniform_elements and all_elements else None
+        
+        if uniform_elements and elements_val is not None:
+             print(f"Elements: {elements_val:,}")
+
+        # Check uniformity of shape
+        all_shapes = [r.shape_description for r in results if r.shape_description is not None]
+        unique_shapes = set(all_shapes)
+        uniform_shapes = len(unique_shapes) == 1
+        shape_val = all_shapes[0] if uniform_shapes and all_shapes else None
+
+        if uniform_shapes and shape_val is not None:
+             print(f"Shape: {shape_val}")
+
         print()
-        print_header()
+        print_header(args.compare_numpy, show_elements=not uniform_elements, show_shape=not uniform_shapes)
         for r in results:
-            extra = ""
-            if args.compare_numpy and r.baseline_mean_s is not None:
-                bt = f"{r.baseline_throughput_elems/1e6:.2f}M elems/s" if r.baseline_throughput_elems else "-"
-                extra = f" | NumPy mean: {r.baseline_mean_s*1000:.2f} ms NumPy throughput: {bt} speedup: {r.speedup_vs_numpy:.2f}x"
-            print(f"{format_result_row(r)}{extra}")
+            print(format_result_row(r, args.compare_numpy, show_elements=not uniform_elements, show_shape=not uniform_shapes))
         print("-" * 115)
         print("Throughput reported as processed elements per second (approximation).")
         print()

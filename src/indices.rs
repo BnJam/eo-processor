@@ -1,4 +1,4 @@
-use ndarray::{Array1, Array2, Zip};
+use ndarray::{Array1, Array2, Array3, Array4, Zip};
 use numpy::{
     IntoPyArray, PyArray1, PyArray2, PyArray3, PyArray4, PyReadonlyArray1, PyReadonlyArray2,
     PyReadonlyArray3, PyReadonlyArray4,
@@ -111,11 +111,20 @@ fn normalized_difference_1d<'py>(
 ) -> PyResult<&'py PyArray1<f64>> {
     let a_arr = a.as_array();
     let b_arr = b.as_array();
-    // Branchless division; zero denominators yield NaN or Inf per IEEE 754.
-    let out = py.allow_threads(|| {
-        let numerator = &a_arr - &b_arr;
-        let denom = &a_arr + &b_arr;
-        numerator / denom
+    let mut out = Array1::<f64>::zeros(a_arr.dim());
+    
+    py.allow_threads(|| {
+        Zip::from(&mut out)
+            .and(&a_arr)
+            .and(&b_arr)
+            .for_each(|r, &a, &b| {
+                let denom = a + b;
+                *r = if denom.abs() < EPSILON {
+                    0.0
+                } else {
+                    (a - b) / denom
+                };
+            });
     });
     Ok(out.into_pyarray(py))
 }
@@ -148,10 +157,20 @@ fn normalized_difference_2d<'py>(
 ) -> PyResult<&'py PyArray2<f64>> {
     let a_arr = a.as_array();
     let b_arr = b.as_array();
-    let out = py.allow_threads(|| {
-        let numerator = &a_arr - &b_arr;
-        let denom = &a_arr + &b_arr;
-        numerator / denom
+    let mut out = Array2::<f64>::zeros(a_arr.dim());
+
+    py.allow_threads(|| {
+        Zip::from(&mut out)
+            .and(&a_arr)
+            .and(&b_arr)
+            .for_each(|r, &a, &b| {
+                let denom = a + b;
+                *r = if denom.abs() < EPSILON {
+                    0.0
+                } else {
+                    (a - b) / denom
+                };
+            });
     });
     Ok(out.into_pyarray(py))
 }
@@ -181,10 +200,20 @@ fn normalized_difference_3d<'py>(
 ) -> PyResult<&'py PyArray3<f64>> {
     let a_arr = a.as_array();
     let b_arr = b.as_array();
-    let out = py.allow_threads(|| {
-        let numerator = &a_arr - &b_arr;
-        let denom = &a_arr + &b_arr;
-        numerator / denom
+    let mut out = Array3::<f64>::zeros(a_arr.dim());
+
+    py.allow_threads(|| {
+        Zip::from(&mut out)
+            .and(&a_arr)
+            .and(&b_arr)
+            .for_each(|r, &a, &b| {
+                let denom = a + b;
+                *r = if denom.abs() < EPSILON {
+                    0.0
+                } else {
+                    (a - b) / denom
+                };
+            });
     });
     Ok(out.into_pyarray(py))
 }
@@ -215,10 +244,20 @@ fn normalized_difference_4d<'py>(
 ) -> PyResult<&'py PyArray4<f64>> {
     let a_arr = a.as_array();
     let b_arr = b.as_array();
-    let out = py.allow_threads(|| {
-        let numerator = &a_arr - &b_arr;
-        let denom = &a_arr + &b_arr;
-        numerator / denom
+    let mut out = Array4::<f64>::zeros(a_arr.dim());
+
+    py.allow_threads(|| {
+        Zip::from(&mut out)
+            .and(&a_arr)
+            .and(&b_arr)
+            .for_each(|r, &a, &b| {
+                let denom = a + b;
+                *r = if denom.abs() < EPSILON {
+                    0.0
+                } else {
+                    (a - b) / denom
+                };
+            });
     });
     Ok(out.into_pyarray(py))
 }
