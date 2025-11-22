@@ -105,6 +105,7 @@ try:
         temporal_std,
     )
     from eo_processor._core import trend_analysis
+    from eo_processor import zonal_stats
 except ImportError as exc:  # pragma: no cover
     print("Failed to import eo_processor. Have you installed/built it?", exc, file=sys.stderr)
     sys.exit(1)
@@ -144,8 +145,9 @@ def parse_args(argv: Sequence[str]) -> argparse.Namespace:
                         help="Time a NumPy baseline where feasible.")
     parser.add_argument("--functions", nargs="+",
                         help="Explicit list of functions to benchmark (overrides --group).")
-    parser.add_argument("--group", choices=["spectral", "temporal", "distances", "processes", "all"],
+    parser.add_argument("--group", choices=["spectral", "temporal", "distances", "processes", "zonal", "all"],
                         default="spectral", help="Predefined function group.")
+    parser.add_argument("--zones-count", type=int, default=100, help="Number of unique zones for zonal stats.")
     parser.add_argument("--height", type=int, default=2048)
     parser.add_argument("--width", type=int, default=2048)
     parser.add_argument("--time", type=int, default=12)
@@ -291,6 +293,7 @@ def run_single_benchmark(
     ma_window: int = 5,
     ma_stride: int = 4,
     ma_baseline_style: str = "naive",
+    zones_count: int = 100,
 ) -> BenchmarkResult:
     # Predeclare delta arrays to satisfy static type checkers (overwritten when used).
     pre_nir: np.ndarray = np.empty((0, 0))
@@ -402,6 +405,33 @@ def run_single_benchmark(
         else:
             call = lambda: minkowski_distance(pts_a, pts_b, minkowski_p)
         shape_desc = f"N={shape_info['points_a']}, M={shape_info['points_b']}, D={shape_info['point_dim']}"
+    elif func_name == "zonal_stats":
+        # Generate random values and random zones
+        values = np.random.rand(shape_info["height"], shape_info["width"]).astype(np.float64)
+        zones = np.random.randint(0, zones_count, size=(shape_info["height"], shape_info["width"]), dtype=np.int64)
+        call = lambda: zonal_stats(values, zones)
+        shape_desc = f"{shape_info['height']}x{shape_info['width']} (Zones={zones_count})"
+        
+        if compare_numpy:
+            supports_baseline = True
+            baseline_kind = "naive_loop"
+            # Naive NumPy baseline: iterate unique zones
+            def numpy_zonal():
+                unique_zones = np.unique(zones)
+                res = {}
+                for z in unique_zones:
+                    mask = (zones == z)
+                    z_vals = values[mask]
+                    res[z] = {
+                        "count": z_vals.size,
+                        "mean": np.mean(z_vals),
+                        "std": np.std(z_vals),
+                        "min": np.min(z_vals),
+                        "max": np.max(z_vals),
+                        "sum": np.sum(z_vals)
+                    }
+                return res
+            baseline_fn = numpy_zonal
     else:  # pragma: no cover
         raise ValueError(f"Unknown function: {func_name}")
 
@@ -683,7 +713,10 @@ def format_result_row(r: BenchmarkResult, compare_numpy: bool = False, show_elem
                 if r.baseline_throughput_elems
                 else "-"
             )
-            speedup = f"{r.speedup_vs_numpy:.2f}x"
+            if r.speedup_vs_numpy >= 1.0:
+                speedup = f"{r.speedup_vs_numpy:.2f}x"
+            else:
+                speedup = f"{1.0/r.speedup_vs_numpy:.2f}x slower"
             
             # Calculate throughput difference
             if r.throughput_elems is not None and r.baseline_throughput_elems is not None:
@@ -754,6 +787,8 @@ def resolve_functions(group: str, explicit: Optional[List[str]]) -> List[str]:
             "moving_average_temporal_stride",
             "pixelwise_transform",
         ]
+    if group == "zonal":
+        return ["zonal_stats"]
     if group == "all":
         return [
             "ndvi",
@@ -778,6 +813,7 @@ def resolve_functions(group: str, explicit: Optional[List[str]]) -> List[str]:
             "moving_average_temporal",
             "moving_average_temporal_stride",
             "pixelwise_transform",
+            "zonal_stats", # Added zonal_stats
         ]
     raise ValueError(f"Unknown group: {group}")
 
@@ -975,6 +1011,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         "MA Window": str(args.ma_window),
         "MA Stride": str(args.ma_stride),
         "MA Baseline": args.ma_baseline,
+        "Zones Count": str(args.zones_count),
     }
 
     if getattr(args, "md_out", None):

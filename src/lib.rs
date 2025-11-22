@@ -4,6 +4,7 @@ pub mod processes;
 pub mod spatial;
 pub mod temporal;
 pub mod trends;
+pub mod zonal;
 
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
@@ -78,6 +79,10 @@ fn _core(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<trends::TrendSegment>()?;
     m.add_function(wrap_pyfunction!(trends::trend_analysis, m)?)?;
     m.add_function(wrap_pyfunction!(trends::linear_regression, m)?)?;
+
+    // --- Zonal Statistics ---
+    m.add_class::<zonal::ZoneStats>()?;
+    m.add_function(wrap_pyfunction!(zonal::zonal_stats, m)?)?;
 
     Ok(())
 }
