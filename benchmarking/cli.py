@@ -716,7 +716,7 @@ def format_result_row(r: BenchmarkResult, compare_numpy: bool = False, show_elem
             if r.speedup_vs_numpy >= 1.0:
                 speedup = f"{r.speedup_vs_numpy:.2f}x"
             else:
-                speedup = f"{1.0/r.speedup_vs_numpy:.2f}x slower"
+                speedup = f"-{1.0-r.speedup_vs_numpy:.2f}x"
             
             # Calculate throughput difference
             if r.throughput_elems is not None and r.baseline_throughput_elems is not None:
@@ -738,7 +738,7 @@ def format_result_row(r: BenchmarkResult, compare_numpy: bool = False, show_elem
 
 def print_header(compare_numpy: bool = False, show_elements: bool = True, show_shape: bool = True):
     header = (
-        f"{'Function':22} {'Mean':>9} {'StDev':>7} {'Min':>7} {'Max':>7} "
+        f"{'Function':22} {'Mean':>9}    {'StDev':>7}    {'Min':>7}    {'Max':>7}    "
     )
     if show_elements:
         header += f"{'Elements':>12} "
@@ -753,6 +753,7 @@ def print_header(compare_numpy: bool = False, show_elements: bool = True, show_s
     
     print(header)
     print("-" * len(header))
+    return len(header)
 
 
 def resolve_functions(group: str, explicit: Optional[List[str]]) -> List[str]:
@@ -961,10 +962,10 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
              print(f"Shape: {shape_val}")
 
         print()
-        print_header(args.compare_numpy, show_elements=not uniform_elements, show_shape=not uniform_shapes)
+        header_len = print_header(args.compare_numpy, show_elements=not uniform_elements, show_shape=not uniform_shapes)
         for r in results:
             print(format_result_row(r, args.compare_numpy, show_elements=not uniform_elements, show_shape=not uniform_shapes))
-        print("-" * 115)
+        print("-" * header_len)
         print("Throughput reported as processed elements per second (approximation).")
         print()
 

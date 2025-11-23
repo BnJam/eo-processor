@@ -1,8 +1,6 @@
 use crate::CoreError;
-use ndarray::ArrayView1;
 use numpy::{PyReadonlyArray1, PyReadonlyArray2, PyReadonlyArray3, PyReadonlyArray4};
 use pyo3::prelude::*;
-use rayon::prelude::*;
 use std::collections::HashMap;
 
 /// struct to hold aggregated statistics for a single zone.
@@ -21,50 +19,6 @@ pub struct ZoneStats {
     pub max: f64,
     #[pyo3(get)]
     pub std: f64,
-}
-
-/// Internal accumulator for single-pass variance/std calculation (Welford's algorithm).
-struct Accumulator {
-    count: usize,
-    sum: f64,
-    min: f64,
-    max: f64,
-    // Welford's algorithm state
-    m2: f64, // Sum of squares of differences from the current mean
-}
-
-impl Accumulator {
-    fn new() -> Self {
-        Self {
-            count: 0,
-            sum: 0.0,
-            min: f64::INFINITY,
-            max: f64::NEG_INFINITY,
-            m2: 0.0,
-        }
-    }
-
-    fn update(&mut self, value: f64) {
-        self.count += 1;
-        self.sum += value;
-        if value < self.min {
-            self.min = value;
-        }
-        if value > self.max {
-            self.max = value;
-        }
-
-        // Welford's algorithm for online variance
-        let delta = value - (self.sum - value) / (self.count as f64 - 1.0).max(1.0);
-        // Approximate delta from prev mean
-        // Actually, standard Welford:
-        // mean_k = mean_{k-1} + (x_k - mean_{k-1}) / k
-        // M2_k = M2_{k-1} + (x_k - mean_{k-1}) * (x_k - mean_k)
-        // But since we don't store mean explicitly in the struct for update (we can derive it),
-        // let's just use the sum-based derivation or standard Welford.
-        // Let's stick to standard Welford for stability.
-        // We need to track mean for Welford.
-    }
 }
 
 // Optimized Accumulator using Sum of Squares (faster than Welford, slightly less stable)
@@ -97,21 +51,6 @@ impl SumSqAccumulator {
         }
         if value > self.max {
             self.max = value;
-        }
-    }
-
-    fn merge(&mut self, other: &Self) {
-        if other.count == 0 {
-            return;
-        }
-        self.count += other.count;
-        self.sum += other.sum;
-        self.sum_sq += other.sum_sq;
-        if other.min < self.min {
-            self.min = other.min;
-        }
-        if other.max > self.max {
-            self.max = other.max;
         }
     }
 
@@ -150,7 +89,7 @@ impl SumSqAccumulator {
 /// Dictionary mapping zone ID (int) to ZoneStats object.
 #[pyfunction]
 pub fn zonal_stats(
-    py: Python<'_>,
+    _py: Python<'_>,
     values: &PyAny,
     zones: &PyAny,
 ) -> PyResult<HashMap<i64, ZoneStats>> {
