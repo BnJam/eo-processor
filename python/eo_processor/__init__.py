@@ -35,10 +35,13 @@ from ._core import (
     pixelwise_transform as _pixelwise_transform,
     replace_nans as _replace_nans,
     savi as _savi,
+    linear_regression as _linear_regression,
     temporal_mean as _temporal_mean,
     temporal_std as _temporal_std,
     temporal_sum as _temporal_sum,
     temporal_composite as _temporal_composite,
+    zonal_stats as _zonal_stats,
+    ZoneStats as _ZoneStats,
 )
 import logging
 import structlog
@@ -107,6 +110,9 @@ __all__ = [
     "temporal_std",
     "temporal_sum",
     "temporal_composite",
+    "trend_analysis",
+    "zonal_stats",
+    "ZoneStats",
 ]
 
 
@@ -123,6 +129,43 @@ def ndvi(nir, red):
     Compute NDVI = (NIR - Red) / (NIR + Red) via Rust core (1D or 2D).
     """
     return _ndvi(nir, red)
+
+
+def linear_regression(y):
+    """
+    Perform simple linear regression on a 1D array.
+
+    Returns (slope, intercept, residuals).
+    """
+    return _linear_regression(y)
+
+
+def zonal_stats(values, zones):
+    """
+    Calculate zonal statistics for regions defined by a zone array.
+
+    Parameters
+    ----------
+    values : numpy.ndarray
+        Input value array (any numeric dtype).
+    zones : numpy.ndarray
+        Zone label array (integer dtype). Must match shape of values.
+
+    Returns
+    -------
+    dict[int, ZoneStats]
+        Dictionary mapping zone ID to a ZoneStats object containing:
+        - count
+        - sum
+        - mean
+        - min
+        - max
+        - std
+    """
+    return _zonal_stats(values, zones)
+
+
+ZoneStats = _ZoneStats
 
 
 def ndwi(green, nir):
