@@ -55,7 +55,8 @@ impl Accumulator {
         }
 
         // Welford's algorithm for online variance
-        let delta = value - (self.sum - value) / (self.count as f64 - 1.0).max(1.0); // Approximate delta from prev mean
+        let delta = value - (self.sum - value) / (self.count as f64 - 1.0).max(1.0);
+        // Approximate delta from prev mean
         // Actually, standard Welford:
         // mean_k = mean_{k-1} + (x_k - mean_{k-1}) / k
         // M2_k = M2_{k-1} + (x_k - mean_{k-1}) * (x_k - mean_k)
@@ -100,20 +101,31 @@ impl SumSqAccumulator {
     }
 
     fn merge(&mut self, other: &Self) {
-        if other.count == 0 { return; }
+        if other.count == 0 {
+            return;
+        }
         self.count += other.count;
         self.sum += other.sum;
         self.sum_sq += other.sum_sq;
-        if other.min < self.min { self.min = other.min; }
-        if other.max > self.max { self.max = other.max; }
+        if other.min < self.min {
+            self.min = other.min;
+        }
+        if other.max > self.max {
+            self.max = other.max;
+        }
     }
 
     fn to_stats(&self) -> ZoneStats {
-        let mean = if self.count > 0 { self.sum / self.count as f64 } else { f64::NAN };
+        let mean = if self.count > 0 {
+            self.sum / self.count as f64
+        } else {
+            f64::NAN
+        };
         let std = if self.count < 2 {
             0.0
         } else {
-            let variance = (self.sum_sq - (self.sum * self.sum) / self.count as f64) / (self.count as f64 - 1.0);
+            let variance = (self.sum_sq - (self.sum * self.sum) / self.count as f64)
+                / (self.count as f64 - 1.0);
             variance.max(0.0).sqrt()
         };
 
@@ -137,7 +149,11 @@ impl SumSqAccumulator {
 /// # Returns
 /// Dictionary mapping zone ID (int) to ZoneStats object.
 #[pyfunction]
-pub fn zonal_stats(py: Python<'_>, values: &PyAny, zones: &PyAny) -> PyResult<HashMap<i64, ZoneStats>> {
+pub fn zonal_stats(
+    py: Python<'_>,
+    values: &PyAny,
+    zones: &PyAny,
+) -> PyResult<HashMap<i64, ZoneStats>> {
     // We need to handle different dimensions. To avoid code duplication and copies,
     // we can use a helper function that takes generic ArrayViews.
     // However, pyo3 extraction gives specific types.
@@ -151,18 +167,31 @@ pub fn zonal_stats(py: Python<'_>, values: &PyAny, zones: &PyAny) -> PyResult<Ha
         D: ndarray::Dimension,
     {
         if values.shape() != zones.shape() {
-             return Err(CoreError::InvalidArgument(format!("Shape mismatch: values {:?} vs zones {:?}", values.shape(), zones.shape())).into());
+            return Err(CoreError::InvalidArgument(format!(
+                "Shape mismatch: values {:?} vs zones {:?}",
+                values.shape(),
+                zones.shape()
+            ))
+            .into());
         }
 
         let mut min_zone = i64::MAX;
         let mut max_zone = i64::MIN;
-        
+
         for &z in zones.iter() {
-            if z < min_zone { min_zone = z; }
-            if z > max_zone { max_zone = z; }
+            if z < min_zone {
+                min_zone = z;
+            }
+            if z > max_zone {
+                max_zone = z;
+            }
         }
 
-        let range = if max_zone >= min_zone { (max_zone - min_zone) as usize } else { 0 };
+        let range = if max_zone >= min_zone {
+            (max_zone - min_zone) as usize
+        } else {
+            0
+        };
         let mut result: HashMap<i64, ZoneStats> = HashMap::new();
 
         if range < 1_000_000 {
@@ -170,12 +199,16 @@ pub fn zonal_stats(py: Python<'_>, values: &PyAny, zones: &PyAny) -> PyResult<Ha
             if let (Some(v_slice), Some(z_slice)) = (values.as_slice(), zones.as_slice()) {
                 // Simple serial implementation for baseline
                 let mut accs: Vec<SumSqAccumulator> = Vec::with_capacity(range + 1);
-                for _ in 0..=range { accs.push(SumSqAccumulator::new()); }
-                
+                for _ in 0..=range {
+                    accs.push(SumSqAccumulator::new());
+                }
+
                 for (&v, &z) in v_slice.iter().zip(z_slice.iter()) {
                     if !v.is_nan() {
                         let idx = (z - min_zone) as usize;
-                        unsafe { accs.get_unchecked_mut(idx).update(v); }
+                        unsafe {
+                            accs.get_unchecked_mut(idx).update(v);
+                        }
                     }
                 }
 
@@ -190,7 +223,7 @@ pub fn zonal_stats(py: Python<'_>, values: &PyAny, zones: &PyAny) -> PyResult<Ha
                 for _ in 0..=range {
                     accs.push(SumSqAccumulator::new());
                 }
-                
+
                 ndarray::Zip::from(&values).and(&zones).for_each(|&v, &z| {
                     if !v.is_nan() {
                         let idx = (z - min_zone) as usize;
@@ -199,7 +232,7 @@ pub fn zonal_stats(py: Python<'_>, values: &PyAny, zones: &PyAny) -> PyResult<Ha
                         }
                     }
                 });
-                
+
                 for (i, acc) in accs.into_iter().enumerate() {
                     if acc.count > 0 {
                         result.insert(min_zone + i as i64, acc.to_stats());
@@ -223,20 +256,24 @@ pub fn zonal_stats(py: Python<'_>, values: &PyAny, zones: &PyAny) -> PyResult<Ha
 
     // Dispatch logic
     if let Ok(v_arr) = values.extract::<PyReadonlyArray1<f64>>() {
-        let z_arr = zones.extract::<PyReadonlyArray1<i64>>()
-            .map_err(|_| CoreError::InvalidArgument("Zones must be int64 1D array matching values.".to_string()))?;
+        let z_arr = zones.extract::<PyReadonlyArray1<i64>>().map_err(|_| {
+            CoreError::InvalidArgument("Zones must be int64 1D array matching values.".to_string())
+        })?;
         return run_zonal_stats(v_arr.as_array(), z_arr.as_array());
     } else if let Ok(v_arr) = values.extract::<PyReadonlyArray2<f64>>() {
-        let z_arr = zones.extract::<PyReadonlyArray2<i64>>()
-            .map_err(|_| CoreError::InvalidArgument("Zones must be int64 2D array matching values.".to_string()))?;
+        let z_arr = zones.extract::<PyReadonlyArray2<i64>>().map_err(|_| {
+            CoreError::InvalidArgument("Zones must be int64 2D array matching values.".to_string())
+        })?;
         return run_zonal_stats(v_arr.as_array(), z_arr.as_array());
     } else if let Ok(v_arr) = values.extract::<PyReadonlyArray3<f64>>() {
-        let z_arr = zones.extract::<PyReadonlyArray3<i64>>()
-            .map_err(|_| CoreError::InvalidArgument("Zones must be int64 3D array matching values.".to_string()))?;
+        let z_arr = zones.extract::<PyReadonlyArray3<i64>>().map_err(|_| {
+            CoreError::InvalidArgument("Zones must be int64 3D array matching values.".to_string())
+        })?;
         return run_zonal_stats(v_arr.as_array(), z_arr.as_array());
     } else if let Ok(v_arr) = values.extract::<PyReadonlyArray4<f64>>() {
-        let z_arr = zones.extract::<PyReadonlyArray4<i64>>()
-            .map_err(|_| CoreError::InvalidArgument("Zones must be int64 4D array matching values.".to_string()))?;
+        let z_arr = zones.extract::<PyReadonlyArray4<i64>>().map_err(|_| {
+            CoreError::InvalidArgument("Zones must be int64 4D array matching values.".to_string())
+        })?;
         return run_zonal_stats(v_arr.as_array(), z_arr.as_array());
     }
 
@@ -259,5 +296,8 @@ pub fn zonal_stats(py: Python<'_>, values: &PyAny, zones: &PyAny) -> PyResult<Ha
         return run_zonal_stats(v_arr.as_array(), z_arr.as_array());
     }
 
-    Err(CoreError::InvalidArgument("Could not process inputs. Ensure they are numeric arrays.".to_string()).into())
+    Err(CoreError::InvalidArgument(
+        "Could not process inputs. Ensure they are numeric arrays.".to_string(),
+    )
+    .into())
 }
