@@ -35,6 +35,7 @@ from ._core import (
     pixelwise_transform as _pixelwise_transform,
     replace_nans as _replace_nans,
     savi as _savi,
+    linear_regression as _linear_regression,
     temporal_mean as _temporal_mean,
     temporal_std as _temporal_std,
     temporal_sum as _temporal_sum,
