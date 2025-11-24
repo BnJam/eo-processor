@@ -146,7 +146,7 @@ jobs:
         uses: PyO3/maturin-action@v1
         with:
           command: build
-          args: --release --all-targets --sdist
+          args: --release
           manylinux: auto # Use the best manylinux tag available
 
       - name: Upload Linux Artifacts
@@ -185,7 +185,7 @@ jobs:
       - name: Build universal2 wheel (macOS) 🍎
         if: startsWith(matrix.os, 'macos')
         # Creates a single wheel for both Intel and Apple Silicon
-        run: maturin build --release -- --universal2
+        run: maturin build --release
         
       - name: Upload OS Artifacts
         uses: actions/upload-artifact@v4
