@@ -1,5 +1,6 @@
 pub mod indices;
 pub mod masking;
+pub mod morphology;
 pub mod processes;
 pub mod spatial;
 pub mod temporal;
@@ -83,6 +84,11 @@ fn _core(_py: Python, m: &PyModule) -> PyResult<()> {
     // --- Zonal Statistics ---
     m.add_class::<zonal::ZoneStats>()?;
     m.add_function(wrap_pyfunction!(zonal::zonal_stats, m)?)?;
+
+    m.add_function(wrap_pyfunction!(morphology::binary_dilation, m)?)?;
+    m.add_function(wrap_pyfunction!(morphology::binary_erosion, m)?)?;
+    m.add_function(wrap_pyfunction!(morphology::binary_opening, m)?)?;
+    m.add_function(wrap_pyfunction!(morphology::binary_closing, m)?)?;
 
     Ok(())
 }

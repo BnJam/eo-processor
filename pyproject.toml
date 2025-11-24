@@ -11,7 +11,6 @@ keywords = ["earth-observation", "gis", "remote-sensing", "ndvi", "dask", "xarra
 classifiers = [
     "Programming Language :: Rust",
     "Programming Language :: Python :: Implementation :: CPython",
-    "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
@@ -21,7 +20,7 @@ classifiers = [
     # Add a classifier for your domain
     "Topic :: Scientific/Engineering :: GIS",
 ]
-requires-python = ">=3.8"
+requires-python = ">=3.9"
 dependencies = [
     "maturin>=1.9.6",
     "numpy>=1.20.0",
