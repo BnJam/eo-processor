@@ -190,7 +190,7 @@ jobs:
       - name: Upload OS Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.os }}-wheels
+          name: ${{ matrix.os }}-wheel-py${{ matrix.python-version }}
           path: target/wheels
 
   # ----------------------------------------------------
