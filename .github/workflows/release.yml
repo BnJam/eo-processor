@@ -185,7 +185,7 @@ jobs:
       - name: Build universal2 wheel (macOS) 🍎
         if: startsWith(matrix.os, 'macos')
         # Creates a single wheel for both Intel and Apple Silicon
-        run: maturin build --release --universal2
+        run: maturin build --release -- --universal2
         
       - name: Upload OS Artifacts
         uses: actions/upload-artifact@v4
