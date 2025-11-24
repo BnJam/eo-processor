@@ -126,6 +126,7 @@ jobs:
   # 1. LINUX WHEELS (MOST CRITICAL FOR MANYLINUX)
   # ----------------------------------------------------
   linux-wheels:
+    needs: [version-bump]
     runs-on: ubuntu-latest
     strategy:
       # Build for a range of Python versions to maximize compatibility
@@ -158,6 +159,7 @@ jobs:
   # 2. MACOS & WINDOWS WHEELS
   # ----------------------------------------------------
   os-wheels:
+    needs: [version-bump]
     strategy:
       matrix:
         # These operating systems build the correct wheel tags natively
