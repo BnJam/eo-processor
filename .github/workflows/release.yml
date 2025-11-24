@@ -213,6 +213,9 @@ jobs:
         # This command flattens the directory structure created by download-artifact
         run: find dist -type f \( -name "*.whl" -o -name "*.tar.gz" \) -exec mv {} dist/ \;
 
+      - name: Install uv and tools
+        uses: astral-sh/setup-uv@v3
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
