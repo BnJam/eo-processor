@@ -131,7 +131,7 @@ jobs:
     strategy:
       # Build for a range of Python versions to maximize compatibility
       matrix:
-        python-version: ["3.8", "3.9", "3.10", "3.11", "3.12"] 
+        python-version: ["3.9", "3.10", "3.11", "3.12"] 
         
     steps:
       - uses: actions/checkout@v4
@@ -164,7 +164,7 @@ jobs:
       matrix:
         # These operating systems build the correct wheel tags natively
         os: [windows-latest, macos-latest]
-        python-version: ["3.8", "3.9", "3.10", "3.11", "3.12"]
+        python-version: ["3.9", "3.10", "3.11", "3.12"]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
