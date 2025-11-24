@@ -146,7 +146,7 @@ jobs:
         uses: PyO3/maturin-action@v1
         with:
           command: build
-          args: --release
+          args: --release --sdist
           manylinux: auto # Use the best manylinux tag available
 
       - name: Upload Linux Artifacts
@@ -180,12 +180,12 @@ jobs:
 
       - name: Build wheel (Windows)
         if: startsWith(matrix.os, 'windows')
-        run: maturin build --release
+        run: maturin build --release --sdist
 
       - name: Build universal2 wheel (macOS) 🍎
         if: startsWith(matrix.os, 'macos')
         # Creates a single wheel for both Intel and Apple Silicon
-        run: maturin build --release
+        run: maturin build --release --sdist
         
       - name: Upload OS Artifacts
         uses: actions/upload-artifact@v4
@@ -226,7 +226,8 @@ jobs:
           MATURIN_PYPI_TOKEN: ${{ secrets.MATURIN_PYPI_TOKEN }}
         # Maturin finds all files in the directory passed via the --find-wheel option.
         # It automatically skips existing files and publishes everything it finds.
-        run: maturin publish --skip-existing --repository pypi --username __token__ --password ${{ secrets.MATURIN_PYPI_TOKEN }}
+        # run: maturin publish --skip-existing --repository pypi --username __token__ --password ${{ secrets.MATURIN_PYPI_TOKEN }}
+        run: uv publish dist --token ${{ secrets.MATURIN_PYPI_TOKEN }} --username __token__ --index pypi *.whl *.tar.gz
   # pypi-publish:
   #   runs-on: ubuntu-latest
   #   needs: [version-bump]
