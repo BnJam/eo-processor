@@ -42,9 +42,14 @@ from ._core import (
     temporal_composite as _temporal_composite,
     zonal_stats as _zonal_stats,
     ZoneStats as _ZoneStats,
+    binary_dilation as _binary_dilation,
+    binary_erosion as _binary_erosion,
+    binary_opening as _binary_opening,
+    binary_closing as _binary_closing,
 )
 import logging
 import structlog
+import numpy as np
 
 # Configure structlog for structured, extensible logging
 structlog.configure(
@@ -113,6 +118,10 @@ __all__ = [
     "trend_analysis",
     "zonal_stats",
     "ZoneStats",
+    "binary_dilation",
+    "binary_erosion",
+    "binary_opening",
+    "binary_closing",
 ]
 
 
@@ -140,32 +149,77 @@ def linear_regression(y):
     return _linear_regression(y)
 
 
-def zonal_stats(values, zones):
+ZoneStats = _ZoneStats
+
+
+def zonal_stats(values: np.ndarray, zones: np.ndarray) -> dict[int, ZoneStats]:
     """
-    Calculate zonal statistics for regions defined by a zone array.
+    Calculate zonal statistics.
 
-    Parameters
-    ----------
-    values : numpy.ndarray
-        Input value array (any numeric dtype).
-    zones : numpy.ndarray
-        Zone label array (integer dtype). Must match shape of values.
+    Args:
+        values: Input value array (any numeric dtype, coerced to float64).
+        zones: Input zone label array (must be broadcastable to values, coerced to int64).
 
-    Returns
-    -------
-    dict[int, ZoneStats]
-        Dictionary mapping zone ID to a ZoneStats object containing:
-        - count
-        - sum
-        - mean
-        - min
-        - max
-        - std
+    Returns:
+        Dictionary mapping zone ID (int) to ZoneStats object.
     """
     return _zonal_stats(values, zones)
 
 
-ZoneStats = _ZoneStats
+def binary_dilation(input: np.ndarray, kernel_size: int = 3) -> np.ndarray:
+    """
+    Perform binary dilation on a 2D boolean/int array.
+
+    Args:
+        input: 2D input array (treated as boolean: >0 is True).
+        kernel_size: Size of the square structuring element (default 3).
+
+    Returns:
+        Dilated 2D array (uint8: 0 or 1).
+    """
+    return _binary_dilation(input, kernel_size)
+
+
+def binary_erosion(input: np.ndarray, kernel_size: int = 3) -> np.ndarray:
+    """
+    Perform binary erosion on a 2D boolean/int array.
+
+    Args:
+        input: 2D input array (treated as boolean: >0 is True).
+        kernel_size: Size of the square structuring element (default 3).
+
+    Returns:
+        Eroded 2D array (uint8: 0 or 1).
+    """
+    return _binary_erosion(input, kernel_size)
+
+
+def binary_opening(input: np.ndarray, kernel_size: int = 3) -> np.ndarray:
+    """
+    Perform binary opening (erosion followed by dilation).
+
+    Args:
+        input: 2D input array (treated as boolean: >0 is True).
+        kernel_size: Size of the square structuring element (default 3).
+
+    Returns:
+        Opened 2D array (uint8: 0 or 1).
+    """
+    return _binary_opening(input, kernel_size)
+
+
+def binary_closing(input: np.ndarray, kernel_size: int = 3) -> np.ndarray:
+    """
+    Perform binary closing (dilation followed by erosion).
+
+    Args:
+        input: 2D input array (treated as boolean: >0 is True).
+        kernel_size: Size of the square structuring element (default 3).
+
+    Returns:
+        Closed 2D array (uint8: 0 or 1).
+    """
+    return _binary_closing(input, kernel_size)
 
 
 def ndwi(green, nir):

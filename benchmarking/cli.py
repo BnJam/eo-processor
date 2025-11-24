@@ -81,6 +81,7 @@ except Exception:  # pragma: no cover
 
 # Import eo_processor functions
 try:
+    import eo_processor
     from eo_processor import (
         chebyshev_distance,
         delta_nbr,
@@ -145,7 +146,7 @@ def parse_args(argv: Sequence[str]) -> argparse.Namespace:
                         help="Time a NumPy baseline where feasible.")
     parser.add_argument("--functions", nargs="+",
                         help="Explicit list of functions to benchmark (overrides --group).")
-    parser.add_argument("--group", choices=["spectral", "temporal", "distances", "processes", "zonal", "all"],
+    parser.add_argument("--group", choices=["spectral", "temporal", "distances", "processes", "zonal", "morphology", "all"],
                         default="spectral", help="Predefined function group.")
     parser.add_argument("--zones-count", type=int, default=100, help="Number of unique zones for zonal stats.")
     parser.add_argument("--height", type=int, default=2048)
@@ -407,7 +408,7 @@ def run_single_benchmark(
         shape_desc = f"N={shape_info['points_a']}, M={shape_info['points_b']}, D={shape_info['point_dim']}"
     elif func_name == "zonal_stats":
         # Generate random values and random zones
-        values = np.random.rand(shape_info["height"], shape_info["width"]).astype(np.float64)
+        values = np.random.uniform(0, 100, size=(shape_info["height"], shape_info["width"])).astype(np.float64)
         zones = np.random.randint(0, zones_count, size=(shape_info["height"], shape_info["width"]), dtype=np.int64)
         call = lambda: zonal_stats(values, zones)
         shape_desc = f"{shape_info['height']}x{shape_info['width']} (Zones={zones_count})"
@@ -422,16 +423,85 @@ def run_single_benchmark(
                 for z in unique_zones:
                     mask = (zones == z)
                     z_vals = values[mask]
-                    res[z] = {
-                        "count": z_vals.size,
-                        "mean": np.mean(z_vals),
-                        "std": np.std(z_vals),
-                        "min": np.min(z_vals),
-                        "max": np.max(z_vals),
-                        "sum": np.sum(z_vals)
-                    }
+                    if z_vals.size > 0:
+                        res[z] = {
+                            "count": z_vals.size,
+                            "sum": np.sum(z_vals),
+                            "mean": np.mean(z_vals),
+                            "min": np.min(z_vals),
+                            "max": np.max(z_vals),
+                            "std": np.std(z_vals),
+                        }
                 return res
             baseline_fn = numpy_zonal
+    elif func_name in ("binary_dilation", "binary_erosion", "binary_opening", "binary_closing"):
+        # Data generation: Binary image (0 or 1)
+        # Use uint8 for input as expected by Rust
+        data = np.random.randint(0, 2, size=(shape_info["height"], shape_info["width"]), dtype=np.uint8)
+        kernel_size = 3
+        
+        call = lambda: getattr(eo_processor, func_name)(data, kernel_size)
+        shape_desc = f"{shape_info['height']}x{shape_info['width']} (Kernel={kernel_size})"
+        
+        # NumPy baseline (using slicing for vectorization, as scipy might be missing)
+        if compare_numpy:
+            supports_baseline = True
+            baseline_kind = "numpy_slicing"
+            def numpy_morph():
+                # Naive vectorized implementation using slicing
+                # This is O(K*K * N) where K is kernel size
+                rows, cols = data.shape
+                radius = kernel_size // 2
+                
+                dilated = None
+                eroded = None
+
+                if "dilation" in func_name or "closing" in func_name:
+                    # Dilation logic
+                    padded = np.pad(data, radius, mode='constant', constant_values=0)
+                    out = np.zeros_like(data)
+                    for kr in range(kernel_size):
+                        for kc in range(kernel_size):
+                            # Shift and accumulate
+                            out = np.maximum(out, padded[kr:kr+rows, kc:kc+cols])
+                    dilated = out
+                
+                if "erosion" in func_name or "opening" in func_name:
+                    # Erosion logic
+                    # For binary erosion, padding with 1s is typical to avoid border effects
+                    # if the image is mostly 1s. If padded with 0s, erosion at border will be 0.
+                    # Let's assume standard behavior for binary images where 0 is background.
+                    padded = np.pad(data, radius, mode='constant', constant_values=1) 
+                    out = np.ones_like(data)
+                    for kr in range(kernel_size):
+                        for kc in range(kernel_size):
+                            out = np.minimum(out, padded[kr:kr+rows, kc:kc+cols])
+                    eroded = out
+
+                if func_name == "binary_dilation":
+                    return dilated
+                elif func_name == "binary_erosion":
+                    return eroded
+                elif func_name == "binary_opening":
+                    # Erosion then Dilation
+                    # Re-run dilation on 'eroded'
+                    padded_d = np.pad(eroded, radius, mode='constant', constant_values=0)
+                    out_d = np.zeros_like(eroded)
+                    for kr in range(kernel_size):
+                        for kc in range(kernel_size):
+                            out_d = np.maximum(out_d, padded_d[kr:kr+rows, kc:kc+cols])
+                    return out_d
+                elif func_name == "binary_closing":
+                    # Dilation then Erosion
+                    # Re-run erosion on 'dilated'
+                    padded_e = np.pad(dilated, radius, mode='constant', constant_values=1)
+                    out_e = np.ones_like(dilated)
+                    for kr in range(kernel_size):
+                        for kc in range(kernel_size):
+                            out_e = np.minimum(out_e, padded_e[kr:kr+rows, kc:kc+cols])
+                    return out_e
+
+            baseline_fn = numpy_morph
     else:  # pragma: no cover
         raise ValueError(f"Unknown function: {func_name}")
 
@@ -814,7 +884,18 @@ def resolve_functions(group: str, explicit: Optional[List[str]]) -> List[str]:
             "moving_average_temporal",
             "moving_average_temporal_stride",
             "pixelwise_transform",
-            "zonal_stats", # Added zonal_stats
+            "zonal_stats",
+            "binary_dilation",
+            "binary_erosion",
+            "binary_opening",
+            "binary_closing",
+        ]
+    if group == "morphology":
+        return [
+            "binary_dilation",
+            "binary_erosion",
+            "binary_opening",
+            "binary_closing",
         ]
     raise ValueError(f"Unknown group: {group}")
 
