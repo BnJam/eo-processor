@@ -231,7 +231,7 @@ jobs:
         # Maturin finds all files in the directory passed via the --find-wheel option.
         # It automatically skips existing files and publishes everything it finds.
         # run: maturin publish --skip-existing --repository pypi --username __token__ --password ${{ secrets.MATURIN_PYPI_TOKEN }}
-        run: uv publish dist --token ${{ secrets.MATURIN_PYPI_TOKEN }} 
+        run: uv publish dist --token ${{ secrets.UV_PUBLISH_TOKEN }} 
   # pypi-publish:
   #   runs-on: ubuntu-latest
   #   needs: [version-bump]
