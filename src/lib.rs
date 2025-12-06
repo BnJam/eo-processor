@@ -67,6 +67,7 @@ fn _core(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(masking::mask_invalid, m)?)?;
     m.add_function(wrap_pyfunction!(masking::mask_in_range, m)?)?;
     m.add_function(wrap_pyfunction!(masking::mask_scl, m)?)?;
+    m.add_function(wrap_pyfunction!(masking::mask_with_scl, m)?)?;
     // --- Advanced Processes ---
     m.add_function(wrap_pyfunction!(processes::moving_average_temporal, m)?)?;
     m.add_function(wrap_pyfunction!(

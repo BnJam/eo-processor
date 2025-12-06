@@ -84,6 +84,7 @@ Masking & Cleanup Utilities
    functions/mask_in_range
    functions/mask_out_range
    functions/mask_scl
+   functions/mask_with_scl
    functions/replace_nans
 
 Distance Metrics

@@ -7,6 +7,7 @@ from eo_processor import (
     mask_invalid,
     mask_in_range,
     mask_scl,
+    mask_with_scl,
 )
 
 
@@ -271,3 +272,159 @@ def test_mask_scl_custom_keep():
     assert out[0] == 4.0
     assert np.isnan(out[1])
     assert out[2] == 9.0
+
+
+# ==================== mask_with_scl tests ====================
+
+
+def test_mask_with_scl_2d_basic():
+    """Test 2D data with 2D SCL - basic masking of cloud pixels."""
+    data = np.ones((3, 3), dtype=np.float64)
+    scl = np.array([[4, 4, 9], [4, 8, 4], [3, 4, 4]], dtype=np.float64)
+    out = mask_with_scl(data, scl)
+    # Default mask codes: [0, 1, 2, 3, 8, 9, 10]
+    # Position (0,2)=9 (cloud high), (1,1)=8 (cloud med), (2,0)=3 (shadow) should be NaN
+    assert out[0, 0] == 1.0  # SCL=4 (vegetation)
+    assert out[0, 1] == 1.0  # SCL=4
+    assert np.isnan(out[0, 2])  # SCL=9 (cloud high)
+    assert out[1, 0] == 1.0  # SCL=4
+    assert np.isnan(out[1, 1])  # SCL=8 (cloud medium)
+    assert out[1, 2] == 1.0  # SCL=4
+    assert np.isnan(out[2, 0])  # SCL=3 (shadow)
+    assert out[2, 1] == 1.0  # SCL=4
+    assert out[2, 2] == 1.0  # SCL=4
+
+
+def test_mask_with_scl_2d_custom_mask_codes():
+    """Test 2D with custom mask codes."""
+    data = np.array([[10.0, 20.0], [30.0, 40.0]])
+    scl = np.array([[4, 5], [6, 11]], dtype=np.float64)
+    # Mask vegetation (4) and water (6)
+    out = mask_with_scl(data, scl, mask_codes=[4, 6])
+    assert np.isnan(out[0, 0])  # SCL=4 masked
+    assert out[0, 1] == 20.0  # SCL=5 kept
+    assert np.isnan(out[1, 0])  # SCL=6 masked
+    assert out[1, 1] == 40.0  # SCL=11 kept
+
+
+def test_mask_with_scl_2d_custom_fill_value():
+    """Test 2D with custom fill value instead of NaN."""
+    data = np.ones((2, 2), dtype=np.float64)
+    scl = np.array([[4, 9], [4, 4]], dtype=np.float64)
+    out = mask_with_scl(data, scl, fill_value=-9999.0)
+    assert out[0, 0] == 1.0
+    assert out[0, 1] == -9999.0  # SCL=9 masked with custom fill
+    assert out[1, 0] == 1.0
+    assert out[1, 1] == 1.0
+
+
+def test_mask_with_scl_3d_time_y_x():
+    """Test 3D data (time, y, x) with 3D SCL."""
+    # Shape: (time=2, y=2, x=2)
+    data = np.ones((2, 2, 2), dtype=np.float64) * 100.0
+    scl = np.array(
+        [
+            [[4, 9], [4, 4]],  # t=0: position (0,1) is cloud
+            [[8, 4], [4, 10]],  # t=1: positions (0,0) cloud, (1,1) cirrus
+        ],
+        dtype=np.float64,
+    )
+    out = mask_with_scl(data, scl)
+    # t=0
+    assert out[0, 0, 0] == 100.0
+    assert np.isnan(out[0, 0, 1])  # SCL=9
+    assert out[0, 1, 0] == 100.0
+    assert out[0, 1, 1] == 100.0
+    # t=1
+    assert np.isnan(out[1, 0, 0])  # SCL=8
+    assert out[1, 0, 1] == 100.0
+    assert out[1, 1, 0] == 100.0
+    assert np.isnan(out[1, 1, 1])  # SCL=10
+
+
+def test_mask_with_scl_4d_broadcast_across_bands():
+    """Test 4D data (time, band, y, x) with 3D SCL broadcast across bands."""
+    # Shape: (time=2, band=3, y=2, x=2)
+    data = np.ones((2, 3, 2, 2), dtype=np.float64)
+    # Set different values per band to verify all bands are masked
+    data[:, 0, :, :] = 10.0  # Band 0
+    data[:, 1, :, :] = 20.0  # Band 1
+    data[:, 2, :, :] = 30.0  # Band 2
+
+    # SCL shape: (time=2, y=2, x=2)
+    scl = np.array(
+        [
+            [[4, 9], [4, 4]],  # t=0: (0,1) is cloud
+            [[4, 4], [8, 4]],  # t=1: (1,0) is cloud
+        ],
+        dtype=np.float64,
+    )
+    out = mask_with_scl(data, scl)
+
+    # At t=0, position (0,1) all bands should be NaN
+    assert np.isnan(out[0, 0, 0, 1])
+    assert np.isnan(out[0, 1, 0, 1])
+    assert np.isnan(out[0, 2, 0, 1])
+
+    # At t=1, position (1,0) all bands should be NaN
+    assert np.isnan(out[1, 0, 1, 0])
+    assert np.isnan(out[1, 1, 1, 0])
+    assert np.isnan(out[1, 2, 1, 0])
+
+    # Valid positions retain original values
+    assert out[0, 0, 0, 0] == 10.0
+    assert out[0, 1, 0, 0] == 20.0
+    assert out[0, 2, 0, 0] == 30.0
+    assert out[1, 0, 0, 0] == 10.0
+
+
+def test_mask_with_scl_preserves_unmasked_values():
+    """Ensure non-masked pixels retain exact original values."""
+    rng = np.random.default_rng(42)
+    data = rng.random((3, 4, 4))
+    scl = np.full((3, 4, 4), 4.0, dtype=np.float64)  # All vegetation (valid)
+    out = mask_with_scl(data, scl)
+    assert np.allclose(out, data)
+
+
+def test_mask_with_scl_shape_mismatch_raises():
+    """Test that mismatched shapes raise an error."""
+    data = np.ones((3, 3), dtype=np.float64)
+    scl = np.ones((4, 4), dtype=np.float64)  # Wrong shape
+    with pytest.raises(ValueError, match="does not match"):
+        mask_with_scl(data, scl)
+
+
+def test_mask_with_scl_4d_3d_shape_mismatch_raises():
+    """Test 4D data with mismatched 3D SCL raises error."""
+    data = np.ones((2, 3, 4, 4), dtype=np.float64)
+    scl = np.ones((3, 4, 4), dtype=np.float64)  # time=3 instead of 2
+    with pytest.raises(ValueError, match="does not align"):
+        mask_with_scl(data, scl)
+
+
+def test_mask_with_scl_empty_mask_codes():
+    """With empty mask codes list, nothing should be masked."""
+    data = np.ones((2, 2), dtype=np.float64)
+    scl = np.array([[9, 8], [3, 10]], dtype=np.float64)  # All "bad" SCL codes
+    out = mask_with_scl(data, scl, mask_codes=[])
+    # No masking should occur
+    assert np.array_equal(out, data)
+
+
+def test_mask_with_scl_all_masked():
+    """Test when all pixels should be masked."""
+    data = np.ones((2, 2), dtype=np.float64) * 42.0
+    scl = np.array([[9, 9], [9, 9]], dtype=np.float64)  # All cloud high
+    out = mask_with_scl(data, scl)
+    assert np.isnan(out).all()
+
+
+def test_mask_with_scl_integer_input_coerced():
+    """Test that integer input arrays are coerced to float64."""
+    data = np.array([[1, 2], [3, 4]], dtype=np.int16)
+    scl = np.array([[4, 9], [4, 4]], dtype=np.int16)
+    out = mask_with_scl(data, scl)
+    assert out.dtype == np.float64
+    assert out[0, 0] == 1.0
+    assert np.isnan(out[0, 1])
