@@ -443,6 +443,150 @@ pub fn mask_scl(
     Ok(result_array.into_pyarray(py).into_py(py))
 }
 
+/// Apply SCL-based masking to a data array.
+///
+/// This function masks pixels in the data array based on the Scene Classification
+/// Layer (SCL) values. Unlike `mask_scl` which only returns a masked SCL array,
+/// this function applies the mask to actual data (e.g., spectral bands).
+///
+/// Supported array shapes:
+/// - 2D data (y, x) with 2D SCL (y, x)
+/// - 3D data (time, y, x) with 3D SCL (time, y, x)
+/// - 4D data (time, band, y, x) with 3D SCL (time, y, x) - SCL broadcast across bands
+///
+/// Parameters
+/// ----------
+/// data : numpy.ndarray
+///     The data array to mask (2D, 3D, or 4D).
+/// scl : numpy.ndarray
+///     The SCL array (2D or 3D). For 4D data, SCL should be 3D (time, y, x).
+/// mask_codes : sequence of float, optional
+///     SCL codes to mask (set to fill_value). Defaults to clouds/shadows/etc:
+///     [0, 1, 2, 3, 8, 9, 10] (no data, saturated, dark, shadow, cloud med/high, cirrus).
+/// fill_value : float, optional
+///     Value to assign to masked pixels. Defaults to NaN.
+///
+/// Returns
+/// -------
+/// numpy.ndarray
+///     Data array with masked pixels replaced by fill_value.
+#[pyfunction]
+#[pyo3(signature = (data, scl, mask_codes=None, fill_value=None))]
+pub fn mask_with_scl(
+    py: Python<'_>,
+    data: &PyAny,
+    scl: &PyAny,
+    mask_codes: Option<Vec<f64>>,
+    fill_value: Option<f64>,
+) -> PyResult<PyObject> {
+    // Default SCL codes to MASK (remove): no data, saturated, dark, shadow, cloud med/high, cirrus
+    let default_mask = vec![0.0, 1.0, 2.0, 3.0, 8.0, 9.0, 10.0];
+    let codes_to_mask = mask_codes.unwrap_or(default_mask);
+    let fill = fill_value.unwrap_or(f64::NAN);
+
+    // Try 2D data with 2D SCL
+    if let (Ok(data_2d), Ok(scl_2d)) = (
+        coerce_2d(data),
+        coerce_2d(scl),
+    ) {
+        let data_arr = data_2d.as_array();
+        let scl_arr = scl_2d.as_array();
+
+        if data_arr.shape() != scl_arr.shape() {
+            return Err(CoreError::InvalidArgument(format!(
+                "Data shape {:?} does not match SCL shape {:?}",
+                data_arr.shape(),
+                scl_arr.shape()
+            ))
+            .into());
+        }
+
+        let mut out = data_arr.to_owned();
+        ndarray::Zip::from(&mut out)
+            .and(&scl_arr)
+            .for_each(|d, &s| {
+                if codes_to_mask.contains(&s) {
+                    *d = fill;
+                }
+            });
+
+        return Ok(out.into_pyarray(py).into_py(py));
+    }
+
+    // Try 3D data with 3D SCL (time, y, x)
+    if let (Ok(data_3d), Ok(scl_3d)) = (
+        coerce_3d(data),
+        coerce_3d(scl),
+    ) {
+        let data_arr = data_3d.as_array();
+        let scl_arr = scl_3d.as_array();
+
+        if data_arr.shape() != scl_arr.shape() {
+            return Err(CoreError::InvalidArgument(format!(
+                "Data shape {:?} does not match SCL shape {:?}",
+                data_arr.shape(),
+                scl_arr.shape()
+            ))
+            .into());
+        }
+
+        let mut out = data_arr.to_owned();
+        ndarray::Zip::from(&mut out)
+            .and(&scl_arr)
+            .for_each(|d, &s| {
+                if codes_to_mask.contains(&s) {
+                    *d = fill;
+                }
+            });
+
+        return Ok(out.into_pyarray(py).into_py(py));
+    }
+
+    // Try 4D data (time, band, y, x) with 3D SCL (time, y, x)
+    // SCL is broadcast across all bands
+    if let (Ok(data_4d), Ok(scl_3d)) = (
+        coerce_4d(data),
+        coerce_3d(scl),
+    ) {
+        let data_arr = data_4d.as_array();
+        let scl_arr = scl_3d.as_array();
+        let (t, b, h, w) = data_arr.dim();
+        let (scl_t, scl_h, scl_w) = scl_arr.dim();
+
+        if t != scl_t || h != scl_h || w != scl_w {
+            return Err(CoreError::InvalidArgument(format!(
+                "Data shape ({}, {}, {}, {}) does not align with SCL shape ({}, {}, {})",
+                t, b, h, w, scl_t, scl_h, scl_w
+            ))
+            .into());
+        }
+
+        let mut out = data_arr.to_owned();
+        
+        // Iterate over time and spatial dimensions, applying mask across all bands
+        for ti in 0..t {
+            for yi in 0..h {
+                for xi in 0..w {
+                    let scl_val = scl_arr[[ti, yi, xi]];
+                    if codes_to_mask.contains(&scl_val) {
+                        for bi in 0..b {
+                            out[[ti, bi, yi, xi]] = fill;
+                        }
+                    }
+                }
+            }
+        }
+
+        return Ok(out.into_pyarray(py).into_py(py));
+    }
+
+    Err(CoreError::InvalidArgument(
+        "mask_with_scl requires: 2D data + 2D SCL, 3D data + 3D SCL, or 4D data + 3D SCL."
+            .to_string(),
+    )
+    .into())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

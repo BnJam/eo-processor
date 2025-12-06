@@ -124,5 +124,11 @@ def mask_scl(
     keep_codes: Optional[Sequence[float]] = ...,
     fill_value: Optional[float] = ...,
 ) -> NDArray[np.float64]: ...
+def mask_with_scl(
+    data: NumericArray,
+    scl: NumericArray,
+    mask_codes: Optional[Sequence[float]] = ...,
+    fill_value: Optional[float] = ...,
+) -> NDArray[np.float64]: ...
 
 # Raises ValueError if p < 1.0

@@ -21,6 +21,7 @@ from ._core import (
     mask_invalid as _mask_invalid,
     mask_out_range as _mask_out_range,
     mask_scl as _mask_scl,
+    mask_with_scl as _mask_with_scl,
     mask_vals as _mask_vals,
     median as _median,
     minkowski_distance as _minkowski_distance,
@@ -97,6 +98,7 @@ __all__ = [
     "mask_invalid",
     "mask_out_range",
     "mask_scl",
+    "mask_with_scl",
     "mask_vals",
     "median",
     "minkowski_distance",
@@ -715,6 +717,52 @@ def mask_scl(scl, keep_codes=None, fill_value=None):
         Masked SCL array.
     """
     return _mask_scl(scl, keep_codes=keep_codes, fill_value=fill_value)
+
+
+def mask_with_scl(data, scl, mask_codes=None, fill_value=None):
+    """
+    Apply SCL-based masking to a data array.
+
+    This function masks pixels in the data array based on the Scene Classification
+    Layer (SCL) values. Unlike ``mask_scl`` which only returns a masked SCL array,
+    this function applies the mask to actual data (e.g., spectral bands).
+
+    Supported array shapes:
+    - 2D data (y, x) with 2D SCL (y, x)
+    - 3D data (time, y, x) with 3D SCL (time, y, x)
+    - 4D data (time, band, y, x) with 3D SCL (time, y, x) - SCL broadcast across bands
+
+    Parameters
+    ----------
+    data : numpy.ndarray
+        The data array to mask (2D, 3D, or 4D).
+    scl : numpy.ndarray
+        The SCL array (2D or 3D). For 4D data, SCL should be 3D (time, y, x).
+    mask_codes : sequence of float, optional
+        SCL codes to mask (set to fill_value). Defaults to clouds/shadows/etc:
+        [0, 1, 2, 3, 8, 9, 10] (no data, saturated, dark, shadow, cloud med/high, cirrus).
+    fill_value : float, optional
+        Value to assign to masked pixels. Defaults to NaN.
+
+    Returns
+    -------
+    numpy.ndarray
+        Data array with masked pixels replaced by fill_value.
+
+    Examples
+    --------
+    >>> import numpy as np
+    >>> from eo_processor import mask_with_scl
+    >>> # 3D example: (time=2, y=3, x=3)
+    >>> data = np.ones((2, 3, 3), dtype=np.float64)
+    >>> scl = np.array([[[4, 4, 9], [4, 8, 4], [4, 4, 4]],
+    ...                 [[4, 4, 4], [3, 4, 4], [4, 4, 10]]], dtype=np.float64)
+    >>> result = mask_with_scl(data, scl)
+    >>> # Pixels with SCL codes 9, 8, 3, 10 are now NaN
+    >>> np.isnan(result[0, 0, 2])  # SCL=9 (cloud high)
+    True
+    """
+    return _mask_with_scl(data, scl, mask_codes=mask_codes, fill_value=fill_value)
 
 
 def moving_average_temporal(arr, window, skip_na=True, mode="same"):
