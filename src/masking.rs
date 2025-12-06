@@ -562,7 +562,7 @@ pub fn mask_with_scl(
         }
 
         let mut out = data_arr.to_owned();
-        
+
         // Iterate over time and spatial dimensions, applying mask across all bands
         for ti in 0..t {
             for yi in 0..h {
