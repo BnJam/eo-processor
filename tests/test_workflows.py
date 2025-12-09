@@ -1,28 +1,32 @@
 import numpy as np
 from eo_processor import (
-    land_cover_classification,
-    burn_severity_assessment,
-    water_body_extraction,
+    detect_breakpoints,
+    complex_classification,
+    texture_entropy,
 )
 
-def test_land_cover_classification():
-    input_data = np.random.rand(10, 10)
-    result = land_cover_classification(input_data)
-    assert result.shape == input_data.shape
-    assert result.dtype == np.int32
-    assert np.all(result == 0)
-
-def test_burn_severity_assessment():
-    pre_fire_nbr = np.random.rand(10, 10)
-    post_fire_nbr = np.random.rand(10, 10)
-    result = burn_severity_assessment(pre_fire_nbr, post_fire_nbr)
-    assert result.shape == pre_fire_nbr.shape
+def test_detect_breakpoints():
+    stack = np.random.rand(20, 10, 10)
+    dates = list(range(20))
+    threshold = 0.5
+    result = detect_breakpoints(stack, dates, threshold)
+    assert result.shape == (3, 10, 10)
     assert result.dtype == np.float64
-    assert np.all(result == 0)
 
-def test_water_body_extraction():
-    input_data = np.random.rand(10, 10)
-    result = water_body_extraction(input_data)
-    assert result.shape == input_data.shape
+def test_complex_classification():
+    shape = (10, 10)
+    blue = np.random.rand(*shape)
+    red = np.random.rand(*shape)
+    nir = np.random.rand(*shape)
+    swir = np.random.rand(*shape)
+    temp = np.random.rand(*shape) + 273 # Kelvin
+    result = complex_classification(blue, red, nir, swir, temp)
+    assert result.shape == shape
     assert result.dtype == np.uint8
-    assert np.all(result == 0)
+
+def test_texture_entropy():
+    input_data = np.random.rand(10, 10)
+    window_size = 3
+    result = texture_entropy(input_data, window_size)
+    assert result.shape == input_data.shape
+    assert result.dtype == np.float64

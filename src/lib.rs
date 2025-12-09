@@ -93,9 +93,9 @@ fn _core(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(morphology::binary_closing, m)?)?;
 
     // --- Workflows ---
-    m.add_function(wrap_pyfunction!(workflows::land_cover_classification, m)?)?;
-    m.add_function(wrap_pyfunction!(workflows::burn_severity_assessment, m)?)?;
-    m.add_function(wrap_pyfunction!(workflows::water_body_extraction, m)?)?;
+    m.add_function(wrap_pyfunction!(workflows::detect_breakpoints, m)?)?;
+    m.add_function(wrap_pyfunction!(workflows::complex_classification, m)?)?;
+    m.add_function(wrap_pyfunction!(workflows::texture_entropy, m)?)?;
 
     Ok(())
 }

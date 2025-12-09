@@ -47,9 +47,9 @@ from ._core import (
     binary_erosion as _binary_erosion,
     binary_opening as _binary_opening,
     binary_closing as _binary_closing,
-    land_cover_classification as _land_cover_classification,
-    burn_severity_assessment as _burn_severity_assessment,
-    water_body_extraction as _water_body_extraction,
+    detect_breakpoints as _detect_breakpoints,
+    complex_classification as _complex_classification,
+    texture_entropy as _texture_entropy,
 )
 import logging
 import structlog
@@ -127,31 +127,31 @@ __all__ = [
     "binary_erosion",
     "binary_opening",
     "binary_closing",
-    "land_cover_classification",
-    "burn_severity_assessment",
-    "water_body_extraction",
+    "detect_breakpoints",
+    "complex_classification",
+    "texture_entropy",
 ]
 
 
-def land_cover_classification(input_data):
+def detect_breakpoints(stack, dates, threshold):
     """
-    Placeholder for a land cover classification workflow.
+    Scaffold for a time-series breakpoint detection workflow (e.g., BFAST-like).
     """
-    return _land_cover_classification(input_data)
+    return _detect_breakpoints(stack, dates, threshold)
 
 
-def burn_severity_assessment(pre_fire_nbr, post_fire_nbr):
+def complex_classification(blue, red, nir, swir, temp):
     """
-    Placeholder for a burn severity assessment workflow.
+    Scaffold for a complex, multi-band, short-circuiting classification workflow.
     """
-    return _burn_severity_assessment(pre_fire_nbr, post_fire_nbr)
+    return _complex_classification(blue, red, nir, swir, temp)
 
 
-def water_body_extraction(input_data):
+def texture_entropy(input, window_size):
     """
-    Placeholder for a water body extraction workflow.
+    Scaffold for a non-linear spatial texture filter (e.g., entropy).
     """
-    return _water_body_extraction(input_data)
+    return _texture_entropy(input, window_size)
 
 
 def normalized_difference(a, b):
