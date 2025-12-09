@@ -485,10 +485,7 @@ pub fn mask_with_scl(
     let fill = fill_value.unwrap_or(f64::NAN);
 
     // Try 2D data with 2D SCL
-    if let (Ok(data_2d), Ok(scl_2d)) = (
-        coerce_2d(data),
-        coerce_2d(scl),
-    ) {
+    if let (Ok(data_2d), Ok(scl_2d)) = (coerce_2d(data), coerce_2d(scl)) {
         let data_arr = data_2d.as_array();
         let scl_arr = scl_2d.as_array();
 
@@ -514,10 +511,7 @@ pub fn mask_with_scl(
     }
 
     // Try 3D data with 3D SCL (time, y, x)
-    if let (Ok(data_3d), Ok(scl_3d)) = (
-        coerce_3d(data),
-        coerce_3d(scl),
-    ) {
+    if let (Ok(data_3d), Ok(scl_3d)) = (coerce_3d(data), coerce_3d(scl)) {
         let data_arr = data_3d.as_array();
         let scl_arr = scl_3d.as_array();
 
@@ -544,10 +538,7 @@ pub fn mask_with_scl(
 
     // Try 4D data (time, band, y, x) with 3D SCL (time, y, x)
     // SCL is broadcast across all bands
-    if let (Ok(data_4d), Ok(scl_3d)) = (
-        coerce_4d(data),
-        coerce_3d(scl),
-    ) {
+    if let (Ok(data_4d), Ok(scl_3d)) = (coerce_4d(data), coerce_3d(scl)) {
         let data_arr = data_4d.as_array();
         let scl_arr = scl_3d.as_array();
         let (t, b, h, w) = data_arr.dim();
