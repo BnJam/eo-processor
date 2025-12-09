@@ -47,6 +47,9 @@ from ._core import (
     binary_erosion as _binary_erosion,
     binary_opening as _binary_opening,
     binary_closing as _binary_closing,
+    land_cover_classification as _land_cover_classification,
+    burn_severity_assessment as _burn_severity_assessment,
+    water_body_extraction as _water_body_extraction,
 )
 import logging
 import structlog
@@ -124,7 +127,31 @@ __all__ = [
     "binary_erosion",
     "binary_opening",
     "binary_closing",
+    "land_cover_classification",
+    "burn_severity_assessment",
+    "water_body_extraction",
 ]
+
+
+def land_cover_classification(input_data):
+    """
+    Placeholder for a land cover classification workflow.
+    """
+    return _land_cover_classification(input_data)
+
+
+def burn_severity_assessment(pre_fire_nbr, post_fire_nbr):
+    """
+    Placeholder for a burn severity assessment workflow.
+    """
+    return _burn_severity_assessment(pre_fire_nbr, post_fire_nbr)
+
+
+def water_body_extraction(input_data):
+    """
+    Placeholder for a water body extraction workflow.
+    """
+    return _water_body_extraction(input_data)
 
 
 def normalized_difference(a, b):

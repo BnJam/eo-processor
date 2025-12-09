@@ -6,6 +6,7 @@ pub mod spatial;
 pub mod temporal;
 pub mod trends;
 pub mod zonal;
+pub mod workflows;
 
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
@@ -90,6 +91,11 @@ fn _core(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(morphology::binary_erosion, m)?)?;
     m.add_function(wrap_pyfunction!(morphology::binary_opening, m)?)?;
     m.add_function(wrap_pyfunction!(morphology::binary_closing, m)?)?;
+
+    // --- Workflows ---
+    m.add_function(wrap_pyfunction!(workflows::land_cover_classification, m)?)?;
+    m.add_function(wrap_pyfunction!(workflows::burn_severity_assessment, m)?)?;
+    m.add_function(wrap_pyfunction!(workflows::water_body_extraction, m)?)?;
 
     Ok(())
 }
