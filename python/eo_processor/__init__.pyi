@@ -14,6 +14,7 @@ Notes:
 """
 
 from typing import Literal, Optional, Sequence
+from typing_extensions import TypeAlias
 
 import numpy as np
 import structlog
@@ -27,7 +28,7 @@ from numpy.typing import NDArray
 #   - pixelwise_transform: 1D–4D
 #   - masking utilities: 1D–4D
 #   - distance functions: 2D (N,D)
-NumericArray = NDArray[np.generic]
+NumericArray: TypeAlias = NDArray[np.generic]
 
 __version__: Literal["0.6.0"]
 
@@ -130,5 +131,11 @@ def mask_with_scl(
     mask_codes: Optional[Sequence[float]] = ...,
     fill_value: Optional[float] = ...,
 ) -> NDArray[np.float64]: ...
+
+# Morphology functions
+def binary_dilation(input: NDArray[np.uint8], kernel_size: int = ...) -> NDArray[np.uint8]: ...
+def binary_erosion(input: NDArray[np.uint8], kernel_size: int = ...) -> NDArray[np.uint8]: ...
+def binary_opening(input: NDArray[np.uint8], kernel_size: int = ...) -> NDArray[np.uint8]: ...
+def binary_closing(input: NDArray[np.uint8], kernel_size: int = ...) -> NDArray[np.uint8]: ...
 
 # Raises ValueError if p < 1.0
