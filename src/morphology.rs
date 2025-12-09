@@ -18,66 +18,8 @@ pub fn binary_dilation(
     kernel_size: usize,
 ) -> PyResult<PyObject> {
     let input_arr = input.as_array();
-    let (rows, cols) = input_arr.dim();
-    let radius = (kernel_size / 2) as isize;
-
-    // Parallel iteration using Rayon if possible, but let's start with serial for simplicity/correctness first.
-    // Actually, let's use Rayon immediately as it's easy with ndarray parallel iterators if we use Zip,
-    // but random write is hard.
-    // We can use `par_map_axis` or just iterate rows in parallel.
-    // For now, serial implementation to ensure correctness of bounds logic.
-
-    // Optimization: If kernel is 3x3, unroll?
-    // General case:
-
-    // We iterate over every pixel.
-    // If input[x, y] is 1, it "hits" the kernel.
-    // Dilation: Output is 1 if ANY pixel in the kernel window around it is 1.
-    // Equivalent: If input[x, y] is 1, set the kernel window in output to 1.
-    // BUT that requires atomic writes for parallel.
-    // Better: For each output pixel, check if ANY input pixel in its window is 1.
-
-    // Let's do the "For each output pixel" approach (Gather).
-    // output[r, c] = max(input[r+dr, c+dc]) for dr, dc in kernel.
-
-    // We can parallelize over rows.
-    use rayon::prelude::*;
-
-    // We can't easily use slices with 2D logic without stride math.
-    // Let's stick to indexed iteration.
-
-    // Naive implementation with bounds checking
-    // To optimize, we can separate the "inner" part (no bounds check) from "border" part.
-    // But for now, let's just implement correct logic.
-
-    let mut out_vec = vec![0u8; rows * cols];
-
-    out_vec
-        .par_chunks_mut(cols)
-        .enumerate()
-        .for_each(|(r, row_slice)| {
-            for (c, out) in row_slice.iter_mut().enumerate().take(cols) {
-                let mut hit = false;
-                'kernel: for kr in -radius..=radius {
-                    for kc in -radius..=radius {
-                        let nr = r as isize + kr;
-                        let nc = c as isize + kc;
-
-                        if nr >= 0 && nr < rows as isize && nc >= 0 && nc < cols as isize {
-                            // Safe index
-                            if input_arr[[nr as usize, nc as usize]] > 0 {
-                                hit = true;
-                                break 'kernel;
-                            }
-                        }
-                    }
-                }
-                *out = if hit { 1 } else { 0 };
-            }
-        });
-
-    let out_arr = Array2::from_shape_vec((rows, cols), out_vec).unwrap();
-    Ok(out_arr.to_pyarray(py).into())
+    let dilated = dilation_impl(input_arr, kernel_size);
+    Ok(dilated.to_pyarray(py).into())
 }
 
 /// Perform binary erosion on a 2D boolean/int array.
@@ -89,45 +31,8 @@ pub fn binary_erosion(
     kernel_size: usize,
 ) -> PyResult<PyObject> {
     let input_arr = input.as_array();
-    let (rows, cols) = input_arr.dim();
-    let radius = (kernel_size / 2) as isize;
-
-    let mut out_vec = vec![0u8; rows * cols];
-
-    // Erosion: Output is 1 if ALL pixels in the kernel window are 1.
-    // If input[r,c] is 0, output is definitely 0 (assuming kernel includes center).
-    // Optimization: Only check neighbors if center is 1.
-
-    use rayon::prelude::*;
-    out_vec
-        .par_chunks_mut(cols)
-        .enumerate()
-        .for_each(|(r, row_slice)| {
-            for (c, out) in row_slice.iter_mut().enumerate().take(cols) {
-                // If center is 0, erosion is 0 (assuming structural element contains origin)
-                if input_arr[[r, c]] == 0 {
-                    *out = 0;
-                    continue;
-                }
-
-                let mut all_hit = true;
-                'kernel: for kr in -radius..=radius {
-                    for kc in -radius..=radius {
-                        let nr = r as isize + kr;
-                        let nc = c as isize + kc;
-
-                        if nr < 0 || nr >= rows as isize || nc < 0 || nc >= cols as isize || input_arr[[nr as usize, nc as usize]] == 0 {
-                            all_hit = false;
-                            break 'kernel;
-                        }
-                    }
-                }
-                *out = if all_hit { 1 } else { 0 };
-            }
-        });
-
-    let out_arr = Array2::from_shape_vec((rows, cols), out_vec).unwrap();
-    Ok(out_arr.to_pyarray(py).into())
+    let eroded = erosion_impl(input_arr, kernel_size);
+    Ok(eroded.to_pyarray(py).into())
 }
 
 /// Perform binary opening (erosion followed by dilation).
@@ -180,8 +85,12 @@ fn dilation_impl(input: ArrayView2<u8>, kernel_size: usize) -> Array2<u8> {
                     for kc in -radius..=radius {
                         let nr = r as isize + kr;
                         let nc = c as isize + kc;
-                        if nr >= 0 && nr < rows as isize && nc >= 0 && nc < cols as isize &&
-                            input[[nr as usize, nc as usize]] > 0 {
+                        if nr >= 0
+                            && nr < rows as isize
+                            && nc >= 0
+                            && nc < cols as isize
+                            && input[[nr as usize, nc as usize]] > 0
+                        {
                             hit = true;
                             break 'kernel;
                         }
@@ -214,7 +123,12 @@ fn erosion_impl(input: ArrayView2<u8>, kernel_size: usize) -> Array2<u8> {
                         let nr = r as isize + kr;
                         let nc = c as isize + kc;
 
-                        if nr < 0 || nr >= rows as isize || nc < 0 || nc >= cols as isize || input[[nr as usize, nc as usize]] == 0 {
+                        if nr < 0
+                            || nr >= rows as isize
+                            || nc < 0
+                            || nc >= cols as isize
+                            || input[[nr as usize, nc as usize]] == 0
+                        {
                             all_hit = false;
                             break 'kernel;
                         }
