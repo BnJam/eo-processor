@@ -1,4 +1,5 @@
-use ndarray::{s, ArrayViewD, Ix2, IxDyn, Zip};
+use crate::CoreError;
+use ndarray::{s, ArrayViewD, Axis, Ix2, IxDyn, Zip};
 use numpy::{IntoPyArray, PyArrayDyn, PyReadonlyArrayDyn};
 use pyo3::prelude::*;
 use rayon::prelude::*;
@@ -14,40 +15,56 @@ pub fn detect_breakpoints(
 ) -> PyResult<Py<PyArrayDyn<f64>>> {
     let stack_arr = stack.as_array();
 
-    // We assume input is (Time, Y, X) and we want (3, Y, X) output
-    // Output channels: [break_date, magnitude, confidence]
-    let mut out_shape = stack_arr.shape().to_vec();
-    if out_shape.len() != 3 {
-        // For scaffolding, we'll proceed, but a real implementation would error here
+    if stack_arr.ndim() != 3 {
+        return Err(CoreError::InvalidArgument(format!(
+            "Input stack must be 3-dimensional (Time, Y, X), but got {} dimensions",
+            stack_arr.ndim()
+        ))
+        .into());
     }
-    out_shape[0] = 3;
 
-    let mut out_array = ndarray::ArrayD::<f64>::zeros(IxDyn(&out_shape));
-
-    // A real implementation would iterate over each pixel's time series in parallel.
-    // This is complex to set up correctly with ndarray's zippers for a scaffold,
-    // so we will use a simple, non-parallel loop for this placeholder.
+    let time_len = stack_arr.shape()[0];
     let height = stack_arr.shape()[1];
     let width = stack_arr.shape()[2];
-    for y in 0..height {
-        for x in 0..width {
-            let pixel_ts = stack_arr.slice(s![.., y, x]);
-            let (bk_date, mag, conf) = run_bfast_lite_logic(&pixel_ts, &dates, threshold);
-            out_array[[0, y, x]] = bk_date;
-            out_array[[1, y, x]] = mag;
-            out_array[[2, y, x]] = conf;
-        }
-    }
+
+    // Output channels: [break_date, magnitude, confidence]
+    let mut out_array = ndarray::ArrayD::<f64>::zeros(IxDyn(&[3, height, width]));
+
+    // Flatten spatial dimensions for parallel processing
+    let num_pixels = height * width;
+    let stack_flat = stack_arr
+        .into_shape((time_len, num_pixels))
+        .map_err(|e| CoreError::ComputationError(e.to_string()))?;
+
+    let mut out_flat = out_array
+        .view_mut()
+        .into_shape((3, num_pixels))
+        .map_err(|e| CoreError::ComputationError(e.to_string()))?;
+
+    // Get mutable 1D views for each output channel
+    let mut out_slices = out_flat.axis_iter_mut(Axis(0));
+    let mut break_dates = out_slices.next().unwrap();
+    let mut magnitudes = out_slices.next().unwrap();
+    let mut confidences = out_slices.next().unwrap();
+
+    // Iterate over each pixel's time series in parallel
+    Zip::from(&mut break_dates)
+        .and(&mut magnitudes)
+        .and(&mut confidences)
+        .and(stack_flat.axis_iter(Axis(1)))
+        .par_for_each(|break_date, magnitude, confidence, pixel_ts| {
+            let (bk_date, mag, conf) =
+                run_bfast_lite_logic(pixel_ts.as_slice().unwrap(), &dates, threshold);
+            *break_date = bk_date;
+            *magnitude = mag;
+            *confidence = conf;
+        });
 
     Ok(out_array.into_pyarray(py).to_owned())
 }
 
 // Pure Rust: The compiler optimizes this loop heavily.
-fn run_bfast_lite_logic(
-    pixel_ts: &ndarray::ArrayView1<f64>,
-    dates: &[i64],
-    thresh: f64,
-) -> (f64, f64, f64) {
+fn run_bfast_lite_logic(pixel_ts: &[f64], dates: &[i64], thresh: f64) -> (f64, f64, f64) {
     if pixel_ts.len() <= 10 {
         return (-1.0, 0.0, 0.0);
     }
@@ -55,26 +72,49 @@ fn run_bfast_lite_logic(
     let mut max_diff = 0.0;
     let mut break_idx = 0;
 
+    // Iterate through possible breakpoints, ensuring enough data on each side
     for i in 5..(pixel_ts.len() - 5) {
-        let (slope1, _) = simple_linreg(&pixel_ts.slice(s![..i]));
-        let (slope2, _) = simple_linreg(&pixel_ts.slice(s![i..]));
+        let (slope1, _) = calculate_linear_regression(&pixel_ts[..i]);
+        let (slope2, _) = calculate_linear_regression(&pixel_ts[i..]);
 
-        if (slope1 - slope2).abs() > max_diff {
-            max_diff = (slope1 - slope2).abs();
+        let diff = (slope1 - slope2).abs();
+        if diff > max_diff {
+            max_diff = diff;
             break_idx = i;
         }
     }
 
     if max_diff > thresh {
-        (dates.get(break_idx).map_or(-1.0, |d| *d as f64), max_diff, 1.0)
+        (
+            dates.get(break_idx).map_or(-1.0, |d| *d as f64),
+            max_diff,
+            1.0, // Confidence is simplified to 1.0 if a break is found
+        )
     } else {
         (-1.0, 0.0, 0.0)
     }
 }
 
-// Stub for simple linear regression
-fn simple_linreg(_y: &ndarray::ArrayView1<f64>) -> (f64, f64) {
-    (0.0, 0.0) // Placeholder
+// Local helper for linear regression, adapted from src/trends.rs
+fn calculate_linear_regression(y: &[f64]) -> (f64, f64) {
+    if y.is_empty() {
+        return (0.0, 0.0);
+    }
+    let n = y.len() as f64;
+    let x_sum: f64 = (0..y.len()).map(|i| i as f64).sum();
+    let y_sum: f64 = y.iter().sum();
+    let xy_sum: f64 = y.iter().enumerate().map(|(i, &yi)| i as f64 * yi).sum();
+    let x_sq_sum: f64 = (0..y.len()).map(|i| (i as f64).powi(2)).sum();
+
+    let denominator = n * x_sq_sum - x_sum.powi(2);
+    if denominator.abs() < 1e-10 {
+        return (0.0, y.iter().sum::<f64>() / n); // Vertical line, return mean as intercept
+    }
+
+    let slope = (n * xy_sum - x_sum * y_sum) / denominator;
+    let intercept = (y_sum - slope * x_sum) / n;
+
+    (slope, intercept)
 }
 
 // --- 2. Short-Circuit Classifier Example ---
@@ -151,7 +191,8 @@ pub fn texture_entropy(
         let x_len = arr_2d.shape()[1];
         let r = window_size / 2;
 
-        out_2d.indexed_iter_mut()
+        out_2d
+            .indexed_iter_mut()
             .par_bridge()
             .for_each(|((y, x), val)| {
                 if y >= r && y < y_len - r && x >= r && x < x_len - r {
