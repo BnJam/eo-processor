@@ -9,15 +9,15 @@ use rayon::prelude::*;
 
 #[pyfunction]
 #[pyo3(signature = (arr, skip_na=true))]
-pub fn temporal_mean(py: Python<'_>, arr: &PyAny, skip_na: bool) -> PyResult<PyObject> {
+pub fn composite_mean(py: Python<'_>, arr: &PyAny, skip_na: bool) -> PyResult<PyObject> {
     if let Ok(arr1d) = arr.downcast::<numpy::PyArray1<f64>>() {
-        Ok(temporal_mean_1d(arr1d.readonly(), skip_na).into_py(py))
+        Ok(composite_mean_1d(arr1d.readonly(), skip_na).into_py(py))
     } else if let Ok(arr2d) = arr.downcast::<numpy::PyArray2<f64>>() {
-        Ok(temporal_mean_2d(py, arr2d.readonly(), skip_na).into_py(py))
+        Ok(composite_mean_2d(py, arr2d.readonly(), skip_na).into_py(py))
     } else if let Ok(arr3d) = arr.downcast::<numpy::PyArray3<f64>>() {
-        Ok(temporal_mean_3d(py, arr3d.readonly(), skip_na).into_py(py))
+        Ok(composite_mean_3d(py, arr3d.readonly(), skip_na).into_py(py))
     } else if let Ok(arr4d) = arr.downcast::<numpy::PyArray4<f64>>() {
-        Ok(temporal_mean_4d(py, arr4d.readonly(), skip_na).into_py(py))
+        Ok(composite_mean_4d(py, arr4d.readonly(), skip_na).into_py(py))
     } else {
         Err(
             CoreError::InvalidArgument("Expected a 1D, 2D, 3D, or 4D NumPy array.".to_string())
@@ -28,15 +28,15 @@ pub fn temporal_mean(py: Python<'_>, arr: &PyAny, skip_na: bool) -> PyResult<PyO
 
 #[pyfunction]
 #[pyo3(signature = (arr, skip_na=true))]
-pub fn temporal_std(py: Python<'_>, arr: &PyAny, skip_na: bool) -> PyResult<PyObject> {
+pub fn composite_std(py: Python<'_>, arr: &PyAny, skip_na: bool) -> PyResult<PyObject> {
     if let Ok(arr1d) = arr.downcast::<numpy::PyArray1<f64>>() {
-        Ok(temporal_std_1d(arr1d.readonly(), skip_na).into_py(py))
+        Ok(composite_std_1d(arr1d.readonly(), skip_na).into_py(py))
     } else if let Ok(arr2d) = arr.downcast::<numpy::PyArray2<f64>>() {
-        Ok(temporal_std_2d(py, arr2d.readonly(), skip_na).into_py(py))
+        Ok(composite_std_2d(py, arr2d.readonly(), skip_na).into_py(py))
     } else if let Ok(arr3d) = arr.downcast::<numpy::PyArray3<f64>>() {
-        Ok(temporal_std_3d(py, arr3d.readonly(), skip_na).into_py(py))
+        Ok(composite_std_3d(py, arr3d.readonly(), skip_na).into_py(py))
     } else if let Ok(arr4d) = arr.downcast::<numpy::PyArray4<f64>>() {
-        Ok(temporal_std_4d(py, arr4d.readonly(), skip_na).into_py(py))
+        Ok(composite_std_4d(py, arr4d.readonly(), skip_na).into_py(py))
     } else {
         Err(
             CoreError::InvalidArgument("Expected a 1D, 2D, 3D, or 4D NumPy array.".to_string())
@@ -45,7 +45,7 @@ pub fn temporal_std(py: Python<'_>, arr: &PyAny, skip_na: bool) -> PyResult<PyOb
     }
 }
 
-fn temporal_mean_1d(arr: PyReadonlyArray1<f64>, skip_na: bool) -> f64 {
+fn composite_mean_1d(arr: PyReadonlyArray1<f64>, skip_na: bool) -> f64 {
     let array = arr.as_array();
     if skip_na {
         let (sum, count) = array.iter().fold((0.0, 0), |(acc_s, acc_c), &v| {
@@ -67,7 +67,7 @@ fn temporal_mean_1d(arr: PyReadonlyArray1<f64>, skip_na: bool) -> f64 {
     }
 }
 
-fn temporal_mean_2d<'py>(
+fn composite_mean_2d<'py>(
     py: Python<'py>,
     arr: PyReadonlyArray2<f64>,
     skip_na: bool,
@@ -109,7 +109,7 @@ fn temporal_mean_2d<'py>(
     result.into_pyarray(py)
 }
 
-fn temporal_mean_3d<'py>(
+fn composite_mean_3d<'py>(
     py: Python<'py>,
     arr: PyReadonlyArray3<f64>,
     skip_na: bool,
@@ -259,7 +259,7 @@ fn temporal_sum_4d<'py>(
     result.into_pyarray(py)
 }
 
-fn temporal_mean_4d<'py>(
+fn composite_mean_4d<'py>(
     py: Python<'py>,
     arr: PyReadonlyArray4<f64>,
     skip_na: bool,
@@ -302,7 +302,7 @@ fn temporal_mean_4d<'py>(
     result.into_pyarray(py)
 }
 
-fn temporal_std_1d(arr: PyReadonlyArray1<f64>, skip_na: bool) -> f64 {
+fn composite_std_1d(arr: PyReadonlyArray1<f64>, skip_na: bool) -> f64 {
     let array = arr.as_array();
     if skip_na {
         let (sum, sum_sq, count) =
@@ -334,7 +334,7 @@ fn temporal_std_1d(arr: PyReadonlyArray1<f64>, skip_na: bool) -> f64 {
     }
 }
 
-fn temporal_std_2d<'py>(
+fn composite_std_2d<'py>(
     py: Python<'py>,
     arr: PyReadonlyArray2<f64>,
     skip_na: bool,
@@ -407,7 +407,7 @@ fn temporal_std_2d<'py>(
     result.into_pyarray(py)
 }
 
-fn temporal_std_3d<'py>(
+fn composite_std_3d<'py>(
     py: Python<'py>,
     arr: PyReadonlyArray3<f64>,
     skip_na: bool,
@@ -480,7 +480,7 @@ fn temporal_std_3d<'py>(
     result.into_pyarray(py)
 }
 
-fn temporal_std_4d<'py>(
+fn composite_std_4d<'py>(
     py: Python<'py>,
     arr: PyReadonlyArray4<f64>,
     skip_na: bool,
