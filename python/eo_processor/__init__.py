@@ -140,11 +140,11 @@ def detect_breakpoints(stack, dates, threshold):
     return _detect_breakpoints(stack, dates, threshold)
 
 
-def complex_classification(blue, red, nir, swir, temp):
+def complex_classification(blue, green, red, nir, swir1, swir2, temp):
     """
     Scaffold for a complex, multi-band, short-circuiting classification workflow.
     """
-    return _complex_classification(blue, red, nir, swir, temp)
+    return _complex_classification(blue, green, red, nir, swir1, swir2, temp)
 
 
 def texture_entropy(input, window_size):

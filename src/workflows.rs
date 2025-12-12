@@ -123,54 +123,97 @@ fn calculate_linear_regression(y: &[f64]) -> (f64, f64) {
 pub fn complex_classification(
     py: Python,
     blue: PyReadonlyArrayDyn<f64>,
+    green: PyReadonlyArrayDyn<f64>,
     red: PyReadonlyArrayDyn<f64>,
     nir: PyReadonlyArrayDyn<f64>,
-    swir: PyReadonlyArrayDyn<f64>,
+    swir1: PyReadonlyArrayDyn<f64>,
+    swir2: PyReadonlyArrayDyn<f64>,
     temp: PyReadonlyArrayDyn<f64>,
 ) -> PyResult<Py<PyArrayDyn<u8>>> {
     let blue_arr = blue.as_array();
+    let green_arr = green.as_array();
     let red_arr = red.as_array();
     let nir_arr = nir.as_array();
-    let swir_arr = swir.as_array();
+    let swir1_arr = swir1.as_array();
+    let swir2_arr = swir2.as_array();
     let temp_arr = temp.as_array();
 
     let mut out = ndarray::ArrayD::<u8>::zeros(blue_arr.raw_dim());
 
-    Zip::from(&mut out)
-        .and(&blue_arr)
-        .and(&red_arr)
-        .and(&nir_arr)
-        .and(&swir_arr)
-        .and(&temp_arr)
-        .par_for_each(|res, &b, &r, &n, &s, &t| {
-            *res = classify_pixel(b, r, n, s, t);
+    out.indexed_iter_mut()
+        .par_bridge()
+        .for_each(|(idx, res)| {
+            let b = blue_arr[&idx];
+            let g = green_arr[&idx];
+            let r = red_arr[&idx];
+            let n = nir_arr[&idx];
+            let s1 = swir1_arr[&idx];
+            let s2 = swir2_arr[&idx];
+            let t = temp_arr[&idx];
+            *res = classify_pixel(b, g, r, n, s1, s2, t);
         });
 
     Ok(out.into_pyarray(py).to_owned())
 }
 
 // This function is where you gain 10x-50x speedups over NumPy
-fn classify_pixel(b: f64, r: f64, n: f64, s: f64, t: f64) -> u8 {
+fn classify_pixel(b: f64, g: f64, r: f64, n: f64, s1: f64, s2: f64, t: f64) -> u8 {
     const EPSILON: f64 = 1e-10;
 
-    // 1. Basic Cloud Check
-    if t < 280.0 && (b + r) > 0.4 {
-        return 1; // Cloud
+    // --- Class Definitions ---
+    const UNCLASSIFIED: u8 = 0;
+    const CLOUD_SHADOW: u8 = 1;
+    const CLOUD: u8 = 2;
+    const SNOW: u8 = 3;
+    const WATER: u8 = 4;
+    const VEGETATION: u8 = 5;
+    const BARE_SOIL: u8 = 6;
+    const URBAN: u8 = 7;
+
+    // --- Pre-computation of Indices ---
+    let ndvi = (n - r) / (n + r + EPSILON);
+    let ndwi = (g - n) / (g + n + EPSILON);
+    let ndsi = (g - s1) / (g + s1 + EPSILON);
+    let brightness = (b + g + r + n + s1 + s2) / 6.0;
+
+    // --- Rule-Based Classification Logic ---
+
+    // 1. Cloud & Cloud Shadow Detection (using thermal and brightness)
+    if t < 285.0 || brightness > 0.4 {
+        if t < 280.0 && brightness < 0.1 {
+            return CLOUD_SHADOW;
+        }
+        if b > 0.2 && g > 0.2 && r > 0.2 {
+            return CLOUD;
+        }
     }
 
-    // 2. Snow Check
-    let ndsi = (r - s) / (r + s + EPSILON);
-    if ndsi > 0.4 {
-        return 2; // Snow
+    // 2. Snow/Ice Detection
+    if ndsi > 0.4 && r > 0.15 && g > 0.2 {
+        return SNOW;
     }
 
-    // 3. Water Check
-    let ndwi = (r - n) / (r + n + EPSILON);
-    if ndwi > 0.0 {
-        return 3; // Water
+    // 3. Water Body Detection (multiple checks)
+    if ndwi > 0.15 || (ndwi > 0.05 && n < 0.15) || (b > g && b > r) {
+        return WATER;
     }
 
-    0 // Land
+    // 4. Vegetation Detection
+    if ndvi > 0.2 {
+        return VEGETATION;
+    }
+
+    // 5. Bare Soil vs. Urban (using SWIR bands)
+    // Bare soil reflects more in SWIR2 than SWIR1
+    if s2 > s1 && (s1 - n) / (s1 + n + EPSILON) > 0.1 {
+        return BARE_SOIL;
+    }
+    // Urban areas often have lower NDVI and similar SWIR reflectance
+    if ndvi < 0.1 && (s1 - s2).abs() < 0.1 {
+        return URBAN;
+    }
+
+    UNCLASSIFIED
 }
 
 // --- 3. Non-Linear Spatial Filter Example ---
