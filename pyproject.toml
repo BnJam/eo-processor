@@ -38,12 +38,14 @@ cli = [
 dev = [
     "pytest>=7.0",
     "tox>=4.25.0",
+    "scipy>=1.10.0",
 ]
 dask = [
     "dask[array]>=2023.0.0",
     "xarray>=2023.0.0",
     # PyArrow dropped support for Python 3.8 in version 18.0.0
-    "pyarrow>=17.0.0"
+    "pyarrow>=17.0.0",
+    "scipy>=1.10.0",
 ]
 docs = [
     "sphinx>=7.0.0,<8.0.0",

@@ -11,6 +11,8 @@ in the Rust layer for consistent and stable computation.
 
 from ._core import (
     chebyshev_distance as _chebyshev_distance,
+    composite_mean as _composite_mean,
+    composite_std as _composite_std,
     delta_nbr as _delta_nbr,
     delta_ndvi as _delta_ndvi,
     enhanced_vegetation_index as _enhanced_vegetation_index,
@@ -37,8 +39,6 @@ from ._core import (
     replace_nans as _replace_nans,
     savi as _savi,
     linear_regression as _linear_regression,
-    temporal_mean as _temporal_mean,
-    temporal_std as _temporal_std,
     temporal_sum as _temporal_sum,
     temporal_composite as _temporal_composite,
     zonal_stats as _zonal_stats,
@@ -47,7 +47,10 @@ from ._core import (
     binary_erosion as _binary_erosion,
     binary_opening as _binary_opening,
     binary_closing as _binary_closing,
+    detect_breakpoints as _detect_breakpoints,
+    complex_classification as _complex_classification,
 )
+from ._core import texture_entropy as _texture_entropy
 import logging
 import structlog
 import numpy as np
@@ -124,7 +127,31 @@ __all__ = [
     "binary_erosion",
     "binary_opening",
     "binary_closing",
+    "detect_breakpoints",
+    "complex_classification",
+    "texture_entropy",
 ]
+
+
+def detect_breakpoints(stack, dates, threshold):
+    """
+    Scaffold for a time-series breakpoint detection workflow (e.g., BFAST-like).
+    """
+    return _detect_breakpoints(stack, dates, threshold)
+
+
+def complex_classification(blue, green, red, nir, swir1, swir2, temp):
+    """
+    Scaffold for a complex, multi-band, short-circuiting classification workflow.
+    """
+    return _complex_classification(blue, green, red, nir, swir1, swir2, temp)
+
+
+def texture_entropy(input, window_size):
+    """
+    Compute the entropy of a 2D array over a moving window.
+    """
+    return _texture_entropy(input, window_size)
 
 
 def normalized_difference(a, b):
@@ -434,8 +461,7 @@ def composite(arr, method="median", **kwargs):
     """
     Composite convenience wrapper over temporal aggregation functions.
 
-    Currently only supports method="median". The composite is computed along the
-    leading time axis for arrays with shape:
+    The composite is computed along the leading time axis for arrays with shape:
       - 1D: (time,)
       - 2D: (time, bands|features)
       - 3D: (time, y, x)
@@ -446,11 +472,10 @@ def composite(arr, method="median", **kwargs):
     arr : numpy.ndarray
         Input array (1D–4D). Any numeric dtype accepted; coerced to float64 internally.
     method : str, optional
-        Name of compositing method. Currently only "median" is implemented.
-        Providing any other value raises ValueError.
+        Name of compositing method, one of {"median", "mean", "std"}.
     **kwargs
-        Passed through to the underlying method. For "median" this includes
-        skip_na (bool) to control NaN handling (default True).
+        Passed through to the underlying method. This includes `skip_na` (bool)
+        to control NaN handling (default True).
 
     Returns
     -------
@@ -461,13 +486,6 @@ def composite(arr, method="median", **kwargs):
           - 3D input -> (y, x)
           - 4D input -> (band, y, x)
 
-    Notes
-    -----
-    This wrapper centralizes dispatch so future methods (e.g. "mean", "std",
-    "percentile") can be added without changing call sites. When new methods
-    are introduced: update README, type stubs, Sphinx autosummary entries,
-    and bump the minor version.
-
     Raises
     ------
     ValueError
@@ -475,6 +493,10 @@ def composite(arr, method="median", **kwargs):
     """
     if method == "median":
         return median(arr, **kwargs)
+    elif method == "mean":
+        return _composite_mean(arr, **kwargs)
+    elif method == "std":
+        return _composite_std(arr, **kwargs)
     else:
         raise ValueError(f"Unknown composite method: {method}")
 
@@ -497,7 +519,7 @@ def temporal_mean(arr, skip_na=True):
     numpy.ndarray
         Mean with time axis removed; float64 dtype. Scalar for 1D input.
     """
-    return _temporal_mean(arr, skip_na=skip_na)
+    return composite(arr, method="mean", skip_na=skip_na)
 
 
 def temporal_std(arr, skip_na=True):
@@ -519,7 +541,7 @@ def temporal_std(arr, skip_na=True):
     numpy.ndarray
         Standard deviation with time axis removed; float64 dtype. Scalar for 1D input.
     """
-    return _temporal_std(arr, skip_na=skip_na)
+    return composite(arr, method="std", skip_na=skip_na)
 
 
 def euclidean_distance(points_a, points_b):

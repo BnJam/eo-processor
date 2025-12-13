@@ -5,7 +5,9 @@ pub mod processes;
 pub mod spatial;
 pub mod temporal;
 pub mod trends;
+pub mod workflows;
 pub mod zonal;
+pub mod texture;
 
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
@@ -57,8 +59,8 @@ fn _core(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(spatial::median, m)?)?;
 
     // --- Temporal Functions ---
-    m.add_function(wrap_pyfunction!(temporal::temporal_mean, m)?)?;
-    m.add_function(wrap_pyfunction!(temporal::temporal_std, m)?)?;
+    m.add_function(wrap_pyfunction!(temporal::composite_mean, m)?)?;
+    m.add_function(wrap_pyfunction!(temporal::composite_std, m)?)?;
     m.add_function(wrap_pyfunction!(temporal::temporal_sum, m)?)?;
     // --- Masking Functions ---
     m.add_function(wrap_pyfunction!(masking::mask_vals, m)?)?;
@@ -90,6 +92,13 @@ fn _core(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(morphology::binary_erosion, m)?)?;
     m.add_function(wrap_pyfunction!(morphology::binary_opening, m)?)?;
     m.add_function(wrap_pyfunction!(morphology::binary_closing, m)?)?;
+
+    // --- Workflows ---
+    m.add_function(wrap_pyfunction!(workflows::detect_breakpoints, m)?)?;
+    m.add_function(wrap_pyfunction!(workflows::complex_classification, m)?)?;
+
+    // --- Texture ---
+    m.add_function(wrap_pyfunction!(texture::texture_entropy, m)?)?;
 
     Ok(())
 }
