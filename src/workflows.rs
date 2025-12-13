@@ -120,6 +120,7 @@ fn calculate_linear_regression(y: &[f64]) -> (f64, f64) {
 // --- 2. Short-Circuit Classifier Example ---
 
 #[pyfunction]
+#[allow(clippy::too_many_arguments)]
 pub fn complex_classification(
     py: Python,
     blue: PyReadonlyArrayDyn<f64>,

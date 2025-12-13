@@ -43,12 +43,14 @@ def test_complex_classification():
     """
     shape = (10, 10)
     blue = np.random.rand(*shape)
+    green = np.random.rand(*shape)
     red = np.random.rand(*shape)
     nir = np.random.rand(*shape)
-    swir = np.random.rand(*shape)
+    swir1 = np.random.rand(*shape)
+    swir2 = np.random.rand(*shape)
     temp = np.random.rand(*shape) * 300
 
-    result = complex_classification(blue, red, nir, swir, temp)
+    result = complex_classification(blue, green, red, nir, swir1, swir2, temp)
     assert result.shape == shape
     assert result.dtype == np.uint8
 
