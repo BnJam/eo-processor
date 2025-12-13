@@ -49,6 +49,7 @@ from ._core import (
     binary_closing as _binary_closing,
     detect_breakpoints as _detect_breakpoints,
     complex_classification as _complex_classification,
+    random_forest_predict as _random_forest_predict,
 )
 from ._core import texture_entropy as _texture_entropy
 import logging
@@ -130,7 +131,15 @@ __all__ = [
     "detect_breakpoints",
     "complex_classification",
     "texture_entropy",
+    "random_forest_predict",
 ]
+
+
+def random_forest_predict(model_json, features):
+    """
+    Predict using a random forest model.
+    """
+    return _random_forest_predict(model_json, features)
 
 
 def detect_breakpoints(stack, dates, threshold):
