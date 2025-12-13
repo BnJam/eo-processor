@@ -1,5 +1,5 @@
 use crate::CoreError;
-use ndarray::{s, ArrayViewD, Axis, Ix2, IxDyn, Zip};
+use ndarray::{Axis, IxDyn, Zip};
 use numpy::{IntoPyArray, PyArrayDyn, PyReadonlyArrayDyn};
 use pyo3::prelude::*;
 use rayon::prelude::*;
@@ -217,40 +217,3 @@ fn classify_pixel(b: f64, g: f64, r: f64, n: f64, s1: f64, s2: f64, t: f64) -> u
     UNCLASSIFIED
 }
 
-// --- 3. Non-Linear Spatial Filter Example ---
-
-#[pyfunction]
-pub fn texture_entropy(
-    py: Python,
-    input: PyReadonlyArrayDyn<f64>,
-    window_size: usize,
-) -> PyResult<Py<PyArrayDyn<f64>>> {
-    let arr = input.as_array();
-    let mut out = ndarray::ArrayD::<f64>::zeros(arr.raw_dim());
-
-    if arr.ndim() == 2 {
-        let arr_2d = arr.into_dimensionality::<Ix2>().unwrap();
-        let mut out_2d = out.view_mut().into_dimensionality::<Ix2>().unwrap();
-        let y_len = arr_2d.shape()[0];
-        let x_len = arr_2d.shape()[1];
-        let r = window_size / 2;
-
-        out_2d
-            .indexed_iter_mut()
-            .par_bridge()
-            .for_each(|((y, x), val)| {
-                if y >= r && y < y_len - r && x >= r && x < x_len - r {
-                    let window = arr_2d.slice(s![y - r..=y + r, x - r..=x + r]);
-                    *val = compute_entropy(&window.into_dyn());
-                }
-            });
-    }
-
-    Ok(out.into_pyarray(py).to_owned())
-}
-
-// Stub for entropy calculation
-fn compute_entropy(_window: &ArrayViewD<f64>) -> f64 {
-    // Bin values into histogram and calculate -sum(p * log(p))
-    0.0 // Placeholder
-}

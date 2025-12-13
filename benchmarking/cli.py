@@ -104,6 +104,7 @@ try:
         savi,
         temporal_mean,
         temporal_std,
+        texture_entropy,
     )
     from eo_processor._core import trend_analysis
     from eo_processor import zonal_stats
@@ -146,7 +147,7 @@ def parse_args(argv: Sequence[str]) -> argparse.Namespace:
                         help="Time a NumPy baseline where feasible.")
     parser.add_argument("--functions", nargs="+",
                         help="Explicit list of functions to benchmark (overrides --group).")
-    parser.add_argument("--group", choices=["spectral", "temporal", "distances", "processes", "zonal", "morphology", "all"],
+    parser.add_argument("--group", choices=["spectral", "temporal", "distances", "processes", "zonal", "morphology", "texture", "all"],
                         default="spectral", help="Predefined function group.")
     parser.add_argument("--zones-count", type=int, default=100, help="Number of unique zones for zonal stats.")
     parser.add_argument("--height", type=int, default=2048)
@@ -154,6 +155,7 @@ def parse_args(argv: Sequence[str]) -> argparse.Namespace:
     parser.add_argument("--time", type=int, default=12)
     parser.add_argument("--points-a", type=int, default=2000)
     parser.add_argument("--points-b", type=int, default=2000)
+    parser.add_argument("--texture-window", type=int, default=3, help="Window size for texture entropy.")
     parser.add_argument("--point-dim", type=int, default=4)
     parser.add_argument("--minkowski-p", type=float, default=3.0)
     parser.add_argument("--ma-window", type=int, default=5)
@@ -204,7 +206,7 @@ def time_call(fn: Callable[[], Any]) -> float:
     return time.perf_counter() - t0
 
 
-def compute_elements(func_name: str, shape_info: dict[str, int]) -> Optional[int]:
+def compute_elements(func_name: str, shape_info: dict[str, int], args) -> Optional[int]:
     """
     Estimate number of scalar elements processed for throughput metrics.
     For distance functions this counts pairwise component operations (N*M*D).
@@ -231,6 +233,9 @@ def compute_elements(func_name: str, shape_info: dict[str, int]) -> Optional[int
                      "pixelwise_transform"}:
         t, h, w = shape_info["time"], shape_info["height"], shape_info["width"]
         return t * h * w
+    if func_name == "texture_entropy":
+        h, w = shape_info["height"], shape_info["width"]
+        return h * w
     if func_name == "trend_analysis":
         # trend_analysis operates on 1D list of length T
         return shape_info["time"]
@@ -286,7 +291,7 @@ def run_single_benchmark(
     loops: int,
     warmups: int,
     shape_info: dict[str, int],
-    minkowski_p: float,
+    args,
     seed: int,
     compare_numpy: bool = False,
     distance_baseline: str = "broadcast",
@@ -404,7 +409,7 @@ def run_single_benchmark(
         elif func_name == "chebyshev_distance":
             call = lambda: chebyshev_distance(pts_a, pts_b)
         else:
-            call = lambda: minkowski_distance(pts_a, pts_b, minkowski_p)
+            call = lambda: minkowski_distance(pts_a, pts_b, args.minkowski_p)
         shape_desc = f"N={shape_info['points_a']}, M={shape_info['points_b']}, D={shape_info['point_dim']}"
     elif func_name == "zonal_stats":
         # Generate random values and random zones
@@ -502,6 +507,29 @@ def run_single_benchmark(
                     return out_e
 
             baseline_fn = numpy_morph
+    elif func_name == "texture_entropy":
+        # Generate random values
+        values = np.random.uniform(0, 255, size=(shape_info["height"], shape_info["width"])).astype(np.float64)
+        window_size = args.texture_window
+        call = lambda: texture_entropy(values, window_size)
+        shape_desc = f"{shape_info['height']}x{shape_info['width']} (Window={window_size})"
+
+        if compare_numpy:
+            supports_baseline = True
+            baseline_kind = "scipy_convolve"
+            # Naive NumPy baseline using scipy.ndimage.generic_filter for entropy
+            try:
+                from scipy.ndimage import generic_filter
+
+                def numpy_entropy(window):
+                    _, counts = np.unique(window, return_counts=True)
+                    probabilities = counts / len(window)
+                    return -np.sum(probabilities * np.log2(probabilities))
+
+                baseline_fn = lambda: generic_filter(values, numpy_entropy, size=window_size)
+            except ImportError:
+                # Fallback if scipy is not installed
+                baseline_fn = None
     else:  # pragma: no cover
         raise ValueError(f"Unknown function: {func_name}")
 
@@ -677,13 +705,13 @@ def run_single_benchmark(
             supports_baseline = True
             baseline_kind = distance_baseline
             broadcast_minkowski = lambda: (
-                np.abs(pts_a[:, None, :] - pts_b[None, :, :]) ** minkowski_p
-            ).sum(axis=2) ** (1.0 / minkowski_p)
+                np.abs(pts_a[:, None, :] - pts_b[None, :, :]) ** args.minkowski_p
+            ).sum(axis=2) ** (1.0 / args.minkowski_p)
             def streaming_minkowski():
                 out = np.empty((pts_a.shape[0], pts_b.shape[0]), dtype=np.float64)
                 for i in range(pts_a.shape[0]):
-                    diff = np.abs(pts_a[i] - pts_b) ** minkowski_p
-                    out[i] = np.sum(diff, axis=1) ** (1.0 / minkowski_p)
+                    diff = np.abs(pts_a[i] - pts_b) ** args.minkowski_p
+                    out[i] = np.sum(diff, axis=1) ** (1.0 / args.minkowski_p)
                 return out
             baseline_fn = broadcast_minkowski if distance_baseline == "broadcast" else streaming_minkowski
 
@@ -703,7 +731,7 @@ def run_single_benchmark(
     min_s = min(timings)
     max_s = max(timings)
 
-    elements = compute_elements(func_name, shape_info)
+    elements = compute_elements(func_name, shape_info, args)
     throughput = elements / mean_s if elements is not None and mean_s > 0 else None
 
     mem_mb = current_memory_mb()
@@ -889,6 +917,7 @@ def resolve_functions(group: str, explicit: Optional[List[str]]) -> List[str]:
             "binary_erosion",
             "binary_opening",
             "binary_closing",
+            "texture_entropy",
         ]
     if group == "morphology":
         return [
@@ -897,6 +926,8 @@ def resolve_functions(group: str, explicit: Optional[List[str]]) -> List[str]:
             "binary_opening",
             "binary_closing",
         ]
+    if group == "texture":
+        return ["texture_entropy"]
     raise ValueError(f"Unknown group: {group}")
 
 
@@ -981,7 +1012,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                         loops=args.loops,
                         warmups=args.warmups,
                         shape_info=shp,
-                        minkowski_p=args.minkowski_p,
+                        args=args,
                         seed=args.seed,
                         compare_numpy=args.compare_numpy,
                         distance_baseline=mode,
@@ -994,7 +1025,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                     loops=args.loops,
                     warmups=args.warmups,
                     shape_info=shp,
-                    minkowski_p=args.minkowski_p,
+                    args=args,
                     seed=args.seed,
                     compare_numpy=args.compare_numpy,
                     distance_baseline=args.distance_baseline,
