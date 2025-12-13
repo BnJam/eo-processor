@@ -7,6 +7,7 @@ pub mod temporal;
 pub mod trends;
 pub mod workflows;
 pub mod zonal;
+pub mod texture;
 
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
@@ -95,7 +96,9 @@ fn _core(_py: Python, m: &PyModule) -> PyResult<()> {
     // --- Workflows ---
     m.add_function(wrap_pyfunction!(workflows::detect_breakpoints, m)?)?;
     m.add_function(wrap_pyfunction!(workflows::complex_classification, m)?)?;
-    m.add_function(wrap_pyfunction!(workflows::texture_entropy, m)?)?;
+
+    // --- Texture ---
+    m.add_function(wrap_pyfunction!(texture::texture_entropy, m)?)?;
 
     Ok(())
 }

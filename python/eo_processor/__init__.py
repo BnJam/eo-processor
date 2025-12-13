@@ -49,8 +49,8 @@ from ._core import (
     binary_closing as _binary_closing,
     detect_breakpoints as _detect_breakpoints,
     complex_classification as _complex_classification,
-    texture_entropy as _texture_entropy,
 )
+from ._core import texture_entropy as _texture_entropy
 import logging
 import structlog
 import numpy as np
@@ -149,7 +149,7 @@ def complex_classification(blue, green, red, nir, swir1, swir2, temp):
 
 def texture_entropy(input, window_size):
     """
-    Scaffold for a non-linear spatial texture filter (e.g., entropy).
+    Compute the entropy of a 2D array over a moving window.
     """
     return _texture_entropy(input, window_size)
 
