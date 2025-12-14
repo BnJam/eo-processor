@@ -103,6 +103,7 @@ fn _core(_py: Python, m: &PyModule) -> PyResult<()> {
 
     // --- Classification ---
     m.add_function(wrap_pyfunction!(classification::random_forest_predict, m)?)?;
+    m.add_function(wrap_pyfunction!(classification::random_forest_train, m)?)?;
 
     Ok(())
 }

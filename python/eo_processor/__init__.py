@@ -50,6 +50,7 @@ from ._core import (
     detect_breakpoints as _detect_breakpoints,
     complex_classification as _complex_classification,
     random_forest_predict as _random_forest_predict,
+    random_forest_train as _random_forest_train,
 )
 from ._core import texture_entropy as _texture_entropy
 import logging
@@ -132,7 +133,17 @@ __all__ = [
     "complex_classification",
     "texture_entropy",
     "random_forest_predict",
+    "random_forest_train",
 ]
+
+
+def random_forest_train(features, labels, n_estimators=100, min_samples_split=2, max_depth=None, max_features=None):
+    """
+    Train a random forest model.
+    """
+    if max_features is None:
+        max_features = int(np.sqrt(features.shape[1]))
+    return _random_forest_train(features, labels, n_estimators, min_samples_split, max_depth, max_features)
 
 
 def random_forest_predict(model_json, features):
