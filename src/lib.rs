@@ -1,3 +1,4 @@
+pub mod classification;
 pub mod indices;
 pub mod masking;
 pub mod morphology;
@@ -99,6 +100,9 @@ fn _core(_py: Python, m: &PyModule) -> PyResult<()> {
 
     // --- Texture ---
     m.add_function(wrap_pyfunction!(texture::texture_entropy, m)?)?;
+
+    // --- Classification ---
+    m.add_function(wrap_pyfunction!(classification::random_forest_predict, m)?)?;
 
     Ok(())
 }

@@ -39,6 +39,7 @@ dev = [
     "pytest>=7.0",
     "tox>=4.25.0",
     "scipy>=1.10.0",
+    "scikit-learn>=1.0",
 ]
 dask = [
     "dask[array]>=2023.0.0",
