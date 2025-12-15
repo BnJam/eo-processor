@@ -1,8 +1,10 @@
+use rand::seq::SliceRandom;
+use rand::thread_rng;
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use rand::seq::SliceRandom;
-use rand::thread_rng;
+
+type SplitData = (Vec<Vec<f64>>, Vec<f64>, Vec<Vec<f64>>, Vec<f64>);
 
 #[derive(Serialize, Deserialize, Debug)]
 pub enum DecisionNode {
@@ -33,11 +35,22 @@ impl DecisionTree {
         }
     }
 
-    pub fn fit(&mut self, features: &Vec<Vec<f64>>, labels: &Vec<f64>, n_features_to_consider: usize) {
+    pub fn fit(
+        &mut self,
+        features: &[Vec<f64>],
+        labels: &[f64],
+        n_features_to_consider: usize,
+    ) {
         self.root = Some(self.build_tree(features, labels, 0, n_features_to_consider));
     }
 
-    fn build_tree(&self, features: &Vec<Vec<f64>>, labels: &Vec<f64>, depth: i32, n_features_to_consider: usize) -> DecisionNode {
+    fn build_tree(
+        &self,
+        features: &[Vec<f64>],
+        labels: &[f64],
+        depth: i32,
+        n_features_to_consider: usize,
+    ) -> DecisionNode {
         if let Some(max_depth) = self.max_depth {
             if depth >= max_depth {
                 return DecisionNode::Leaf {
@@ -70,8 +83,18 @@ impl DecisionTree {
                 };
             }
 
-            let left_child = self.build_tree(&left_features, &left_labels, depth + 1, n_features_to_consider);
-            let right_child = self.build_tree(&right_features, &right_labels, depth + 1, n_features_to_consider);
+            let left_child = self.build_tree(
+                &left_features,
+                &left_labels,
+                depth + 1,
+                n_features_to_consider,
+            );
+            let right_child = self.build_tree(
+                &right_features,
+                &right_labels,
+                depth + 1,
+                n_features_to_consider,
+            );
 
             DecisionNode::Node {
                 feature_index,
@@ -86,7 +109,12 @@ impl DecisionTree {
         }
     }
 
-    fn find_best_split(&self, features: &Vec<Vec<f64>>, labels: &Vec<f64>, n_features_to_consider: usize) -> Option<(usize, f64)> {
+    fn find_best_split(
+        &self,
+        features: &[Vec<f64>],
+        labels: &[f64],
+        n_features_to_consider: usize,
+    ) -> Option<(usize, f64)> {
         let mut best_gain = -1.0;
         let mut best_split: Option<(usize, f64)> = None;
         let n_features = features[0].len();
@@ -96,14 +124,17 @@ impl DecisionTree {
         feature_indices.shuffle(&mut thread_rng());
         let feature_subset = &feature_indices[..n_features_to_consider.min(n_features)];
 
-
         for &feature_index in feature_subset {
-            let mut unique_thresholds = features.iter().map(|row| row[feature_index]).collect::<Vec<f64>>();
+            let mut unique_thresholds = features
+                .iter()
+                .map(|row| row[feature_index])
+                .collect::<Vec<f64>>();
             unique_thresholds.sort_by(|a, b| a.partial_cmp(b).unwrap());
             unique_thresholds.dedup();
 
             for &threshold in &unique_thresholds {
-                let (left_labels, right_labels) = self.split_labels(labels, features, feature_index, threshold);
+                let (left_labels, right_labels) =
+                    self.split_labels(labels, features, feature_index, threshold);
 
                 if left_labels.is_empty() || right_labels.is_empty() {
                     continue;
@@ -111,7 +142,9 @@ impl DecisionTree {
 
                 let p_left = left_labels.len() as f64 / labels.len() as f64;
                 let p_right = right_labels.len() as f64 / labels.len() as f64;
-                let gain = current_gini - p_left * self.gini_impurity(&left_labels) - p_right * self.gini_impurity(&right_labels);
+                let gain = current_gini
+                    - p_left * self.gini_impurity(&left_labels)
+                    - p_right * self.gini_impurity(&right_labels);
 
                 if gain > best_gain {
                     best_gain = gain;
@@ -124,11 +157,11 @@ impl DecisionTree {
 
     fn split_data(
         &self,
-        features: &Vec<Vec<f64>>,
-        labels: &Vec<f64>,
+        features: &[Vec<f64>],
+        labels: &[f64],
         feature_index: usize,
         threshold: f64,
-    ) -> (Vec<Vec<f64>>, Vec<f64>, Vec<Vec<f64>>, Vec<f64>) {
+    ) -> SplitData {
         let mut left_features = Vec::new();
         let mut left_labels = Vec::new();
         let mut right_features = Vec::new();
@@ -146,7 +179,13 @@ impl DecisionTree {
         (left_features, left_labels, right_features, right_labels)
     }
 
-    fn split_labels(&self, labels: &Vec<f64>, features: &Vec<Vec<f64>>, feature_index: usize, threshold: f64) -> (Vec<f64>, Vec<f64>) {
+    fn split_labels(
+        &self,
+        labels: &[f64],
+        features: &[Vec<f64>],
+        feature_index: usize,
+        threshold: f64,
+    ) -> (Vec<f64>, Vec<f64>) {
         let mut left_labels = Vec::new();
         let mut right_labels = Vec::new();
         for (i, label) in labels.iter().enumerate() {
@@ -159,7 +198,7 @@ impl DecisionTree {
         (left_labels, right_labels)
     }
 
-    fn gini_impurity(&self, labels: &Vec<f64>) -> f64 {
+    fn gini_impurity(&self, labels: &[f64]) -> f64 {
         let mut counts = HashMap::new();
         for &label in labels {
             *counts.entry(label as i64).or_insert(0) += 1;
@@ -173,7 +212,7 @@ impl DecisionTree {
         impurity
     }
 
-    fn calculate_leaf_value(&self, labels: &Vec<f64>) -> f64 {
+    fn calculate_leaf_value(&self, labels: &[f64]) -> f64 {
         let mut counts = HashMap::new();
         for &label in labels {
             *counts.entry(label as i64).or_insert(0) += 1;
@@ -221,7 +260,12 @@ pub struct RandomForest {
 }
 
 impl RandomForest {
-    pub fn new(n_estimators: i32, max_depth: Option<i32>, min_samples_split: i32, max_features: Option<usize>) -> Self {
+    pub fn new(
+        n_estimators: i32,
+        max_depth: Option<i32>,
+        min_samples_split: i32,
+        max_features: Option<usize>,
+    ) -> Self {
         RandomForest {
             trees: Vec::with_capacity(n_estimators as usize),
             n_estimators,
@@ -231,10 +275,12 @@ impl RandomForest {
         }
     }
 
-    pub fn fit(&mut self, features: &Vec<Vec<f64>>, labels: &Vec<f64>) {
+    pub fn fit(&mut self, features: &[Vec<f64>], labels: &[f64]) {
         let n_samples = features.len();
         let n_features = features[0].len();
-        let n_features_to_consider = self.max_features.unwrap_or_else(|| (n_features as f64).sqrt() as usize);
+        let n_features_to_consider = self
+            .max_features
+            .unwrap_or_else(|| (n_features as f64).sqrt() as usize);
 
         self.trees = (0..self.n_estimators)
             .into_par_iter()
@@ -248,13 +294,15 @@ impl RandomForest {
                     .iter()
                     .map(|&i| features[i].clone())
                     .collect();
-                let bootstrapped_labels: Vec<f64> = sample_indices
-                    .iter()
-                    .map(|&i| labels[i])
-                    .collect();
+                let bootstrapped_labels: Vec<f64> =
+                    sample_indices.iter().map(|&i| labels[i]).collect();
 
                 let mut tree = DecisionTree::new(self.max_depth, self.min_samples_split);
-                tree.fit(&bootstrapped_features, &bootstrapped_labels, n_features_to_consider);
+                tree.fit(
+                    &bootstrapped_features,
+                    &bootstrapped_labels,
+                    n_features_to_consider,
+                );
                 tree
             })
             .collect();
@@ -283,7 +331,7 @@ impl RandomForest {
     }
 }
 
-use numpy::{PyReadonlyArray2, PyArray1, PyReadonlyArray1};
+use numpy::{PyArray1, PyReadonlyArray1, PyReadonlyArray2};
 use pyo3::prelude::*;
 
 #[pyfunction]
@@ -308,8 +356,9 @@ pub fn random_forest_train(
     let mut forest = RandomForest::new(n_estimators, max_depth, min_samples_split, max_features);
     forest.fit(&features_vec, &labels_vec);
 
-    serde_json::to_string(&forest)
-        .map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(format!("Failed to serialize model: {}", e)))
+    serde_json::to_string(&forest).map_err(|e| {
+        PyErr::new::<pyo3::exceptions::PyValueError, _>(format!("Failed to serialize model: {}", e))
+    })
 }
 
 #[pyfunction]
@@ -318,8 +367,12 @@ pub fn random_forest_predict<'py>(
     model_json: &str,
     features: PyReadonlyArray2<f64>,
 ) -> PyResult<&'py PyArray1<f64>> {
-    let forest: RandomForest = serde_json::from_str(model_json)
-        .map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(format!("Failed to deserialize model: {}", e)))?;
+    let forest: RandomForest = serde_json::from_str(model_json).map_err(|e| {
+        PyErr::new::<pyo3::exceptions::PyValueError, _>(format!(
+            "Failed to deserialize model: {}",
+            e
+        ))
+    })?;
 
     let features_array = features.as_array();
     let n_samples = features_array.shape()[0];

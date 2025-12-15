@@ -141,18 +141,16 @@ pub fn complex_classification(
 
     let mut out = ndarray::ArrayD::<u8>::zeros(blue_arr.raw_dim());
 
-    out.indexed_iter_mut()
-        .par_bridge()
-        .for_each(|(idx, res)| {
-            let b = blue_arr[&idx];
-            let g = green_arr[&idx];
-            let r = red_arr[&idx];
-            let n = nir_arr[&idx];
-            let s1 = swir1_arr[&idx];
-            let s2 = swir2_arr[&idx];
-            let t = temp_arr[&idx];
-            *res = classify_pixel(b, g, r, n, s1, s2, t);
-        });
+    out.indexed_iter_mut().par_bridge().for_each(|(idx, res)| {
+        let b = blue_arr[&idx];
+        let g = green_arr[&idx];
+        let r = red_arr[&idx];
+        let n = nir_arr[&idx];
+        let s1 = swir1_arr[&idx];
+        let s2 = swir2_arr[&idx];
+        let t = temp_arr[&idx];
+        *res = classify_pixel(b, g, r, n, s1, s2, t);
+    });
 
     Ok(out.into_pyarray(py).to_owned())
 }
@@ -216,4 +214,3 @@ fn classify_pixel(b: f64, g: f64, r: f64, n: f64, s1: f64, s2: f64, t: f64) -> u
 
     UNCLASSIFIED
 }
-
