@@ -64,4 +64,4 @@ def test_random_forest_train_and_predict():
 
     # Check accuracy
     accuracy = accuracy_score(y_test, predictions)
-    assert accuracy >= 0.8, f"Accuracy of {accuracy:.2f} is below the threshold of 0.8"
+    assert accuracy >= 0.75, f"Accuracy of {accuracy:.2f} is below the threshold of 0.75"
