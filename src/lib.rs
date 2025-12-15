@@ -5,10 +5,10 @@ pub mod morphology;
 pub mod processes;
 pub mod spatial;
 pub mod temporal;
+pub mod texture;
 pub mod trends;
 pub mod workflows;
 pub mod zonal;
-pub mod texture;
 
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
@@ -103,6 +103,7 @@ fn _core(_py: Python, m: &PyModule) -> PyResult<()> {
 
     // --- Classification ---
     m.add_function(wrap_pyfunction!(classification::random_forest_predict, m)?)?;
+    m.add_function(wrap_pyfunction!(classification::random_forest_train, m)?)?;
 
     Ok(())
 }
