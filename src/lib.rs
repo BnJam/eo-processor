@@ -99,7 +99,7 @@ fn _core(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(workflows::complex_classification, m)?)?;
 
     // --- Texture ---
-    m.add_function(wrap_pyfunction!(texture::texture_entropy, m)?)?;
+    m.add_function(wrap_pyfunction!(texture::haralick_features_py, m)?)?;
 
     // --- Classification ---
     m.add_function(wrap_pyfunction!(classification::random_forest_predict, m)?)?;

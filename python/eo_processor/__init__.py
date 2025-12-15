@@ -51,11 +51,13 @@ from ._core import (
     complex_classification as _complex_classification,
     random_forest_predict as _random_forest_predict,
     random_forest_train as _random_forest_train,
+    haralick_features as _haralick_features,
 )
-from ._core import texture_entropy as _texture_entropy
 import logging
 import structlog
 import numpy as np
+import xarray as xr
+from functools import partial
 
 # Configure structlog for structured, extensible logging
 structlog.configure(
@@ -131,7 +133,7 @@ __all__ = [
     "binary_closing",
     "detect_breakpoints",
     "complex_classification",
-    "texture_entropy",
+    "haralick_features",
     "random_forest_predict",
     "random_forest_train",
 ]
@@ -167,11 +169,125 @@ def complex_classification(blue, green, red, nir, swir1, swir2, temp):
     return _complex_classification(blue, green, red, nir, swir1, swir2, temp)
 
 
-def texture_entropy(input, window_size):
+def _apply_haralick(data_block, window_size, levels, boundary, dtype):
+    """Helper to apply Haralick features and handle dask chunk boundaries."""
+    # If the original block is smaller than the window, no features can be calculated.
+    if data_block.shape[0] < window_size or data_block.shape[1] < window_size:
+        empty_shape = (data_block.shape[0], data_block.shape[1])
+        return (np.full(empty_shape, np.nan, dtype=dtype),
+                np.full(empty_shape, np.nan, dtype=dtype),
+                np.full(empty_shape, np.nan, dtype=dtype),
+                np.full(empty_shape, np.nan, dtype=dtype))
+
+    # Pad the block to handle boundaries correctly
+    padded_block = np.pad(data_block, pad_width=boundary, mode="reflect")
+
+    # Calculate features on the padded block
+    contrast, dissimilarity, homogeneity, entropy = _haralick_features(
+        padded_block, window_size, levels
+    )
+
+    # Un-pad the results to match the original chunk's dimensions
+    return (
+        contrast[boundary:-boundary, boundary:-boundary],
+        dissimilarity[boundary:-boundary, boundary:-boundary],
+        homogeneity[boundary:-boundary, boundary:-boundary],
+        entropy[boundary:-boundary, boundary:-boundary],
+    )
+
+
+def haralick_features(
+    data: xr.DataArray,
+    window_size: int = 3,
+    levels: int = 8,
+    features: list = None,
+) -> xr.DataArray:
     """
-    Compute the entropy of a 2D array over a moving window.
+    Calculate Haralick texture features over a sliding window.
+
+    This function is designed to work with Dask-backed xarray DataArrays,
+    allowing for parallel, out-of-memory computation.
+
+    :param data: Input 2D xarray.DataArray. Values should be integers,
+                 ideally quantized to the specified number of levels.
+    :param window_size: The size of the square window for GLCM calculation.
+    :param levels: Number of gray levels to use for the GLCM. The input data
+                   should be quantized to this range [0, levels-1].
+    :param features: List of feature names to compute. Defaults to all four:
+                     ['contrast', 'dissimilarity', 'homogeneity', 'entropy'].
+    :return: An xarray.DataArray with a new 'feature' dimension containing
+             the calculated texture metrics.
     """
-    return _texture_entropy(input, window_size)
+    if features is None:
+        features = ["contrast", "dissimilarity", "homogeneity", "entropy"]
+
+    if data.ndim != 2:
+        raise ValueError("Input data must be a 2D xarray.DataArray.")
+
+    # Quantize data to the specified number of levels
+    if data.max() > levels - 1:
+        log.warning(
+            "Data contains values greater than `levels`-1. "
+            "Quantizing data to the range [0, levels-1]."
+        )
+        data = (data / data.max() * (levels - 1)).astype(np.uint8)
+    else:
+        data = data.astype(np.uint8)
+
+    # Dask requires specifying the output template.
+    template = xr.DataArray(
+        np.empty(
+            (len(features), data.shape[0], data.shape[1]),
+            dtype=np.float64
+        ),
+        dims=("feature",) + data.dims,
+        coords={"feature": features},
+    )
+
+    # Calculate boundary overlap for dask chunks
+    boundary = window_size // 2
+
+    # Use a partial function to pass static arguments to map_blocks
+    apply_func = partial(
+        _apply_haralick,
+        window_size=window_size,
+        levels=levels,
+        boundary=boundary,
+        dtype=template.dtype,
+    )
+
+    # `map_blocks` applies the function to each Dask chunk.
+    # We must specify the output chunks, which we can derive from the input.
+    if data.chunks is None:
+        # If the data is not chunked (i.e., it's a regular NumPy array),
+        # we can treat it as a single chunk.
+        chunks = (("feature",) + tuple(data.shape))
+    else:
+        chunks = (("feature",) + data.chunks)
+
+    # We get a tuple of arrays from our rust function, one for each feature
+    contrast, dissimilarity, homogeneity, entropy = xr.apply_ufunc(
+        apply_func,
+        data,
+        input_core_dims=[("y", "x")],
+        dask="parallelized",
+        output_dtypes=[template.dtype] * 4,
+        output_core_dims=(("y", "x"), ("y", "x"), ("y", "x"), ("y", "x")),
+        dask_gufunc_kwargs=dict(allow_rechunk=True),
+    )
+
+    # Combine the results into a single DataArray
+    feature_map = {
+        "contrast": contrast,
+        "dissimilarity": dissimilarity,
+        "homogeneity": homogeneity,
+        "entropy": entropy,
+    }
+
+    result = xr.concat([feature_map[f] for f in features], dim="feature")
+    result["feature"] = features
+
+    return result
 
 
 def normalized_difference(a, b):

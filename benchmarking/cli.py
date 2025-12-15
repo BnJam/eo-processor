@@ -104,7 +104,7 @@ try:
         savi,
         temporal_mean,
         temporal_std,
-        texture_entropy,
+        haralick_features,
     )
     from eo_processor._core import trend_analysis
     from eo_processor import zonal_stats
@@ -233,7 +233,7 @@ def compute_elements(func_name: str, shape_info: dict[str, int], args) -> Option
                      "pixelwise_transform"}:
         t, h, w = shape_info["time"], shape_info["height"], shape_info["width"]
         return t * h * w
-    if func_name == "texture_entropy":
+    if func_name == "haralick_features":
         h, w = shape_info["height"], shape_info["width"]
         return h * w
     if func_name == "trend_analysis":
@@ -507,29 +507,44 @@ def run_single_benchmark(
                     return out_e
 
             baseline_fn = numpy_morph
-    elif func_name == "texture_entropy":
-        # Generate random values
-        values = np.random.uniform(0, 255, size=(shape_info["height"], shape_info["width"])).astype(np.float64)
+    elif func_name == "haralick_features":
+        # Generate quantized integer data
+        levels = 8
+        values = np.random.randint(0, levels, size=(shape_info["height"], shape_info["width"])).astype(np.uint8)
         window_size = args.texture_window
-        call = lambda: texture_entropy(values, window_size)
-        shape_desc = f"{shape_info['height']}x{shape_info['width']} (Window={window_size})"
+        call = lambda: haralick_features(values, window_size=window_size, levels=levels)
+        shape_desc = f"{shape_info['height']}x{shape_info['width']} (Window={window_size}, Levels={levels})"
 
         if compare_numpy:
             supports_baseline = True
-            baseline_kind = "scipy_convolve"
-            # Naive NumPy baseline using scipy.ndimage.generic_filter for entropy
+            baseline_kind = "skimage_generic"
             try:
+                from skimage.feature import graycomatrix, graycoprops
                 from scipy.ndimage import generic_filter
 
-                def numpy_entropy(window):
-                    _, counts = np.unique(window, return_counts=True)
-                    probabilities = counts / len(window)
-                    return -np.sum(probabilities * np.log2(probabilities))
+                def skimage_haralick_window(window):
+                    # This function is called for each window by generic_filter.
+                    # It computes the GLCM and then the properties.
+                    glcm = graycomatrix(
+                        window,
+                        distances=[1],
+                        angles=[0, np.pi/4, np.pi/2, 3*np.pi/4],
+                        levels=levels,
+                        symmetric=True,
+                        normed=True,
+                    )
+                    # We only need one value (e.g., contrast) for the timing benchmark.
+                    # The correctness is checked in the tests.
+                    return graycoprops(glcm, "contrast").mean()
 
-                baseline_fn = lambda: generic_filter(values, numpy_entropy, size=window_size)
+                baseline_fn = lambda: generic_filter(
+                    values,
+                    skimage_haralick_window,
+                    size=window_size,
+                    mode='reflect'
+                )
             except ImportError:
-                # Fallback if scipy is not installed
-                baseline_fn = None
+                baseline_fn = None  # Scikit-image or SciPy not installed
     else:  # pragma: no cover
         raise ValueError(f"Unknown function: {func_name}")
 
@@ -917,7 +932,7 @@ def resolve_functions(group: str, explicit: Optional[List[str]]) -> List[str]:
             "binary_erosion",
             "binary_opening",
             "binary_closing",
-            "texture_entropy",
+            "haralick_features",
         ]
     if group == "morphology":
         return [
@@ -927,7 +942,7 @@ def resolve_functions(group: str, explicit: Optional[List[str]]) -> List[str]:
             "binary_closing",
         ]
     if group == "texture":
-        return ["texture_entropy"]
+        return ["haralick_features"]
     raise ValueError(f"Unknown group: {group}")
 
 
