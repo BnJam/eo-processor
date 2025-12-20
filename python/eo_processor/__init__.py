@@ -139,13 +139,22 @@ __all__ = [
 ]
 
 
-def random_forest_train(features, labels, n_estimators=100, min_samples_split=2, max_depth=None, max_features=None):
+def random_forest_train(
+    features,
+    labels,
+    n_estimators=100,
+    min_samples_split=2,
+    max_depth=None,
+    max_features=None,
+):
     """
     Train a random forest model.
     """
     if max_features is None:
         max_features = int(np.sqrt(features.shape[1]))
-    return _random_forest_train(features, labels, n_estimators, min_samples_split, max_depth, max_features)
+    return _random_forest_train(
+        features, labels, n_estimators, min_samples_split, max_depth, max_features
+    )
 
 
 def random_forest_predict(model_json, features):
@@ -174,10 +183,12 @@ def _apply_haralick(data_block, window_size, levels, boundary, dtype):
     # If the original block is smaller than the window, no features can be calculated.
     if data_block.shape[0] < window_size or data_block.shape[1] < window_size:
         empty_shape = (data_block.shape[0], data_block.shape[1])
-        return (np.full(empty_shape, np.nan, dtype=dtype),
-                np.full(empty_shape, np.nan, dtype=dtype),
-                np.full(empty_shape, np.nan, dtype=dtype),
-                np.full(empty_shape, np.nan, dtype=dtype))
+        return (
+            np.full(empty_shape, np.nan, dtype=dtype),
+            np.full(empty_shape, np.nan, dtype=dtype),
+            np.full(empty_shape, np.nan, dtype=dtype),
+            np.full(empty_shape, np.nan, dtype=dtype),
+        )
 
     # Pad the block to handle boundaries correctly
     padded_block = np.pad(data_block, pad_width=boundary, mode="reflect")
@@ -236,10 +247,7 @@ def haralick_features(
 
     # Dask requires specifying the output template.
     template = xr.DataArray(
-        np.empty(
-            (len(features), data.shape[0], data.shape[1]),
-            dtype=np.float64
-        ),
+        np.empty((len(features), data.shape[0], data.shape[1]), dtype=np.float64),
         dims=("feature",) + data.dims,
         coords={"feature": features},
     )
@@ -258,13 +266,6 @@ def haralick_features(
 
     # `map_blocks` applies the function to each Dask chunk.
     # We must specify the output chunks, which we can derive from the input.
-    if data.chunks is None:
-        # If the data is not chunked (i.e., it's a regular NumPy array),
-        # we can treat it as a single chunk.
-        chunks = (("feature",) + tuple(data.shape))
-    else:
-        chunks = (("feature",) + data.chunks)
-
     # We get a tuple of arrays from our rust function, one for each feature
     contrast, dissimilarity, homogeneity, entropy = xr.apply_ufunc(
         apply_func,

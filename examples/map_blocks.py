@@ -29,12 +29,15 @@ except Exception as exc:  # pragma: no cover - example script
     print("  pip install eo-processor[dask] xarray dask")
     raise
 
+
 # Helper to report timing and basic stats
 def report(name: str, result_array):
     """Print name, time and some basic stats of the computed result."""
     if isinstance(result_array, xr.DataArray):
         arr = result_array
-        data = arr.values if not isinstance(arr.data, da.Array) else arr.compute().values
+        data = (
+            arr.values if not isinstance(arr.data, da.Array) else arr.compute().values
+        )
     elif isinstance(result_array, da.Array):
         data = result_array.compute()
     else:
@@ -85,8 +88,12 @@ def example_map_blocks_vs_apply_ufunc():
     nir_dask = da.from_array(nir_np)
     red_dask = da.from_array(red_np)
 
-    nir_xr = xr.DataArray(nir_dask, dims=("y", "x"), coords={"y": np.arange(size), "x": np.arange(size)})
-    red_xr = xr.DataArray(red_dask, dims=("y", "x"), coords={"y": np.arange(size), "x": np.arange(size)})
+    nir_xr = xr.DataArray(
+        nir_dask, dims=("y", "x"), coords={"y": np.arange(size), "x": np.arange(size)}
+    )
+    red_xr = xr.DataArray(
+        red_dask, dims=("y", "x"), coords={"y": np.arange(size), "x": np.arange(size)}
+    )
 
     # Use apply_ufunc which can run the underlying Rust UDF in parallel.
     print("Timing: xarray.apply_ufunc (dask='parallelized') ...")
@@ -100,7 +107,7 @@ def example_map_blocks_vs_apply_ufunc():
         dask="parallelized",
         vectorize=False,
         output_dtypes=[float],
-        dask_gufunc_kwargs={'allow_rechunk': True}
+        dask_gufunc_kwargs={"allow_rechunk": True},
     )
     # Trigger computation and measure
     ndvi_xr_ufunc_computed = ndvi_xr_ufunc.compute()
@@ -112,6 +119,7 @@ def example_map_blocks_vs_apply_ufunc():
     # xarray.map_blocks applies a function block-by-block. The function should accept
     # numpy arrays (blocks) and return a numpy array or xarray DataArray for that block.
     print("Timing: xarray.map_blocks ...")
+
     # define block function that uses the Rust ndvi on numpy blocks
     def block_ndvi(darr_chunk: xr.DataArray):
         # ds will have 'nir' and 'red' DataArrays for the current block
@@ -131,7 +139,6 @@ def example_map_blocks_vs_apply_ufunc():
     ).chunk({"y": chunk_y, "x": chunk_x})
 
     print("Preparing stacked xarray for map_blocks...")
-
 
     # Build xarray.DataArray inputs (already defined as nir_xr/red_xr)
     start = time.time()
@@ -158,6 +165,7 @@ def example_map_blocks_vs_apply_ufunc():
 
     # 4) dask.array.map_blocks on the underlying dask arrays
     print("Timing: dask.array.map_blocks ...")
+
     def dask_block_ndvi(nir_block, red_block):
         # this will be called with numpy arrays per block
         res_arr = ndvi(nir_block, red_block)
@@ -179,9 +187,20 @@ def example_map_blocks_vs_apply_ufunc():
 
     # Quick consistency checks (allow tiny floating differences)
     print("Sanity checks (all_close to NumPy baseline):")
-    print("apply_ufunc ~ baseline:", np.allclose(ndvi_xr_ufunc_computed, ndvi_numpy, equal_nan=True, atol=1e-10))
-    print("xarray.map_blocks ~ baseline:", np.allclose(ndvi_xr_mapblocks_computed, ndvi_numpy, equal_nan=True, atol=1e-10))
-    print("dask.map_blocks ~ baseline:", np.allclose(ndvi_dask_mapblocks_computed, ndvi_numpy, equal_nan=True, atol=1e-10))
+    print(
+        "apply_ufunc ~ baseline:",
+        np.allclose(ndvi_xr_ufunc_computed, ndvi_numpy, equal_nan=True, atol=1e-10),
+    )
+    print(
+        "xarray.map_blocks ~ baseline:",
+        np.allclose(ndvi_xr_mapblocks_computed, ndvi_numpy, equal_nan=True, atol=1e-10),
+    )
+    print(
+        "dask.map_blocks ~ baseline:",
+        np.allclose(
+            ndvi_dask_mapblocks_computed, ndvi_numpy, equal_nan=True, atol=1e-10
+        ),
+    )
     print()
 
     # Summary timings

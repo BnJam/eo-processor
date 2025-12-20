@@ -14,6 +14,7 @@ WINDOW_SIZE = 5
 LEVELS = 8
 FEATURES = ["contrast", "dissimilarity", "homogeneity", "entropy"]
 
+
 def _calculate_skimage_props_for_pixel(window, levels):
     """
     Helper to calculate GLCM properties for a single window using scikit-image,
@@ -24,7 +25,12 @@ def _calculate_skimage_props_for_pixel(window, levels):
     angles = [0, np.pi / 4, np.pi / 2, 3 * np.pi / 4]
 
     glcm = graycomatrix(
-        window, distances=distances, angles=angles, levels=levels, symmetric=True, normed=True
+        window,
+        distances=distances,
+        angles=angles,
+        levels=levels,
+        symmetric=True,
+        normed=True,
     )
 
     results = {}
@@ -38,6 +44,7 @@ def _calculate_skimage_props_for_pixel(window, levels):
     results["entropy"] = entropy
 
     return results
+
 
 @pytest.fixture(scope="module")
 def skimage_results():
@@ -115,7 +122,9 @@ def test_edge_case_small_array():
     Test that the function handles arrays smaller than the window size gracefully.
     The Rust implementation should produce NaNs.
     """
-    small_array = xr.DataArray(np.random.randint(0, 8, size=(2, 2), dtype=np.uint8), dims=("y", "x"))
+    small_array = xr.DataArray(
+        np.random.randint(0, 8, size=(2, 2), dtype=np.uint8), dims=("y", "x")
+    )
 
     result = haralick_features(
         small_array,
@@ -125,6 +134,7 @@ def test_edge_case_small_array():
 
     # The output should be all NaNs because no full window can be formed
     assert np.all(np.isnan(result.values))
+
 
 def test_quantization():
     """

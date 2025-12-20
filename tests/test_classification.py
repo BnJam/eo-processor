@@ -6,6 +6,7 @@ from sklearn.metrics import accuracy_score
 from eo_processor import random_forest_predict, random_forest_train
 from .utils import sklearn_to_json
 
+
 def test_random_forest_predict():
     """Test the random_forest_predict function."""
     # Generate synthetic data
@@ -33,6 +34,7 @@ def test_random_forest_predict():
 
     assert np.array_equal(predictions, sklearn_predictions)
 
+
 def test_random_forest_train_and_predict():
     """Test the full train-and-predict cycle."""
     # Generate synthetic data
@@ -45,7 +47,9 @@ def test_random_forest_train_and_predict():
         random_state=42,
         shuffle=True,
     )
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, test_size=0.3, random_state=42
+    )
 
     # Convert labels to float64
     y_train = y_train.astype(np.float64)
@@ -64,4 +68,6 @@ def test_random_forest_train_and_predict():
 
     # Check accuracy
     accuracy = accuracy_score(y_test, predictions)
-    assert accuracy >= 0.75, f"Accuracy of {accuracy:.2f} is below the threshold of 0.75"
+    assert accuracy >= 0.75, (
+        f"Accuracy of {accuracy:.2f} is below the threshold of 0.75"
+    )

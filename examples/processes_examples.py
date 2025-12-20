@@ -108,7 +108,9 @@ def example_4d():
 def example_chain():
     cube = np.random.rand(12, 64, 64)
     ma = moving_average_temporal(cube, window=5, mode="same")
-    stretched = pixelwise_transform(ma, scale=1.2, offset=-0.1, clamp_min=0.0, clamp_max=1.0)
+    stretched = pixelwise_transform(
+        ma, scale=1.2, offset=-0.1, clamp_min=0.0, clamp_max=1.0
+    )
     print("\nChaining example:")
     print("Input cube shape:", cube.shape)
     print("Moving average shape:", ma.shape)
@@ -150,7 +152,9 @@ def example_perf():
     assert np.allclose(rust_out, naive_out, atol=1e-12)
     print("\nPerformance (1D series length 200k, window=21):")
     print(f"Rust moving_average_temporal: {rust_t:.4f}s")
-    print(f"Naive Python version        : {naive_t:.4f}s  (speedup ~{naive_t / rust_t:.2f}x)")
+    print(
+        f"Naive Python version        : {naive_t:.4f}s  (speedup ~{naive_t / rust_t:.2f}x)"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -194,7 +198,9 @@ def example_dask():
 # ---------------------------------------------------------------------------
 def example_pixelwise():
     arr = np.array([[0.05, 0.5, 1.2], [0.8, -0.3, 0.4]])
-    scaled = pixelwise_transform(arr, scale=1.5, offset=-0.1, clamp_min=0.0, clamp_max=1.0)
+    scaled = pixelwise_transform(
+        arr, scale=1.5, offset=-0.1, clamp_min=0.0, clamp_max=1.0
+    )
     print("\nPixelwise transform:")
     print("Input:\n", arr)
     print("Scaled & clamped:\n", scaled)

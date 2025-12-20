@@ -163,16 +163,17 @@ INDEX_SPECS: Dict[str, Dict[str, object]] = {
 # Argument Parsing
 # ---------------------------------------------------------------------------
 
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         prog="eo_cli.py",
-        description="Compute EO spectral indices from .npy band files."
+        description="Compute EO spectral indices from .npy band files.",
     )
     p.add_argument(
         "--index",
         nargs="+",
         required=True,
-        help="One or more indices to compute. See script header for supported names."
+        help="One or more indices to compute. See script header for supported names.",
     )
 
     # Common band arguments
@@ -194,40 +195,48 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--post-swir2")
 
     # SAVI parameter
-    p.add_argument("--savi-l", type=float, default=0.5, help="Soil brightness factor L for SAVI (default 0.5).")
+    p.add_argument(
+        "--savi-l",
+        type=float,
+        default=0.5,
+        help="Soil brightness factor L for SAVI (default 0.5).",
+    )
 
     # Mask
     p.add_argument(
         "--mask",
-        help="Optional .npy mask file (same shape). Values of 0 become NaN in inputs before computation."
+        help="Optional .npy mask file (same shape). Values of 0 become NaN in inputs before computation.",
     )
 
     # Output control
     p.add_argument("--out", help="Output file path if computing a single index.")
-    p.add_argument("--out-dir", help="Directory for multiple index outputs (auto-named <index>.npy).")
-    p.add_argument("--png-preview", help="Optional PNG preview path (only valid for single index).")
+    p.add_argument(
+        "--out-dir",
+        help="Directory for multiple index outputs (auto-named <index>.npy).",
+    )
+    p.add_argument(
+        "--png-preview", help="Optional PNG preview path (only valid for single index)."
+    )
     p.add_argument(
         "--dtype",
         default="float32",
         choices=["float32", "float64"],
-        help="Output dtype for saved .npy files (default float32)."
+        help="Output dtype for saved .npy files (default float32).",
     )
     p.add_argument(
         "--clamp",
         nargs=2,
         type=float,
         metavar=("MIN", "MAX"),
-        help="Clamp output before saving (applied prior to dtype conversion)."
+        help="Clamp output before saving (applied prior to dtype conversion).",
     )
     p.add_argument(
         "--allow-missing",
         action="store_true",
-        help="Skip indices missing required bands instead of failing."
+        help="Skip indices missing required bands instead of failing.",
     )
     p.add_argument(
-        "--list",
-        action="store_true",
-        help="List supported indices and exit."
+        "--list", action="store_true", help="List supported indices and exit."
     )
     return p
 
@@ -236,6 +245,7 @@ def build_parser() -> argparse.ArgumentParser:
 # I/O Helpers
 # ---------------------------------------------------------------------------
 
+
 def load_npy(path: str) -> np.ndarray:
     if not path:
         raise ValueError("Empty path provided.")
@@ -243,13 +253,17 @@ def load_npy(path: str) -> np.ndarray:
         raise FileNotFoundError(path)
     arr = np.load(path)
     if arr.ndim not in (1, 2):
-        raise ValueError(f"Only 1D or 2D arrays supported. Got shape {arr.shape} for {path}")
+        raise ValueError(
+            f"Only 1D or 2D arrays supported. Got shape {arr.shape} for {path}"
+        )
     return arr
 
 
 def apply_mask(arr: np.ndarray, mask: np.ndarray) -> np.ndarray:
     if arr.shape != mask.shape:
-        raise ValueError(f"Mask shape {mask.shape} does not match array shape {arr.shape}")
+        raise ValueError(
+            f"Mask shape {mask.shape} does not match array shape {arr.shape}"
+        )
     return np.where(mask == 0, np.nan, arr)
 
 
@@ -295,6 +309,7 @@ def save_png(path: str, arr: np.ndarray, clamp: Optional[List[float]] = None):
 # Index Computation Dispatcher
 # ---------------------------------------------------------------------------
 
+
 def compute_index(name: str, bands: Dict[str, np.ndarray], savi_l: float) -> np.ndarray:
     spec = INDEX_SPECS[name]
     func = spec["func"]  # type: ignore
@@ -320,13 +335,11 @@ def compute_index(name: str, bands: Dict[str, np.ndarray], savi_l: float) -> np.
         return func(bands["nir"], bands["green"])
     if name == "delta_ndvi":
         return func(
-            bands["pre_nir"], bands["pre_red"],
-            bands["post_nir"], bands["post_red"]
+            bands["pre_nir"], bands["pre_red"], bands["post_nir"], bands["post_red"]
         )
     if name == "delta_nbr":
         return func(
-            bands["pre_nir"], bands["pre_swir2"],
-            bands["post_nir"], bands["post_swir2"]
+            bands["pre_nir"], bands["pre_swir2"], bands["post_nir"], bands["post_swir2"]
         )
     raise ValueError(f"Unhandled index: {name}")
 
@@ -334,6 +347,7 @@ def compute_index(name: str, bands: Dict[str, np.ndarray], savi_l: float) -> np.
 # ---------------------------------------------------------------------------
 # Main Workflow
 # ---------------------------------------------------------------------------
+
 
 def main(argv: Optional[List[str]] = None) -> int:
     parser = build_parser()
@@ -401,7 +415,10 @@ def main(argv: Optional[List[str]] = None) -> int:
                     arr = apply_mask(arr, mask_arr)
                 loaded_bands[band] = arr
             except Exception as exc:
-                print(f"[ERROR] Failed loading band '{band}' from {path}: {exc}", file=sys.stderr)
+                print(
+                    f"[ERROR] Failed loading band '{band}' from {path}: {exc}",
+                    file=sys.stderr,
+                )
                 return 1
 
     results: Dict[str, np.ndarray] = {}

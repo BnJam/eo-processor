@@ -1,6 +1,7 @@
 import numpy as np
 from eo_processor import detect_breakpoints, complex_classification
 
+
 def test_detect_breakpoints():
     """
     Test the detect_breakpoints function with a synthetic time series.
@@ -12,10 +13,15 @@ def test_detect_breakpoints():
     np.random.seed(42)
     # Reduce noise to make the breakpoint more obvious and the test more stable
     noise = np.random.normal(0, 0.1, time)
-    y = np.concatenate([
-        np.linspace(0, 10, breakpoint_time),
-        np.linspace(10, 0, time - breakpoint_time)
-    ]) + noise
+    y = (
+        np.concatenate(
+            [
+                np.linspace(0, 10, breakpoint_time),
+                np.linspace(10, 0, time - breakpoint_time),
+            ]
+        )
+        + noise
+    )
 
     # Create a 3D stack (time, y, x)
     stack = np.zeros((time, 1, 1))
@@ -36,6 +42,7 @@ def test_detect_breakpoints():
     assert np.isclose(break_date, breakpoint_time, atol=5)
     assert magnitude > 0
     assert confidence == 1.0
+
 
 def test_complex_classification():
     """

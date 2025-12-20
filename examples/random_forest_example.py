@@ -6,8 +6,9 @@ from sklearn.datasets import make_classification
 from eo_processor import random_forest_predict
 
 # Add the parent directory to the Python path to allow importing from `tests`
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 from tests.utils import sklearn_to_json
+
 
 def main():
     """Main function to run the random forest example."""
@@ -36,6 +37,7 @@ def main():
 
     accuracy = np.mean(predictions == sklearn_predictions)
     print(f"Accuracy compared to scikit-learn: {accuracy * 100:.2f}%")
+
 
 if __name__ == "__main__":
     main()

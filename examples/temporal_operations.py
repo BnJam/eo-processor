@@ -45,9 +45,9 @@ start_numpy = time.time()
 mean_numpy_large = np.mean(large_array, axis=0)
 time_numpy = time.time() - start_numpy
 
-print(f"Rust implementation:  {time_rust*1000:.2f} ms")
-print(f"NumPy implementation: {time_numpy*1000:.2f} ms")
-print(f"Speedup: {time_numpy/time_rust:.2f}x")
+print(f"Rust implementation:  {time_rust * 1000:.2f} ms")
+print(f"NumPy implementation: {time_numpy * 1000:.2f} ms")
+print(f"Speedup: {time_numpy / time_rust:.2f}x")
 print()
 
 # Example 4: Performance comparison for temporal_std
@@ -64,9 +64,9 @@ start_numpy = time.time()
 std_numpy_large = np.std(large_array, axis=0, ddof=1)
 time_numpy = time.time() - start_numpy
 
-print(f"Rust implementation:  {time_rust*1000:.2f} ms")
-print(f"NumPy implementation: {time_numpy*1000:.2f} ms")
-print(f"Speedup: {time_numpy/time_rust:.2f}x")
+print(f"Rust implementation:  {time_rust * 1000:.2f} ms")
+print(f"NumPy implementation: {time_numpy * 1000:.2f} ms")
+print(f"Speedup: {time_numpy / time_rust:.2f}x")
 
 # Example 5: NaN handling & temporal composite (median)
 print("Example 5: NaN handling & temporal composite")
@@ -85,6 +85,8 @@ composite_median = composite(nan_cube, method="median")
 print(f"skip_na mean NaN count: {np.isnan(mean_skip).sum()}")
 print(f"strict mean NaN count:  {np.isnan(mean_strict).sum()}")
 print(f"std skip_na NaN count:  {np.isnan(std_skip).sum()}")
-print(f"median == composite(median): {np.allclose(median_comp, composite_median, equal_nan=True)}")
+print(
+    f"median == composite(median): {np.allclose(median_comp, composite_median, equal_nan=True)}"
+)
 print(f"median range: [{np.nanmin(median_comp):.4f}, {np.nanmax(median_comp):.4f}]")
 print()

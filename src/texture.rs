@@ -126,39 +126,46 @@ pub fn haralick_features_py(
     let (height, width) = (array.shape()[0], array.shape()[1]);
     let half_window = window_size / 2;
 
-    let (contrast_out, dissimilarity_out, homogeneity_out, entropy_out) = py.allow_threads(move || {
-        let mut contrast_out = Array2::<f64>::zeros((height, width));
-        let mut dissimilarity_out = Array2::<f64>::zeros((height, width));
-        let mut homogeneity_out = Array2::<f64>::zeros((height, width));
-        let mut entropy_out = Array2::<f64>::zeros((height, width));
+    let (contrast_out, dissimilarity_out, homogeneity_out, entropy_out) =
+        py.allow_threads(move || {
+            let mut contrast_out = Array2::<f64>::zeros((height, width));
+            let mut dissimilarity_out = Array2::<f64>::zeros((height, width));
+            let mut homogeneity_out = Array2::<f64>::zeros((height, width));
+            let mut entropy_out = Array2::<f64>::zeros((height, width));
 
-        let pixels: Vec<(usize, usize)> =
-            (0..height).flat_map(|r| (0..width).map(move |c| (r, c))).collect();
+            let pixels: Vec<(usize, usize)> = (0..height)
+                .flat_map(|r| (0..width).map(move |c| (r, c)))
+                .collect();
 
-        let results: Vec<(f64, f64, f64, f64)> = pixels
-            .par_iter()
-            .map(|&(r, c)| {
-                let r_min = r.saturating_sub(half_window);
-                let r_max = (r + half_window).min(height - 1);
-                let c_min = c.saturating_sub(half_window);
-                let c_max = (c + half_window).min(width - 1);
+            let results: Vec<(f64, f64, f64, f64)> = pixels
+                .par_iter()
+                .map(|&(r, c)| {
+                    let r_min = r.saturating_sub(half_window);
+                    let r_max = (r + half_window).min(height - 1);
+                    let c_min = c.saturating_sub(half_window);
+                    let c_max = (c + half_window).min(width - 1);
 
-                let window = array.slice(s![r_min..=r_max, c_min..=c_max]).to_owned();
-                calculate_features_for_window(&window, levels)
-            })
-            .collect();
+                    let window = array.slice(s![r_min..=r_max, c_min..=c_max]).to_owned();
+                    calculate_features_for_window(&window, levels)
+                })
+                .collect();
 
-        for (i, (con, dis, hom, ent)) in results.into_iter().enumerate() {
-            let r = i / width;
-            let c = i % width;
-            contrast_out[[r, c]] = con;
-            dissimilarity_out[[r, c]] = dis;
-            homogeneity_out[[r, c]] = hom;
-            entropy_out[[r, c]] = ent;
-        }
+            for (i, (con, dis, hom, ent)) in results.into_iter().enumerate() {
+                let r = i / width;
+                let c = i % width;
+                contrast_out[[r, c]] = con;
+                dissimilarity_out[[r, c]] = dis;
+                homogeneity_out[[r, c]] = hom;
+                entropy_out[[r, c]] = ent;
+            }
 
-        (contrast_out, dissimilarity_out, homogeneity_out, entropy_out)
-    });
+            (
+                contrast_out,
+                dissimilarity_out,
+                homogeneity_out,
+                entropy_out,
+            )
+        });
 
     Ok((
         contrast_out.into_pyarray(py).to_owned(),

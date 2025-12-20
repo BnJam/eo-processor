@@ -1,6 +1,7 @@
 import json
 import numpy as np
 
+
 def sklearn_to_json(model):
     """Converts a scikit-learn RandomForestClassifier to a JSON serializable format."""
     trees = []
@@ -23,16 +24,22 @@ def sklearn_to_json(model):
                     }
                 }
 
-        trees.append({
-            "root": build_tree(0),
+        trees.append(
+            {
+                "root": build_tree(0),
+                "max_depth": model.max_depth,
+                "min_samples_split": model.min_samples_split,
+            }
+        )
+
+    return json.dumps(
+        {
+            "trees": trees,
+            "n_estimators": model.n_estimators,
             "max_depth": model.max_depth,
             "min_samples_split": model.min_samples_split,
-        })
-
-    return json.dumps({
-        "trees": trees,
-        "n_estimators": model.n_estimators,
-        "max_depth": model.max_depth,
-        "min_samples_split": model.min_samples_split,
-        "max_features": model.max_features if isinstance(model.max_features, int) else None,
-    })
+            "max_features": model.max_features
+            if isinstance(model.max_features, int)
+            else None,
+        }
+    )

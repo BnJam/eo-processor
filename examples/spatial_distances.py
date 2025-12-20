@@ -37,6 +37,7 @@ import numpy as np
 # Import internal core module (distance functions live here)
 from eo_processor import _core
 
+
 def demo_point_to_point_distance():
     print("Demo 0a: Distance from single point to single point")
     print("-" * 40)
@@ -53,6 +54,7 @@ def demo_point_to_point_distance():
     print("Manhattan distance:\n", dist_manhat)
     print("Chebyshev distance:\n", dist_cheby)
     print()
+
 
 def demo_point_to_array_distance():
     print("Demo 0: Distance from single point to array of points")
@@ -77,6 +79,7 @@ def demo_point_to_array_distance():
     print("Manhattan distances:\n", dist_manhat)
     print("Chebyshev distances:\n", dist_cheby)
     print()
+
 
 def demo_small_points():
     print("Demo 1: Small 2D point sets")
@@ -109,8 +112,10 @@ def demo_small_points():
     print("Chebyshev distances:\n", dist_cheby)
     print("Minkowski(p=2) distances:\n", dist_mink_p2)
     # Consistency checks (allow tiny floating differences)
-    print("Check: euclidean == minkowski(p=2):",
-          np.allclose(dist_euclid, dist_mink_p2, atol=1e-12))
+    print(
+        "Check: euclidean == minkowski(p=2):",
+        np.allclose(dist_euclid, dist_mink_p2, atol=1e-12),
+    )
     print()
 
 
@@ -128,14 +133,26 @@ def demo_random_points(n: int = 5, m: int = 4, dim: int = 3, seed: int = 42):
 
     print(f"Generated points_a (n={n}, dim={dim})")
     print(f"Generated points_b (m={m}, dim={dim})")
-    print("Euclidean summary: min={:.4f} max={:.4f} mean={:.4f}".format(
-        dist_euclid.min(), dist_euclid.max(), dist_euclid.mean()))
-    print("Manhattan summary: min={:.4f} max={:.4f} mean={:.4f}".format(
-        dist_manhat.min(), dist_manhat.max(), dist_manhat.mean()))
-    print("Chebyshev summary: min={:.4f} max={:.4f} mean={:.4f}".format(
-        dist_cheby.min(), dist_cheby.max(), dist_cheby.mean()))
-    print("Minkowski(p=3) summary: min={:.4f} max={:.4f} mean={:.4f}".format(
-        dist_mink_p3.min(), dist_mink_p3.max(), dist_mink_p3.mean()))
+    print(
+        "Euclidean summary: min={:.4f} max={:.4f} mean={:.4f}".format(
+            dist_euclid.min(), dist_euclid.max(), dist_euclid.mean()
+        )
+    )
+    print(
+        "Manhattan summary: min={:.4f} max={:.4f} mean={:.4f}".format(
+            dist_manhat.min(), dist_manhat.max(), dist_manhat.mean()
+        )
+    )
+    print(
+        "Chebyshev summary: min={:.4f} max={:.4f} mean={:.4f}".format(
+            dist_cheby.min(), dist_cheby.max(), dist_cheby.mean()
+        )
+    )
+    print(
+        "Minkowski(p=3) summary: min={:.4f} max={:.4f} mean={:.4f}".format(
+            dist_mink_p3.min(), dist_mink_p3.max(), dist_mink_p3.mean()
+        )
+    )
     print()
 
     # Inequality relationships:
@@ -144,10 +161,8 @@ def demo_random_points(n: int = 5, m: int = 4, dim: int = 3, seed: int = 42):
     #   Chebyshev <= Euclidean <= Manhattan
     # We demonstrate general range bounds.
     print("Pairwise comparison checks:")
-    print("All(Euclidean <= Manhattan):",
-          np.all(dist_euclid <= dist_manhat + 1e-12))
-    print("All(Chebyshev <= Euclidean):",
-          np.all(dist_cheby <= dist_euclid + 1e-12))
+    print("All(Euclidean <= Manhattan):", np.all(dist_euclid <= dist_manhat + 1e-12))
+    print("All(Chebyshev <= Euclidean):", np.all(dist_cheby <= dist_euclid + 1e-12))
     print()
 
 
@@ -191,13 +206,19 @@ def demo_minkowski_transitions(p_values=(1.0, 2.0, 3.0, 10.0)):
     cheby_ref = _core.chebyshev_distance(points_a, points_b)
 
     print("Sanity relationships:")
-    print("p=1 (Minkowski) == Manhattan:",
-          np.allclose(dist_sets[1.0], manhattan_ref, atol=1e-12))
-    print("p=2 (Minkowski) == Euclidean:",
-          np.allclose(dist_sets[2.0], euclid_ref, atol=1e-12))
+    print(
+        "p=1 (Minkowski) == Manhattan:",
+        np.allclose(dist_sets[1.0], manhattan_ref, atol=1e-12),
+    )
+    print(
+        "p=2 (Minkowski) == Euclidean:",
+        np.allclose(dist_sets[2.0], euclid_ref, atol=1e-12),
+    )
     # Large p approximates Chebyshev (not exact for finite p)
-    print("p=10 approximates Chebyshev (mean abs diff):",
-          np.abs(dist_sets[10.0] - cheby_ref).mean())
+    print(
+        "p=10 approximates Chebyshev (mean abs diff):",
+        np.abs(dist_sets[10.0] - cheby_ref).mean(),
+    )
     print()
 
     print("Distance mean progression by p:")

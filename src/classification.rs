@@ -35,12 +35,7 @@ impl DecisionTree {
         }
     }
 
-    pub fn fit(
-        &mut self,
-        features: &[Vec<f64>],
-        labels: &[f64],
-        n_features_to_consider: usize,
-    ) {
+    pub fn fit(&mut self, features: &[Vec<f64>], labels: &[f64], n_features_to_consider: usize) {
         self.root = Some(self.build_tree(features, labels, 0, n_features_to_consider));
     }
 

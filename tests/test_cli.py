@@ -418,6 +418,7 @@ import io
 import logging
 from eo_processor import log
 
+
 def test_cli_logging(tmp_path):
     # Redirect logging to a string buffer
     log_stream = io.StringIO()
