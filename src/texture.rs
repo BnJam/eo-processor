@@ -3,6 +3,13 @@ use numpy::{IntoPyArray, PyArray2, PyReadonlyArray2};
 use pyo3::prelude::*;
 use rayon::prelude::*;
 
+type HaralickPyResult = PyResult<(
+    Py<PyArray2<f64>>,
+    Py<PyArray2<f64>>,
+    Py<PyArray2<f64>>,
+    Py<PyArray2<f64>>,
+)>;
+
 // Calculates the Gray-Level Co-occurrence Matrix (GLCM) for a given window.
 fn glcm(window: &Array2<u8>, levels: u8, dx: isize, dy: isize) -> Array2<f64> {
     let (height, width) = (window.dim().0, window.dim().1);
@@ -84,7 +91,7 @@ fn calculate_features_for_window(window: &Array2<u8>, levels: u8) -> (f64, f64, 
     let count = offsets.len() as f64;
 
     for &(dy, dx) in &offsets {
-        let mut glcm_matrix = glcm(&window, levels, dx, dy);
+        let mut glcm_matrix = glcm(window, levels, dx, dy);
         let t_glcm = glcm_matrix.t();
         glcm_matrix = &glcm_matrix + &t_glcm; // Symmetrize
         normalize_glcm(&mut glcm_matrix);
@@ -116,12 +123,7 @@ pub fn haralick_features_py(
     arr: PyReadonlyArray2<u8>,
     window_size: usize,
     levels: u8,
-) -> PyResult<(
-    Py<PyArray2<f64>>,
-    Py<PyArray2<f64>>,
-    Py<PyArray2<f64>>,
-    Py<PyArray2<f64>>,
-)> {
+) -> HaralickPyResult {
     let array = arr.as_array().to_owned();
     let (height, width) = (array.shape()[0], array.shape()[1]);
     let half_window = window_size / 2;
