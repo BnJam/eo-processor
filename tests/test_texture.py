@@ -40,8 +40,13 @@ def _calculate_skimage_props_for_pixel(window, levels):
     results["homogeneity"] = graycoprops(glcm, "homogeneity").mean()
 
     # Calculate entropy manually per-matrix, then average, to match graycoprops behavior
-    entropy = np.mean([-np.sum(p[p > 0] * np.log2(p[p > 0])) for p in glcm])
-    results["entropy"] = entropy
+    entropies = []
+    for d in range(glcm.shape[2]):
+        for a in range(glcm.shape[3]):
+            matrix = glcm[:, :, d, a]
+            non_zeros = matrix[matrix > 0]
+            entropies.append(-np.sum(non_zeros * np.log2(non_zeros)))
+    results["entropy"] = np.mean(entropies)
 
     return results
 
