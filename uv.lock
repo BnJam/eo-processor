@@ -313,11 +313,16 @@ name = "eo-processor"
 version = "0.18.0"
 source = { editable = "." }
 dependencies = [
+    { name = "dask", version = "2024.8.0", source = { registry = "https://pypi.org/simple" }, extra = ["array"], marker = "python_full_version < '3.10'" },
+    { name = "dask", version = "2025.11.0", source = { registry = "https://pypi.org/simple" }, extra = ["array"], marker = "python_full_version >= '3.10'" },
     { name = "maturin" },
     { name = "numpy", version = "2.0.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
     { name = "numpy", version = "2.2.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version == '3.10.*'" },
     { name = "numpy", version = "2.3.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
     { name = "structlog" },
+    { name = "xarray", version = "2024.7.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
+    { name = "xarray", version = "2025.6.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version == '3.10.*'" },
+    { name = "xarray", version = "2025.10.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
 ]
 
 [package.optional-dependencies]
@@ -326,16 +331,11 @@ cli = [
     { name = "pillow", version = "12.0.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
 ]
 dask = [
-    { name = "dask", version = "2024.8.0", source = { registry = "https://pypi.org/simple" }, extra = ["array"], marker = "python_full_version < '3.10'" },
-    { name = "dask", version = "2025.11.0", source = { registry = "https://pypi.org/simple" }, extra = ["array"], marker = "python_full_version >= '3.10'" },
     { name = "pyarrow", version = "21.0.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
     { name = "pyarrow", version = "22.0.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
     { name = "scipy", version = "1.13.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
     { name = "scipy", version = "1.15.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version == '3.10.*'" },
     { name = "scipy", version = "1.16.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
-    { name = "xarray", version = "2024.7.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
-    { name = "xarray", version = "2025.6.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version == '3.10.*'" },
-    { name = "xarray", version = "2025.10.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
 ]
 dev = [
     { name = "pytest" },
@@ -369,7 +369,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "dask", extras = ["array"], marker = "extra == 'dask'", specifier = ">=2023.0.0" },
+    { name = "dask", extras = ["array"], specifier = ">=2023.0.0" },
     { name = "furo", marker = "extra == 'docs'", specifier = ">=2024.1.0" },
     { name = "linkify-it-py", marker = "extra == 'docs'", specifier = ">=2.0.0" },
     { name = "maturin", specifier = ">=1.9.6" },
@@ -386,7 +386,7 @@ requires-dist = [
     { name = "sphinx-autodoc-typehints", marker = "extra == 'docs'", specifier = ">=2.0.0" },
     { name = "structlog", specifier = ">=23.1.0" },
     { name = "tox", marker = "extra == 'dev'", specifier = ">=4.25.0" },
-    { name = "xarray", marker = "extra == 'dask'", specifier = ">=2023.0.0" },
+    { name = "xarray", specifier = ">=2023.0.0" },
 ]
 provides-extras = ["cli", "dev", "dask", "docs"]
 

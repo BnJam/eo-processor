@@ -635,8 +635,10 @@ def run_single_benchmark(
         values = np.random.randint(
             0, levels, size=(shape_info["height"], shape_info["width"])
         ).astype(np.uint8)
+        import xarray as xr
+        data = xr.DataArray(values, dims=("y", "x"))
         window_size = args.texture_window
-        call = lambda: haralick_features(values, window_size=window_size, levels=levels)
+        call = lambda: haralick_features(data, window_size=window_size, levels=levels)
         shape_desc = f"{shape_info['height']}x{shape_info['width']} (Window={window_size}, Levels={levels})"
 
         if compare_numpy:

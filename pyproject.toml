@@ -25,6 +25,8 @@ dependencies = [
     "maturin>=1.9.6",
     "numpy>=1.20.0",
     "structlog>=23.1.0",
+    "xarray>=2023.0.0",
+    "dask[array]>=2023.0.0",
 ]
 
 [project.scripts]
@@ -43,8 +45,6 @@ dev = [
     "scikit-image>=0.18.0",
 ]
 dask = [
-    "dask[array]>=2023.0.0",
-    "xarray>=2023.0.0",
     # PyArrow dropped support for Python 3.8 in version 18.0.0
     "pyarrow>=17.0.0",
     "scipy>=1.10.0",
