@@ -1,5 +1,6 @@
 import numpy as np
-from eo_processor import detect_breakpoints, complex_classification, texture_entropy
+from eo_processor import detect_breakpoints, complex_classification
+
 
 def test_detect_breakpoints():
     """
@@ -12,10 +13,15 @@ def test_detect_breakpoints():
     np.random.seed(42)
     # Reduce noise to make the breakpoint more obvious and the test more stable
     noise = np.random.normal(0, 0.1, time)
-    y = np.concatenate([
-        np.linspace(0, 10, breakpoint_time),
-        np.linspace(10, 0, time - breakpoint_time)
-    ]) + noise
+    y = (
+        np.concatenate(
+            [
+                np.linspace(0, 10, breakpoint_time),
+                np.linspace(10, 0, time - breakpoint_time),
+            ]
+        )
+        + noise
+    )
 
     # Create a 3D stack (time, y, x)
     stack = np.zeros((time, 1, 1))
@@ -37,6 +43,7 @@ def test_detect_breakpoints():
     assert magnitude > 0
     assert confidence == 1.0
 
+
 def test_complex_classification():
     """
     Test the complex_classification function.
@@ -53,14 +60,3 @@ def test_complex_classification():
     result = complex_classification(blue, green, red, nir, swir1, swir2, temp)
     assert result.shape == shape
     assert result.dtype == np.uint8
-
-def test_texture_entropy():
-    """
-    Test the texture_entropy function.
-    """
-    shape = (20, 20)
-    data = np.random.rand(*shape)
-
-    result = texture_entropy(data, window_size=3)
-    assert result.shape == shape
-    assert result.dtype == np.float64

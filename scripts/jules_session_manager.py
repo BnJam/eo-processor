@@ -9,10 +9,8 @@ ERROR_MESSAGE = os.getenv("ERROR_MESSAGE")
 
 # Jules API Base URL
 BASE_URL = "https://jules.googleapis.com/v1alpha"
-HEADERS = {
-    "X-Goog-Api-Key": JULES_API_KEY,
-    "Content-Type": "application/json"
-}
+HEADERS = {"X-Goog-Api-Key": JULES_API_KEY, "Content-Type": "application/json"}
+
 
 def find_active_session():
     """Searches for an existing Active/Paused session for the current branch."""
@@ -36,7 +34,9 @@ def find_active_session():
         source = session.get("sourceContext", {}).get("source", "")
         if REPO_NAME in source:
             # Check branch match
-            github_context = session.get("sourceContext", {}).get("githubRepoContext", {})
+            github_context = session.get("sourceContext", {}).get(
+                "githubRepoContext", {}
+            )
             starting_branch = github_context.get("startingBranch")
 
             if starting_branch == BRANCH_NAME:
@@ -44,10 +44,11 @@ def find_active_session():
                 # The 'state' is the key—we are only interested in active/paused sessions
                 if state in ["ACTIVE", "PAUSED", "PLANNING"]:
                     print(f"Found existing session: {session['name']} in state {state}")
-                    return session['name']
+                    return session["name"]
 
     print("No active or paused session found for this branch.")
     return None
+
 
 def send_fix_message(session_name):
     """Sends a message to an existing session to resume work."""
@@ -72,9 +73,12 @@ def send_fix_message(session_name):
         # Log error but don't fail the CI step itself
         pass
 
+
 if __name__ == "__main__":
     if not JULES_API_KEY or not REPO_NAME or not BRANCH_NAME:
-        print("ERROR: Missing required environment variables (API Key, Repo, or Branch). Skipping Jules Fix.")
+        print(
+            "ERROR: Missing required environment variables (API Key, Repo, or Branch). Skipping Jules Fix."
+        )
         exit(0)
 
     # 1. Check for an existing session
@@ -86,4 +90,6 @@ if __name__ == "__main__":
     else:
         # 3. If no session exists, this is the time to create a new one,
         # but based on your request, we skip this step to avoid task limits.
-        print("Task not started. If needed, a new session would be created here, which would consume a task quota.")
+        print(
+            "Task not started. If needed, a new session would be created here, which would consume a task quota."
+        )

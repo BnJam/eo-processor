@@ -51,6 +51,7 @@ from eo_processor import (
 # Utility helpers
 # ---------------------------------------------------------------------------
 
+
 def header(title: str) -> None:
     print("=" * 72)
     print(title)
@@ -209,12 +210,20 @@ def performance_comparison():
     nbr_rust_mean, nbr_rust_min, nbr_rust_max = time_func(rust_nbr)
     nbr_np_mean, nbr_np_min, nbr_np_max = time_func(numpy_nbr)
 
-    print(f"NDVI  Rust mean: {ndvi_rust_mean:.4f}s (min {ndvi_rust_min:.4f} max {ndvi_rust_max:.4f})")
-    print(f"NDVI  NumPy mean: {ndvi_np_mean:.4f}s (min {ndvi_np_min:.4f} max {ndvi_np_max:.4f})")
+    print(
+        f"NDVI  Rust mean: {ndvi_rust_mean:.4f}s (min {ndvi_rust_min:.4f} max {ndvi_rust_max:.4f})"
+    )
+    print(
+        f"NDVI  NumPy mean: {ndvi_np_mean:.4f}s (min {ndvi_np_min:.4f} max {ndvi_np_max:.4f})"
+    )
     print(f"NDVI  Speedup (NumPy/Rust): {ndvi_np_mean / ndvi_rust_mean:.2f}x")
 
-    print(f"NBR   Rust mean: {nbr_rust_mean:.4f}s (min {nbr_rust_min:.4f} max {nbr_rust_max:.4f})")
-    print(f"NBR   NumPy mean: {nbr_np_mean:.4f}s (min {nbr_np_min:.4f} max {nbr_np_max:.4f})")
+    print(
+        f"NBR   Rust mean: {nbr_rust_mean:.4f}s (min {nbr_rust_min:.4f} max {nbr_rust_max:.4f})"
+    )
+    print(
+        f"NBR   NumPy mean: {nbr_np_mean:.4f}s (min {nbr_np_min:.4f} max {nbr_np_max:.4f})"
+    )
     print(f"NBR   Speedup (NumPy/Rust): {nbr_np_mean / nbr_rust_mean:.2f}x")
 
 
@@ -261,7 +270,9 @@ def multi_band_cube_demo():
     # Example masked area (simulate cloud or invalid pixels)
     mask = rng.random((H, W)) < 0.1
     mean_ndvi_masked = np.where(mask, np.nan, mean_ndvi)
-    print(f"Applied synthetic mask (10% NaNs) to mean NDVI - finite count: {np.isfinite(mean_ndvi_masked).sum()}/{H*W}")
+    print(
+        f"Applied synthetic mask (10% NaNs) to mean NDVI - finite count: {np.isfinite(mean_ndvi_masked).sum()}/{H * W}"
+    )
 
 
 # ---------------------------------------------------------------------------

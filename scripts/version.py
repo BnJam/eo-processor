@@ -13,6 +13,7 @@ Usage:
     python scripts/version.py major           # Increment major version (0.1.0 -> 1.0.0)
     python scripts/version.py set 1.2.3       # Set specific version
 """
+
 import argparse
 import re
 import sys
@@ -21,6 +22,7 @@ from typing import Tuple
 
 
 # --- Utility Functions (Kept as is) ---
+
 
 def parse_version(version_str: str) -> Tuple[int, int, int]:
     """Parse semantic version string into major, minor, patch."""
@@ -55,6 +57,7 @@ def get_current_version() -> str:
 
 # --- Update Functions (MODIFIED/NEW) ---
 
+
 def update_pyproject_version(new_version: str) -> None:
     """Update version in pyproject.toml."""
     pyproject_path = Path("pyproject.toml")
@@ -63,7 +66,7 @@ def update_pyproject_version(new_version: str) -> None:
     # Update version field in [project]
     new_content = re.sub(
         r'^(version\s*=\s*)"[^"]+"',
-        fr'\1"{new_version}"',
+        rf'\1"{new_version}"',
         content,
         flags=re.MULTILINE,
     )
@@ -85,7 +88,7 @@ def update_cargo_version(new_version: str) -> None:
     # Use re.sub with a non-greedy match to ensure it only hits the one line
     new_content = re.sub(
         r'(\[package\][\s\S]*?^version\s*=\s*)"[^"]+"',
-        fr'\1"{new_version}"',
+        rf'\1"{new_version}"',
         content,
         flags=re.MULTILINE | re.IGNORECASE,
     )
@@ -101,7 +104,10 @@ def update_init_version(new_version: str) -> None:
     # The user-facing module is likely 'python/eo_processor/__init__.py'
     init_path = Path("python/eo_processor/__init__.py")
     if not init_path.exists():
-        print(f"Warning: {init_path} not found. Skipping __version__ update.", file=sys.stderr)
+        print(
+            f"Warning: {init_path} not found. Skipping __version__ update.",
+            file=sys.stderr,
+        )
         return
 
     content = init_path.read_text()
@@ -120,12 +126,13 @@ def update_init_version(new_version: str) -> None:
 def update_all_versions(new_version: str) -> None:
     """Update version in all files."""
     update_pyproject_version(new_version)
-    update_cargo_version(new_version) # <-- NEW RUST VERSION UPDATE
+    update_cargo_version(new_version)  # <-- NEW RUST VERSION UPDATE
     update_init_version(new_version)
     # Removed the update_server_version function call
 
 
 # --- Main Logic (Kept as is, but relies on new functions) ---
+
 
 def increment_version(increment_type: str) -> str:
     """Increment version based on type (major, minor, patch)."""

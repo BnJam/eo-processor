@@ -61,10 +61,18 @@ def example_xarray_basic():
     rng = np.random.default_rng(0)
     nir = xr.DataArray(rng.uniform(0.3, 0.9, size=(h, w)), dims=["y", "x"], name="NIR")
     red = xr.DataArray(rng.uniform(0.05, 0.4, size=(h, w)), dims=["y", "x"], name="Red")
-    green = xr.DataArray(rng.uniform(0.1, 0.6, size=(h, w)), dims=["y", "x"], name="Green")
-    blue = xr.DataArray(rng.uniform(0.02, 0.25, size=(h, w)), dims=["y", "x"], name="Blue")
-    swir1 = xr.DataArray(rng.uniform(0.2, 0.5, size=(h, w)), dims=["y", "x"], name="SWIR1")
-    swir2 = xr.DataArray(rng.uniform(0.15, 0.4, size=(h, w)), dims=["y", "x"], name="SWIR2")
+    green = xr.DataArray(
+        rng.uniform(0.1, 0.6, size=(h, w)), dims=["y", "x"], name="Green"
+    )
+    blue = xr.DataArray(
+        rng.uniform(0.02, 0.25, size=(h, w)), dims=["y", "x"], name="Blue"
+    )
+    swir1 = xr.DataArray(
+        rng.uniform(0.2, 0.5, size=(h, w)), dims=["y", "x"], name="SWIR1"
+    )
+    swir2 = xr.DataArray(
+        rng.uniform(0.15, 0.4, size=(h, w)), dims=["y", "x"], name="SWIR2"
+    )
 
     # Compute indices (eager, small arrays)
     indices = {
@@ -164,7 +172,16 @@ def example_map_blocks():
 
     print("Result stacked shape (channels, y, x):", stacked.shape)
     comp = stacked.compute()
-    print("Channels:", comp.shape[0], "NDVI mean:", comp[0].mean(), "SAVI mean:", comp[1].mean(), "GCI mean:", comp[2].mean())
+    print(
+        "Channels:",
+        comp.shape[0],
+        "NDVI mean:",
+        comp[0].mean(),
+        "SAVI mean:",
+        comp[1].mean(),
+        "GCI mean:",
+        comp[2].mean(),
+    )
     print("map_blocks multi-index computed ✔\n")
 
 
@@ -234,7 +251,9 @@ def example_multiband_dataset():
 
     # Compute indices, add as new DataArrays
     ds["NDVI"] = xr.DataArray(ndvi(ds["NIR"].data, ds["Red"].data), dims=["y", "x"])
-    ds["SAVI"] = xr.DataArray(savi(ds["NIR"].data, ds["Red"].data, L=0.5), dims=["y", "x"])
+    ds["SAVI"] = xr.DataArray(
+        savi(ds["NIR"].data, ds["Red"].data, L=0.5), dims=["y", "x"]
+    )
     ds["NBR"] = xr.DataArray(nbr(ds["NIR"].data, ds["SWIR2"].data), dims=["y", "x"])
     ds["NDMI"] = xr.DataArray(ndmi(ds["NIR"].data, ds["SWIR1"].data), dims=["y", "x"])
     ds["GCI"] = xr.DataArray(gci(ds["NIR"].data, ds["Green"].data), dims=["y", "x"])

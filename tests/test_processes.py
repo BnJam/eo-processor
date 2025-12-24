@@ -6,7 +6,9 @@ from eo_processor import moving_average_temporal, pixelwise_transform
 # -----------------------------
 # Helpers
 # -----------------------------
-def py_moving_average_same(series: np.ndarray, window: int, skip_na: bool) -> np.ndarray:
+def py_moving_average_same(
+    series: np.ndarray, window: int, skip_na: bool
+) -> np.ndarray:
     """
     Pure-Python/Numpy reference for 'same' mode moving average (variable window near edges).
     skip_na semantics:
@@ -29,7 +31,9 @@ def py_moving_average_same(series: np.ndarray, window: int, skip_na: bool) -> np
     return out
 
 
-def py_moving_average_valid(series: np.ndarray, window: int, skip_na: bool) -> np.ndarray:
+def py_moving_average_valid(
+    series: np.ndarray, window: int, skip_na: bool
+) -> np.ndarray:
     """
     'valid' mode: only full windows (no edge shrink). Length = t - window + 1.
     """
@@ -182,7 +186,9 @@ def test_pixelwise_transform_multi_dim():
     assert np.allclose(out3d, arr3d * 0.5 - 0.2, atol=1e-12)
 
     arr4d = np.random.rand(2, 3, 4, 5)
-    out4d = pixelwise_transform(arr4d, scale=1.1, offset=0.0, clamp_min=0.0, clamp_max=1.0)
+    out4d = pixelwise_transform(
+        arr4d, scale=1.1, offset=0.0, clamp_min=0.0, clamp_max=1.0
+    )
     # Since arr4d in [0,1), scaling may push some >1; clamp verifies
     expected4d = np.clip(arr4d * 1.1, 0.0, 1.0)
     assert np.allclose(out4d, expected4d, atol=1e-12)
@@ -196,7 +202,9 @@ def test_moving_average_then_transform_chain():
     cube = np.random.rand(12, 8, 8)
     ma = moving_average_temporal(cube, window=3, skip_na=True, mode="same")
     # Scale and clamp
-    stretched = pixelwise_transform(ma, scale=1.2, offset=-0.1, clamp_min=0.0, clamp_max=1.0)
+    stretched = pixelwise_transform(
+        ma, scale=1.2, offset=-0.1, clamp_min=0.0, clamp_max=1.0
+    )
     assert stretched.shape == ma.shape
     assert np.all(stretched <= 1.0 + 1e-12)
     assert np.all(stretched >= -1e-12)  # clamp floor

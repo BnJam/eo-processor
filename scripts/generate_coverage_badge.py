@@ -53,16 +53,16 @@ def _color_for_coverage(pct_int: int) -> str:
     Derive color similar to shields.io thresholds.
     """
     if pct_int >= 90:
-        return "#4c1"      # bright green
+        return "#4c1"  # bright green
     if pct_int >= 80:
-        return "#97CA00"   # greenish
+        return "#97CA00"  # greenish
     if pct_int >= 70:
-        return "#a4a61d"   # olive / yellow-green
+        return "#a4a61d"  # olive / yellow-green
     if pct_int >= 60:
-        return "#dfb317"   # yellow
+        return "#dfb317"  # yellow
     if pct_int >= 50:
-        return "#fe7d37"   # orange
-    return "#e05d44"       # red
+        return "#fe7d37"  # orange
+    return "#e05d44"  # red
 
 
 def _compute_widths(left_text: str, right_text: str) -> Tuple[int, int, int]:
@@ -127,10 +127,10 @@ def generate_coverage_badge(xml_path: str, output_path: str) -> None:
     <rect width="{total_w}" height="20" fill="url(#b)"/>
   </g>
   <g fill="#fff" text-anchor="middle" font-family="Verdana,Geneva,DejaVu Sans,sans-serif" font-size="11">
-    <text x="{left_w/2:.1f}" y="15" fill="#010101" fill-opacity=".3">{left_label}</text>
-    <text x="{left_w/2:.1f}" y="14">{left_label}</text>
-    <text x="{left_w + right_w/2:.1f}" y="15" fill="#010101" fill-opacity=".3">{right_value}</text>
-    <text x="{left_w + right_w/2:.1f}" y="14">{right_value}</text>
+    <text x="{left_w / 2:.1f}" y="15" fill="#010101" fill-opacity=".3">{left_label}</text>
+    <text x="{left_w / 2:.1f}" y="14">{left_label}</text>
+    <text x="{left_w + right_w / 2:.1f}" y="15" fill="#010101" fill-opacity=".3">{right_value}</text>
+    <text x="{left_w + right_w / 2:.1f}" y="14">{right_value}</text>
   </g>
 </svg>"""
 
@@ -146,7 +146,9 @@ def generate_coverage_badge(xml_path: str, output_path: str) -> None:
 
 if __name__ == "__main__":
     if len(sys.argv) != 3:
-        print("Usage: python generate_coverage_badge.py <input_coverage_xml_path> <output_badge_svg_path>")
+        print(
+            "Usage: python generate_coverage_badge.py <input_coverage_xml_path> <output_badge_svg_path>"
+        )
         sys.exit(1)
 
     xml_file = sys.argv[1]

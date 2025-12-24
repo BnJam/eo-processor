@@ -35,6 +35,7 @@ project = "eo-processor"
 author = "Benjamin Smith"
 copyright = f"{datetime.now():%Y}, {author}"
 
+
 # Attempt to get version from package; fall back gracefully.
 def _read_version():
     try:
@@ -43,6 +44,7 @@ def _read_version():
     except Exception:
         # On RTD before build of extension module this can fail.
         return "0.0.0"
+
 
 version = _read_version()
 release = version
@@ -156,6 +158,7 @@ rst_epilog = """
 .. |NumPy| replace:: **NumPy**
 """
 
+
 # ---------------------------------------------------------------------------
 # Custom hook: ensure README & QUICKSTART included without duplication
 # ---------------------------------------------------------------------------
@@ -174,10 +177,14 @@ def _link_external_markdown():
             try:
                 text = src_path.read_text(encoding="utf-8")
                 # Avoid writing if unchanged
-                if not dest_path.exists() or dest_path.read_text(encoding="utf-8") != text:
+                if (
+                    not dest_path.exists()
+                    or dest_path.read_text(encoding="utf-8") != text
+                ):
                     dest_path.write_text(text, encoding="utf-8")
             except Exception as e:
                 print(f"[conf.py] Warning: could not process {fname}: {e}")
+
 
 _link_external_markdown()
 
@@ -212,6 +219,7 @@ For integration in XArray/Dask workflows, these functions behave as standard ufu
 callables. They can be wrapped via xarray.apply_ufunc with 'dask=parallelized' to combine
 distributed chunking with Rust's local parallel execution.
 """
+
 
 def setup(app):
     # Make the note available as a config value

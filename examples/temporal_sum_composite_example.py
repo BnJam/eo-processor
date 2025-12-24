@@ -1,6 +1,7 @@
 import numpy as np
 from eo_processor import temporal_sum, temporal_composite
 
+
 def run_temporal_examples():
     """Demonstrate temporal_sum and temporal_composite."""
     print("--- Temporal Sum and Composite Example ---")
@@ -42,10 +43,13 @@ def run_temporal_examples():
     weighted_median = temporal_composite(test_stack, weights=pixel_weights)
     assert weighted_median.shape == (1, 1, 1)
     # The median should be 3 because its weight (10) is > half the total weight (14 / 2 = 7)
-    assert abs(weighted_median[0, 0, 0] - 3.0) < 1e-9, "Weighted median calculation is incorrect"
+    assert abs(weighted_median[0, 0, 0] - 3.0) < 1e-9, (
+        "Weighted median calculation is incorrect"
+    )
     print("temporal_composite correctly computes the weighted median.")
 
     print("\n--- Example Complete ---")
+
 
 if __name__ == "__main__":
     run_temporal_examples()
