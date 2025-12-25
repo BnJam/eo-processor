@@ -4,14 +4,110 @@ use numpy::{IntoPyArray, PyArrayDyn, PyReadonlyArrayDyn};
 use pyo3::prelude::*;
 use rayon::prelude::*;
 
-// --- 1. Iterative Time-Series Fitter Example ---
+// --- 1. BFAST Monitor Workflow ---
+
+// Placeholder struct for model parameters
+struct HarmonicModel {
+    mean: f64,
+}
+
+// Placeholder for fitting a harmonic model to the stable history period.
+// In a real implementation, this would involve solving for harmonic coefficients.
+fn fit_harmonic_model(y: &[f64]) -> HarmonicModel {
+    if y.is_empty() {
+        return HarmonicModel { mean: 0.0 };
+    }
+    let sum: f64 = y.iter().sum();
+    HarmonicModel {
+        mean: sum / y.len() as f64,
+    }
+}
+
+// Placeholder for predicting values based on the fitted model.
+fn predict_harmonic_model(_model: &HarmonicModel, dates: &[i64]) -> Vec<f64> {
+    // For now, just return a constant prediction (the historical mean)
+    vec![_model.mean; dates.len()]
+}
+
+// Placeholder for the MOSUM process to detect a break.
+// Returns (break_date, magnitude)
+fn detect_mosum_break(
+    y_monitor: &[f64],
+    y_pred: &[f64],
+    monitor_dates: &[i64],
+    level: f64,
+) -> (f64, f64) {
+    if y_monitor.is_empty() || y_monitor.len() != y_pred.len() {
+        return (0.0, 0.0);
+    }
+
+    let residuals: Vec<f64> = y_monitor
+        .iter()
+        .zip(y_pred.iter())
+        .map(|(obs, pred)| obs - pred)
+        .collect();
+
+    let mean_residual: f64 = residuals.iter().sum::<f64>() / residuals.len() as f64;
+
+    // Simplified break detection: if the average residual in the monitoring period
+    // exceeds the significance level, flag the start of the period as a break.
+    if mean_residual.abs() > level {
+        (monitor_dates[0] as f64, mean_residual.abs())
+    } else {
+        (0.0, 0.0) // No break detected
+    }
+}
+
+// This is the main logic function that runs for each pixel.
+fn run_bfast_monitor_per_pixel(
+    pixel_ts: &[f64],
+    dates: &[i64],
+    history_start: i64,
+    monitor_start: i64,
+    level: f64,
+) -> (f64, f64) {
+    // 1. Find the indices for the history and monitoring periods
+    let history_indices: Vec<usize> = dates
+        .iter()
+        .enumerate()
+        .filter(|(_, &d)| d >= history_start && d < monitor_start)
+        .map(|(i, _)| i)
+        .collect();
+
+    let monitor_indices: Vec<usize> = dates
+        .iter()
+        .enumerate()
+        .filter(|(_, &d)| d >= monitor_start)
+        .map(|(i, _)| i)
+        .collect();
+
+    if history_indices.is_empty() || monitor_indices.is_empty() {
+        return (0.0, 0.0); // Not enough data
+    }
+
+    // 2. Extract the data for these periods
+    let history_ts: Vec<f64> = history_indices.iter().map(|&i| pixel_ts[i]).collect();
+    let monitor_ts: Vec<f64> = monitor_indices.iter().map(|&i| pixel_ts[i]).collect();
+    let monitor_dates: Vec<i64> = monitor_indices.iter().map(|&i| dates[i]).collect();
+
+    // 3. Fit model on the historical period
+    let model = fit_harmonic_model(&history_ts);
+
+    // 4. Predict for the monitoring period
+    let predicted_ts = predict_harmonic_model(&model, &monitor_dates);
+
+    // 5. Detect break using MOSUM process on residuals
+    detect_mosum_break(&monitor_ts, &predicted_ts, &monitor_dates, level)
+}
 
 #[pyfunction]
-pub fn detect_breakpoints(
+pub fn bfast_monitor(
     py: Python,
     stack: PyReadonlyArrayDyn<f64>,
-    dates: Vec<i64>, // Julian dates
-    threshold: f64,
+    dates: Vec<i64>,
+    history_start_date: i64,
+    monitor_start_date: i64,
+    level: f64, // Significance level
 ) -> PyResult<Py<PyArrayDyn<f64>>> {
     let stack_arr = stack.as_array();
 
@@ -27,8 +123,17 @@ pub fn detect_breakpoints(
     let height = stack_arr.shape()[1];
     let width = stack_arr.shape()[2];
 
-    // Output channels: [break_date, magnitude, confidence]
-    let mut out_array = ndarray::ArrayD::<f64>::zeros(IxDyn(&[3, height, width]));
+    if time_len != dates.len() {
+        return Err(CoreError::InvalidArgument(format!(
+            "Time dimension of stack ({}) does not match length of dates vector ({})",
+            time_len,
+            dates.len()
+        ))
+        .into());
+    }
+
+    // Output channels: [break_date, magnitude]
+    let mut out_array = ndarray::ArrayD::<f64>::zeros(IxDyn(&[2, height, width]));
 
     // Flatten spatial dimensions for parallel processing
     let num_pixels = height * width;
@@ -38,83 +143,31 @@ pub fn detect_breakpoints(
 
     let mut out_flat = out_array
         .view_mut()
-        .into_shape((3, num_pixels))
+        .into_shape((2, num_pixels))
         .map_err(|e| CoreError::ComputationError(e.to_string()))?;
 
     // Get mutable 1D views for each output channel
     let mut out_slices = out_flat.axis_iter_mut(Axis(0));
     let mut break_dates = out_slices.next().unwrap();
     let mut magnitudes = out_slices.next().unwrap();
-    let mut confidences = out_slices.next().unwrap();
 
     // Iterate over each pixel's time series in parallel
     Zip::from(&mut break_dates)
         .and(&mut magnitudes)
-        .and(&mut confidences)
         .and(stack_flat.axis_iter(Axis(1)))
-        .par_for_each(|break_date, magnitude, confidence, pixel_ts| {
-            let (bk_date, mag, conf) =
-                run_bfast_lite_logic(pixel_ts.as_slice().unwrap(), &dates, threshold);
+        .par_for_each(|break_date, magnitude, pixel_ts| {
+            let (bk_date, mag) = run_bfast_monitor_per_pixel(
+                pixel_ts.as_slice().unwrap(),
+                &dates,
+                history_start_date,
+                monitor_start_date,
+                level,
+            );
             *break_date = bk_date;
             *magnitude = mag;
-            *confidence = conf;
         });
 
     Ok(out_array.into_pyarray(py).to_owned())
-}
-
-// Pure Rust: The compiler optimizes this loop heavily.
-fn run_bfast_lite_logic(pixel_ts: &[f64], dates: &[i64], thresh: f64) -> (f64, f64, f64) {
-    if pixel_ts.len() <= 10 {
-        return (-1.0, 0.0, 0.0);
-    }
-
-    let mut max_diff = 0.0;
-    let mut break_idx = 0;
-
-    // Iterate through possible breakpoints, ensuring enough data on each side
-    for i in 5..(pixel_ts.len() - 5) {
-        let (slope1, _) = calculate_linear_regression(&pixel_ts[..i]);
-        let (slope2, _) = calculate_linear_regression(&pixel_ts[i..]);
-
-        let diff = (slope1 - slope2).abs();
-        if diff > max_diff {
-            max_diff = diff;
-            break_idx = i;
-        }
-    }
-
-    if max_diff > thresh {
-        (
-            dates.get(break_idx).map_or(-1.0, |d| *d as f64),
-            max_diff,
-            1.0, // Confidence is simplified to 1.0 if a break is found
-        )
-    } else {
-        (-1.0, 0.0, 0.0)
-    }
-}
-
-// Local helper for linear regression, adapted from src/trends.rs
-fn calculate_linear_regression(y: &[f64]) -> (f64, f64) {
-    if y.is_empty() {
-        return (0.0, 0.0);
-    }
-    let n = y.len() as f64;
-    let x_sum: f64 = (0..y.len()).map(|i| i as f64).sum();
-    let y_sum: f64 = y.iter().sum();
-    let xy_sum: f64 = y.iter().enumerate().map(|(i, &yi)| i as f64 * yi).sum();
-    let x_sq_sum: f64 = (0..y.len()).map(|i| (i as f64).powi(2)).sum();
-
-    let denominator = n * x_sq_sum - x_sum.powi(2);
-    if denominator.abs() < 1e-10 {
-        return (0.0, y.iter().sum::<f64>() / n); // Vertical line, return mean as intercept
-    }
-
-    let slope = (n * xy_sum - x_sum * y_sum) / denominator;
-    let intercept = (y_sum - slope * x_sum) / n;
-
-    (slope, intercept)
 }
 
 // --- 2. Short-Circuit Classifier Example ---

@@ -95,7 +95,7 @@ fn _core(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(morphology::binary_closing, m)?)?;
 
     // --- Workflows ---
-    m.add_function(wrap_pyfunction!(workflows::detect_breakpoints, m)?)?;
+    m.add_function(wrap_pyfunction!(workflows::bfast_monitor, m)?)?;
     m.add_function(wrap_pyfunction!(workflows::complex_classification, m)?)?;
 
     // --- Texture ---
