@@ -47,7 +47,7 @@ from ._core import (
     binary_erosion as _binary_erosion,
     binary_opening as _binary_opening,
     binary_closing as _binary_closing,
-    detect_breakpoints as _detect_breakpoints,
+    bfast_monitor as _bfast_monitor,
     complex_classification as _complex_classification,
     random_forest_predict as _random_forest_predict,
     random_forest_train as _random_forest_train,
@@ -131,7 +131,7 @@ __all__ = [
     "binary_erosion",
     "binary_opening",
     "binary_closing",
-    "detect_breakpoints",
+    "bfast_monitor",
     "complex_classification",
     "haralick_features",
     "random_forest_predict",
@@ -164,11 +164,15 @@ def random_forest_predict(model_json, features):
     return _random_forest_predict(model_json, features)
 
 
-def detect_breakpoints(stack, dates, threshold):
+def bfast_monitor(
+    stack, dates, history_start_date, monitor_start_date, level
+):
     """
-    Scaffold for a time-series breakpoint detection workflow (e.g., BFAST-like).
+    Scaffold for the BFAST Monitor workflow.
     """
-    return _detect_breakpoints(stack, dates, threshold)
+    return _bfast_monitor(
+        stack, dates, history_start_date, monitor_start_date, level
+    )
 
 
 def complex_classification(blue, green, red, nir, swir1, swir2, temp):
