@@ -161,4 +161,15 @@ def binary_closing(
     input: NDArray[np.uint8], kernel_size: int = ...
 ) -> NDArray[np.uint8]: ...
 
+# Workflows
+def bfast_monitor(
+    stack: NumericArray,
+    dates: Sequence[int],
+    history_start_date: int,
+    monitor_start_date: int,
+    order: int = ...,
+    h: float = ...,
+    alpha: float = ...,
+) -> NDArray[np.float64]: ...
+
 # Raises ValueError if p < 1.0
