@@ -20,6 +20,8 @@ pub enum CoreError {
     InvalidArgument(String),
     #[error("Computation error: {0}")]
     ComputationError(String),
+    #[error("Not enough data: {0}")]
+    NotEnoughData(String),
 }
 
 impl From<CoreError> for PyErr {
@@ -27,6 +29,7 @@ impl From<CoreError> for PyErr {
         match err {
             CoreError::InvalidArgument(msg) => PyValueError::new_err(msg),
             CoreError::ComputationError(msg) => PyValueError::new_err(msg),
+            CoreError::NotEnoughData(msg) => PyValueError::new_err(msg),
         }
     }
 }
@@ -95,7 +98,7 @@ fn _core(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(morphology::binary_closing, m)?)?;
 
     // --- Workflows ---
-    m.add_function(wrap_pyfunction!(workflows::detect_breakpoints, m)?)?;
+    m.add_function(wrap_pyfunction!(workflows::bfast_monitor, m)?)?;
     m.add_function(wrap_pyfunction!(workflows::complex_classification, m)?)?;
 
     // --- Texture ---
