@@ -137,7 +137,7 @@ fn detect_mosum_break(
         if mosum_val > boundary {
             let break_idx = i + window_size;
             let magnitude = (y_monitor[break_idx] - y_pred[break_idx]).abs();
-            return (monitor_dates[break_idx] as f64, magnitude);
+            return (monitor_dates[break_idx], magnitude);
         }
     }
 
@@ -216,6 +216,7 @@ fn run_bfast_monitor_per_pixel(
 }
 
 #[pyfunction]
+#[allow(clippy::too_many_arguments)]
 pub fn bfast_monitor(
     py: Python,
     stack: PyReadonlyArrayDyn<f64>,
