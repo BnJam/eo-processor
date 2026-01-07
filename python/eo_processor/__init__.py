@@ -165,13 +165,25 @@ def random_forest_predict(model_json, features):
 
 
 def bfast_monitor(
-    stack, dates, history_start_date, monitor_start_date, level
+    stack,
+    dates,
+    history_start_date,
+    monitor_start_date,
+    order=1,
+    h=0.25,
+    alpha=0.05,
 ):
     """
-    Scaffold for the BFAST Monitor workflow.
+    BFAST Monitor workflow for change detection.
     """
     return _bfast_monitor(
-        stack, dates, history_start_date, monitor_start_date, level
+        stack,
+        dates,
+        history_start_date,
+        monitor_start_date,
+        order,
+        h,
+        alpha,
     )
 
 

@@ -20,6 +20,8 @@ pub enum CoreError {
     InvalidArgument(String),
     #[error("Computation error: {0}")]
     ComputationError(String),
+    #[error("Not enough data: {0}")]
+    NotEnoughData(String),
 }
 
 impl From<CoreError> for PyErr {
@@ -27,6 +29,7 @@ impl From<CoreError> for PyErr {
         match err {
             CoreError::InvalidArgument(msg) => PyValueError::new_err(msg),
             CoreError::ComputationError(msg) => PyValueError::new_err(msg),
+            CoreError::NotEnoughData(msg) => PyValueError::new_err(msg),
         }
     }
 }
