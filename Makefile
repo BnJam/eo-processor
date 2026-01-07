@@ -13,7 +13,7 @@ PYTEST_RUN = $(VENV_DIR)/bin/pytest
 # Default and Setup Targets
 # ==============================================================================
 
-.PHONY: all setup sync develop build install clean test lint docs help
+.PHONY: all setup sync develop build build-wheel install install-wheel reinstall clean test lint docs help
 
 all: develop
 
@@ -35,16 +35,32 @@ develop: sync ## Install the Rust code as a Python module for development
 # Build, Clean, and Utility Targets
 # ==============================================================================
 
-build: sync ## Build the release wheels for distribution
-	@echo "⚙️ Building release wheels..."
+# Build a wheel (does NOT install it into the current environment)
+build-wheel: sync ## Build the release wheel(s) for distribution (outputs to dist/)
+	@echo "⚙️ Building release wheel(s) into dist/ ..."
 	# NOTE: This target assumes the virtual environment is manually activated
 	uv run maturin build --release --out dist
 
-install: build ## Install the project from the built wheel
-	@echo "📦 Installing built wheel into environment..."
-	# Find the latest built wheel and install it
-	uv pip uninstall eo_processor || true
-	uv pip install .[dask]
+# Backwards-compatible alias (historically named "build")
+build: build-wheel ## Alias for build-wheel
+
+# Install from the freshly built wheel in dist/ (the correct companion to build-wheel)
+install-wheel: build-wheel ## Install the freshly built wheel from dist/ into the current environment
+	@echo "📦 Installing freshly built wheel into current environment..."
+	# Uninstall any previously installed distribution variants (name can differ across tools)
+	uv pip uninstall -y eo-processor eo_processor || true
+	# Install the wheel we just built. --force-reinstall ensures the native extension updates.
+	uv pip install --force-reinstall dist/*.whl
+
+# Backwards-compatible alias for "install" (historically misleading in this repo)
+install: install-wheel ## Alias for install-wheel
+
+reinstall: sync ## Build and install the wheel into the current environment
+	@echo "⚙️ Building release wheel..."
+	uv run maturin build --release --out dist
+	@echo "📦 Installing freshly built wheel..."
+	uv pip uninstall eo-processor eo_processor || true
+	uv pip install --force-reinstall dist/*.whl
 
 clean: ## Clean up build artifacts
 	@echo "🧹 Cleaning up..."

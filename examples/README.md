@@ -5,6 +5,7 @@ This directory contains runnable Python scripts demonstrating usage of the high-
 ## Files
 
 - `basic_usage.py`: Core spectral indices (NDVI, NDWI, EVI, normalized difference) on 1D and 2D arrays plus performance snippet and temporal stats.
+- `bfast_monitor_example.py`: Demonstrates `bfast_monitor` change detection on a synthetic seasonal time series (break vs stable) and includes optional PNG outputs (`--png`) for visualization.
 - `xarray_dask_usage.py`: Integration with XArray and Dask for chunked / lazy evaluation and time-series workflows.
 - `map_blocks.py`: Compares `xarray.apply_ufunc`, `xarray.map_blocks`, and `dask.array.map_blocks` for NDVI computation performance.
 - `temporal_operations.py`: Demonstrates `temporal_mean`, `temporal_std`, median compositing, and NaN handling.
