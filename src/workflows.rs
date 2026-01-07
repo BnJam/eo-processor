@@ -1,11 +1,15 @@
 use crate::CoreError;
 use nalgebra::{DMatrix, DVector};
-use ndarray::{Axis, IxDyn, Zip};
+use ndarray::{Axis, IxDyn};
 use numpy::{IntoPyArray, PyArrayDyn, PyReadonlyArrayDyn};
 use pyo3::prelude::*;
 use rayon::prelude::*;
 
 const TWO_PI: f64 = 2.0 * std::f64::consts::PI;
+
+// Chunk size (in pixels) for parallel work units in bfast_monitor.
+// Larger chunks reduce scheduling overhead and enable safe disjoint mutable writes.
+const BFAST_PIXELS_PER_CHUNK: usize = 1024;
 
 // --- 1. BFAST Monitor Workflow ---
 
@@ -159,55 +163,31 @@ fn dates_to_frac_years(dates: &[i64]) -> Vec<f64> {
 }
 
 // This is the main logic function that runs for each pixel.
-fn run_bfast_monitor_per_pixel(
-    pixel_ts: &[f64],
-    dates: &[f64],
-    history_start: f64,
-    monitor_start: f64,
+
+
+fn run_bfast_monitor_per_pixel_windows(
+    history_ts: &[f64],
+    history_dates: &[f64],
+    monitor_ts: &[f64],
+    monitor_dates: &[f64],
     order: usize,
-    h: f64, // h parameter for MOSUM window size
-    alpha: f64, // Significance level
+    h: f64,
+    alpha: f64,
 ) -> (f64, f64) {
-    // 1. Find the indices for the history and monitoring periods
-    let history_indices: Vec<usize> = dates
-        .iter()
-        .enumerate()
-        .filter(|(_, &d)| d >= history_start && d < monitor_start)
-        .map(|(i, _)| i)
-        .collect();
-
-    let monitor_indices: Vec<usize> = dates
-        .iter()
-        .enumerate()
-        .filter(|(_, &d)| d >= monitor_start)
-        .map(|(i, _)| i)
-        .collect();
-
-    if history_indices.is_empty() || monitor_indices.is_empty() {
-        return (0.0, 0.0);
-    }
-
-    // 2. Extract the data for these periods
-    let history_ts: Vec<f64> = history_indices.iter().map(|&i| pixel_ts[i]).collect();
-    let history_dates: Vec<f64> = history_indices.iter().map(|&i| dates[i]).collect();
-    let monitor_ts: Vec<f64> = monitor_indices.iter().map(|&i| pixel_ts[i]).collect();
-    let monitor_dates: Vec<f64> = monitor_indices.iter().map(|&i| dates[i]).collect();
-
-    // 3. Fit model on the historical period
-    let model_result = fit_harmonic_model(&history_ts, &history_dates, order);
-    let model = match model_result {
+    // Fit model on the historical period
+    let model = match fit_harmonic_model(history_ts, history_dates, order) {
         Ok(m) => m,
-        Err(_) => return (0.0, 0.0), // Return no-break if model fails
+        Err(_) => return (0.0, 0.0),
     };
 
-    // 4. Predict for the monitoring period
-    let predicted_ts = predict_harmonic_model(&model, &monitor_dates, order);
+    // Predict for the monitoring period
+    let predicted_ts = predict_harmonic_model(&model, monitor_dates, order);
 
-    // 5. Detect break using MOSUM process on residuals
+    // Detect break using MOSUM process on residuals
     detect_mosum_break(
-        &monitor_ts,
+        monitor_ts,
         &predicted_ts,
-        &monitor_dates,
+        monitor_dates,
         history_ts.len(),
         model.sigma,
         h,
@@ -259,37 +239,120 @@ pub fn bfast_monitor(
     let mut out_array = ndarray::ArrayD::<f64>::zeros(IxDyn(&[2, height, width]));
 
     // Flatten spatial dimensions for parallel processing
+    //
+    // IMPORTANT: In the input layout (time, y, x), each pixel's time series is strided
+    // along the time axis. After reshaping to (time, num_pixels), iterating over Axis(1)
+    // yields 1D views that are typically *not* contiguous, so `as_slice()` can return None.
+    //
+    // To avoid per-pixel allocations (and avoid panics), we instead fetch each time sample
+    // by indexing the (time, num_pixels) array.
     let num_pixels = height * width;
     let stack_flat = stack_arr
         .into_shape((time_len, num_pixels))
         .map_err(|e| CoreError::ComputationError(e.to_string()))?;
+
+    // Precompute the (time) indices for history/monitor windows once (they are the same
+    // for all pixels), which avoids collecting per-pixel vectors in the hot loop.
+    let history_indices: Vec<usize> = frac_dates
+        .iter()
+        .enumerate()
+        .filter(|(_, &d)| d >= history_start_frac && d < monitor_start_frac)
+        .map(|(i, _)| i)
+        .collect();
+
+    let monitor_indices: Vec<usize> = frac_dates
+        .iter()
+        .enumerate()
+        .filter(|(_, &d)| d >= monitor_start_frac)
+        .map(|(i, _)| i)
+        .collect();
+
+    if history_indices.is_empty() || monitor_indices.is_empty() {
+        // No valid windows: output stays zeros (no break, no magnitude)
+        return Ok(out_array.into_pyarray(py).to_owned());
+    }
 
     let mut out_flat = out_array
         .view_mut()
         .into_shape((2, num_pixels))
         .map_err(|e| CoreError::ComputationError(e.to_string()))?;
 
-    // Get mutable 1D views for each output channel
+    // Get mutable 1D views for each output channel (avoid panics; return Python-friendly errors)
     let mut out_slices = out_flat.axis_iter_mut(Axis(0));
-    let mut break_dates = out_slices.next().unwrap();
-    let mut magnitudes = out_slices.next().unwrap();
 
-    // Iterate over each pixel's time series in parallel
-    Zip::from(&mut break_dates)
-        .and(&mut magnitudes)
-        .and(stack_flat.axis_iter(Axis(1)))
-        .par_for_each(|break_date, magnitude, pixel_ts| {
-            let (bk_date, mag) = run_bfast_monitor_per_pixel(
-                pixel_ts.as_slice().unwrap(),
-                &frac_dates,
-                history_start_frac,
-                monitor_start_frac,
-                order,
-                h,
-                alpha,
-            );
-            *break_date = bk_date;
-            *magnitude = mag;
+    let mut break_dates = out_slices.next().ok_or_else(|| {
+        CoreError::ComputationError(
+            "Internal error: failed to create break_dates output view (missing channel 0)".to_string(),
+        )
+    })?;
+
+    let mut magnitudes = out_slices.next().ok_or_else(|| {
+        CoreError::ComputationError(
+            "Internal error: failed to create magnitudes output view (missing channel 1)".to_string(),
+        )
+    })?;
+
+    // NOTE: Pixel time series for a (time, y, x) input are strided, so we avoid relying on
+    // `pixel_ts.as_slice()` entirely. Instead, we index into `stack_flat[(t, pix)]`.
+    //
+    // To write outputs in parallel safely, we:
+    // 1) ensure each output channel is a contiguous 1D slice
+    // 2) split each output slice into disjoint chunks
+    // 3) process chunks in parallel, writing only within the current chunk
+    let break_dates_slice = break_dates
+        .as_slice_mut()
+        .ok_or_else(|| CoreError::ComputationError("break_dates output buffer is not contiguous".to_string()))?;
+    let magnitudes_slice = magnitudes
+        .as_slice_mut()
+        .ok_or_else(|| CoreError::ComputationError("magnitudes output buffer is not contiguous".to_string()))?;
+
+    // Parallelize over disjoint mutable chunks for both outputs.
+    break_dates_slice
+        .par_chunks_mut(BFAST_PIXELS_PER_CHUNK)
+        .zip(magnitudes_slice.par_chunks_mut(BFAST_PIXELS_PER_CHUNK))
+        .enumerate()
+        .for_each(|(chunk_idx, (break_chunk, mag_chunk))| {
+            let start = chunk_idx * BFAST_PIXELS_PER_CHUNK;
+            let end = start + break_chunk.len(); // last chunk may be shorter
+
+            // Reusable buffers for this worker/chunk.
+            let mut history_ts: Vec<f64> = Vec::with_capacity(history_indices.len());
+            let mut history_dates: Vec<f64> = Vec::with_capacity(history_indices.len());
+            let mut monitor_ts: Vec<f64> = Vec::with_capacity(monitor_indices.len());
+            let mut monitor_dates: Vec<f64> = Vec::with_capacity(monitor_indices.len());
+
+            for pix in start..end {
+                history_ts.clear();
+                history_dates.clear();
+                monitor_ts.clear();
+                monitor_dates.clear();
+
+                // Fill history buffers
+                for &ti in &history_indices {
+                    history_ts.push(stack_flat[(ti, pix)]);
+                    history_dates.push(frac_dates[ti]);
+                }
+
+                // Fill monitoring buffers
+                for &ti in &monitor_indices {
+                    monitor_ts.push(stack_flat[(ti, pix)]);
+                    monitor_dates.push(frac_dates[ti]);
+                }
+
+                let (bk_date, mag) = run_bfast_monitor_per_pixel_windows(
+                    &history_ts,
+                    &history_dates,
+                    &monitor_ts,
+                    &monitor_dates,
+                    order,
+                    h,
+                    alpha,
+                );
+
+                let local = pix - start;
+                break_chunk[local] = bk_date;
+                mag_chunk[local] = mag;
+            }
         });
 
     Ok(out_array.into_pyarray(py).to_owned())

@@ -27,6 +27,7 @@ dependencies = [
     "structlog>=23.1.0",
     "xarray>=2023.0.0",
     "dask[array]>=2023.0.0",
+    "matplotlib>=3.9.4",
 ]
 
 [project.scripts]
