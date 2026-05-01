@@ -49,6 +49,7 @@ fn _core(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(indices::evi2, m)?)?;
     m.add_function(wrap_pyfunction!(indices::savi, m)?)?;
     m.add_function(wrap_pyfunction!(indices::osavi, m)?)?;
+    m.add_function(wrap_pyfunction!(indices::msavi, m)?)?;
     m.add_function(wrap_pyfunction!(indices::nbr, m)?)?;
     // Additional spectral indices
     m.add_function(wrap_pyfunction!(indices::ndmi, m)?)?;

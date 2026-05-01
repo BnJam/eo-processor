@@ -1376,6 +1376,177 @@ fn osavi_4d<'py>(
     Ok(result.into_pyarray(py))
 }
 
+/// Compute Modified Soil Adjusted Vegetation Index (MSAVI).
+///
+/// Formula:
+/// MSAVI = ((2*NIR + 1) - sqrt((2*NIR + 1)² - 8*(NIR - Red))) / 2
+///
+/// MSAVI is a modification of SAVI that avoids the need for the L parameter
+/// by using a self-adjustment mechanism.
+///
+/// Dispatches for 1D–4D float64 numpy arrays; `nir` and `red` must have identical shapes.
+#[pyfunction]
+pub fn msavi(py: Python<'_>, nir: &PyAny, red: &PyAny) -> PyResult<PyObject> {
+    if let Ok(nir_1d) = nir.extract::<PyReadonlyArray1<f64>>() {
+        let red_1d = red.extract::<PyReadonlyArray1<f64>>()?;
+        if nir_1d.shape() != red_1d.shape() {
+            return Err(CoreError::InvalidArgument(format!(
+                "Shape mismatch for 1D MSAVI inputs: nir {:?}, red {:?}",
+                nir_1d.shape(),
+                red_1d.shape()
+            ))
+            .into());
+        }
+        msavi_1d(py, nir_1d, red_1d).map(|res| res.into_py(py))
+    } else if let Ok(nir_2d) = nir.extract::<PyReadonlyArray2<f64>>() {
+        let red_2d = red.extract::<PyReadonlyArray2<f64>>()?;
+        if nir_2d.shape() != red_2d.shape() {
+            return Err(CoreError::InvalidArgument(format!(
+                "Shape mismatch for 2D MSAVI inputs: nir {:?}, red {:?}",
+                nir_2d.shape(),
+                red_2d.shape()
+            ))
+            .into());
+        }
+        msavi_2d(py, nir_2d, red_2d).map(|res| res.into_py(py))
+    } else if let Ok(nir_3d) = nir.extract::<PyReadonlyArray3<f64>>() {
+        let red_3d = red.extract::<PyReadonlyArray3<f64>>()?;
+        if nir_3d.shape() != red_3d.shape() {
+            return Err(CoreError::InvalidArgument(format!(
+                "Shape mismatch for 3D MSAVI inputs: nir {:?}, red {:?}",
+                nir_3d.shape(),
+                red_3d.shape()
+            ))
+            .into());
+        }
+        msavi_3d(py, nir_3d, red_3d).map(|res| res.into_py(py))
+    } else if let Ok(nir_4d) = nir.extract::<PyReadonlyArray4<f64>>() {
+        let red_4d = red.extract::<PyReadonlyArray4<f64>>()?;
+        if nir_4d.shape() != red_4d.shape() {
+            return Err(CoreError::InvalidArgument(format!(
+                "Shape mismatch for 4D MSAVI inputs: nir {:?}, red {:?}",
+                nir_4d.shape(),
+                red_4d.shape()
+            ))
+            .into());
+        }
+        msavi_4d(py, nir_4d, red_4d).map(|res| res.into_py(py))
+    } else {
+        Err(CoreError::InvalidArgument(
+            "Input arrays must be either 1D, 2D, 3D, or 4D numpy arrays of type float64."
+                .to_string(),
+        )
+        .into())
+    }
+}
+
+fn msavi_1d<'py>(
+    py: Python<'py>,
+    nir: PyReadonlyArray1<f64>,
+    red: PyReadonlyArray1<f64>,
+) -> PyResult<&'py PyArray1<f64>> {
+    let nir = nir.as_array();
+    let red = red.as_array();
+
+    let mut result = Array1::<f64>::zeros(nir.len());
+
+    Zip::from(&mut result)
+        .and(&nir)
+        .and(&red)
+        .for_each(|r, &nir_v, &red_v| {
+            let term = 2.0 * nir_v + 1.0;
+            let discriminant = term * term - 8.0 * (nir_v - red_v);
+            *r = if discriminant < 0.0 {
+                0.0
+            } else {
+                (term - discriminant.sqrt()) / 2.0
+            };
+        });
+
+    Ok(result.into_pyarray(py))
+}
+
+fn msavi_2d<'py>(
+    py: Python<'py>,
+    nir: PyReadonlyArray2<f64>,
+    red: PyReadonlyArray2<f64>,
+) -> PyResult<&'py PyArray2<f64>> {
+    let nir = nir.as_array();
+    let red = red.as_array();
+
+    let shape = nir.dim();
+    let mut result = Array2::<f64>::zeros(shape);
+
+    Zip::from(&mut result)
+        .and(&nir)
+        .and(&red)
+        .for_each(|r, &nir_v, &red_v| {
+            let term = 2.0 * nir_v + 1.0;
+            let discriminant = term * term - 8.0 * (nir_v - red_v);
+            *r = if discriminant < 0.0 {
+                0.0
+            } else {
+                (term - discriminant.sqrt()) / 2.0
+            };
+        });
+
+    Ok(result.into_pyarray(py))
+}
+
+fn msavi_3d<'py>(
+    py: Python<'py>,
+    nir: PyReadonlyArray3<f64>,
+    red: PyReadonlyArray3<f64>,
+) -> PyResult<&'py PyArray3<f64>> {
+    let nir = nir.as_array();
+    let red = red.as_array();
+
+    let shape = nir.dim();
+    let mut result = Array3::<f64>::zeros(shape);
+
+    Zip::from(&mut result)
+        .and(&nir)
+        .and(&red)
+        .for_each(|r, &nir_v, &red_v| {
+            let term = 2.0 * nir_v + 1.0;
+            let discriminant = term * term - 8.0 * (nir_v - red_v);
+            *r = if discriminant < 0.0 {
+                0.0
+            } else {
+                (term - discriminant.sqrt()) / 2.0
+            };
+        });
+
+    Ok(result.into_pyarray(py))
+}
+
+fn msavi_4d<'py>(
+    py: Python<'py>,
+    nir: PyReadonlyArray4<f64>,
+    red: PyReadonlyArray4<f64>,
+) -> PyResult<&'py PyArray4<f64>> {
+    let nir = nir.as_array();
+    let red = red.as_array();
+
+    let shape = nir.dim();
+    let mut result = Array4::<f64>::zeros(shape);
+
+    Zip::from(&mut result)
+        .and(&nir)
+        .and(&red)
+        .for_each(|r, &nir_v, &red_v| {
+            let term = 2.0 * nir_v + 1.0;
+            let discriminant = term * term - 8.0 * (nir_v - red_v);
+            *r = if discriminant < 0.0 {
+                0.0
+            } else {
+                (term - discriminant.sqrt()) / 2.0
+            };
+        });
+
+    Ok(result.into_pyarray(py))
+}
+
 #[cfg(test)]
 mod savi_nbr_tests {
     use super::*;

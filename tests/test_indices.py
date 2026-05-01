@@ -372,6 +372,45 @@ def test_osavi_shape_mismatch():
         osavi(nir, red)
 
 
+def test_msavi_1d():
+    """Test MSAVI computation for 1D arrays."""
+    from eo_processor import msavi
+
+    nir = np.array([0.7, 0.6, 0.8], dtype=np.float64)
+    red = np.array([0.2, 0.3, 0.15], dtype=np.float64)
+    out = msavi(nir, red)
+    assert out.shape == nir.shape
+    # MSAVI = ((2*NIR + 1) - sqrt((2*NIR + 1)² - 8*(NIR - Red))) / 2
+    term = 2.0 * nir + 1.0
+    discriminant = term ** 2 - 8.0 * (nir - red)
+    expected = np.where(discriminant >= 0, (term - np.sqrt(discriminant)) / 2.0, 0.0)
+    assert np.allclose(out, expected, rtol=1e-12)
+
+
+def test_msavi_2d():
+    """Test MSAVI computation for 2D arrays."""
+    from eo_processor import msavi
+
+    nir = np.array([[0.6, 0.7], [0.5, 0.4]], dtype=np.float64)
+    red = np.array([[0.2, 0.3], [0.1, 0.2]], dtype=np.float64)
+    out = msavi(nir, red)
+    assert out.shape == nir.shape
+    term = 2.0 * nir + 1.0
+    discriminant = term ** 2 - 8.0 * (nir - red)
+    expected = np.where(discriminant >= 0, (term - np.sqrt(discriminant)) / 2.0, 0.0)
+    assert np.allclose(out, expected, rtol=1e-12)
+
+
+def test_msavi_shape_mismatch():
+    """Test MSAVI raises error on shape mismatch."""
+    from eo_processor import msavi
+
+    nir = np.array([0.7, 0.6], dtype=np.float64)
+    red = np.array([0.2], dtype=np.float64)
+    with pytest.raises(ValueError):
+        msavi(nir, red)
+
+
 def test_ndmi_1d():
     nir = np.array([0.8, 0.6, 0.4], dtype=np.float64)
     swir1 = np.array([0.3, 0.2, 0.1], dtype=np.float64)

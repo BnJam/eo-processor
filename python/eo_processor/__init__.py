@@ -38,6 +38,7 @@ from ._core import (
     ndwi as _ndwi,
     normalized_difference as _normalized_difference,
     osavi as _osavi,
+    msavi as _msavi,
     pixelwise_transform as _pixelwise_transform,
     replace_nans as _replace_nans,
     savi as _savi,
@@ -91,7 +92,7 @@ log.addHandler(handler)
 log.setLevel(logging.INFO)
 
 
-__version__ = "0.20.0"
+__version__ = "0.21.0"
 
 __all__ = [
     "chebyshev_distance",
@@ -123,6 +124,7 @@ __all__ = [
     "ndwi",
     "normalized_difference",
     "osavi",
+    "msavi",
     "pixelwise_transform",
     "replace_nans",
     "savi",
@@ -497,6 +499,32 @@ def osavi(nir, red):
     moderate vegetation cover. It requires no parameter tuning.
     """
     return _osavi(nir, red)
+
+
+def msavi(nir, red):
+    """
+    Compute Modified Soil Adjusted Vegetation Index (MSAVI).
+
+    MSAVI = ((2*NIR + 1) - sqrt((2*NIR + 1)² - 8*(NIR - Red))) / 2
+
+    Parameters
+    ----------
+    nir : numpy.ndarray
+        Near-infrared band.
+    red : numpy.ndarray
+        Red band.
+
+    Returns
+    -------
+    numpy.ndarray
+        MSAVI values with same shape as inputs.
+
+    Notes
+    -----
+    MSAVI is a modification of SAVI that uses a self-adjustment mechanism
+    to avoid the need for a soil brightness correction factor (L).
+    """
+    return _msavi(nir, red)
 
 
 def ndmi(nir, swir1):
