@@ -33,12 +33,14 @@ Spectral Indices
 
    functions/ndvi
    functions/ndwi
+   functions/ndsi
    functions/ndmi
    functions/nbr
    functions/nbr2
    functions/savi
    functions/enhanced_vegetation_index
    functions/evi
+   functions/evi2
    functions/gci
 
 Change Detection

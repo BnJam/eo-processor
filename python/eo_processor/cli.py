@@ -44,8 +44,10 @@ from . import (
     log,
     normalized_difference,
     ndvi,
+    ndsi,
     ndwi,
     evi,
+    evi2,
     savi,
     nbr,
     ndmi,
@@ -93,11 +95,20 @@ INDEX_SPECS: Dict[str, IndexSpec] = {
     ),
     "ndvi": IndexSpec("ndvi", ndvi, ["nir", "red"], "(NIR - Red)/(NIR + Red)"),
     "ndwi": IndexSpec("ndwi", ndwi, ["green", "nir"], "(Green - NIR)/(Green + NIR)"),
+    "ndsi": IndexSpec(
+        "ndsi", ndsi, ["green", "swir1"], "(Green - SWIR1)/(Green + SWIR1)"
+    ),
     "evi": IndexSpec(
         "evi",
         evi,
         ["nir", "red", "blue"],
         "2.5*(NIR-Red)/(NIR+6*Red-7.5*Blue+1)",
+    ),
+    "evi2": IndexSpec(
+        "evi2",
+        evi2,
+        ["nir", "red"],
+        "2.5*(NIR-Red)/(NIR+2.4*Red+1)",
     ),
     "savi": IndexSpec(
         "savi",
@@ -276,8 +287,12 @@ def compute(
         return f(bands["nir"], bands["red"])
     if name == "ndwi":
         return f(bands["green"], bands["nir"])
+    if name == "ndsi":
+        return f(bands["green"], bands["swir1"])
     if name == "evi":
         return f(bands["nir"], bands["red"], bands["blue"])
+    if name == "evi2":
+        return f(bands["nir"], bands["red"])
     if name == "savi":
         return f(bands["nir"], bands["red"], L=savi_l)
     if name == "nbr":

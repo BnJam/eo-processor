@@ -75,3 +75,15 @@ def test_zonal_stats_dtype_coercion():
     stats = zonal_stats(values, zones)
     assert stats[1].mean == 1.5
     assert stats[2].mean == 3.0
+
+
+def test_zonal_stats_extreme_zone_ids_fallback():
+    values = np.array([1.0, 3.0], dtype=np.float64)
+    zones = np.array([np.iinfo(np.int64).min, np.iinfo(np.int64).max], dtype=np.int64)
+
+    stats = zonal_stats(values, zones)
+
+    assert stats[np.iinfo(np.int64).min].count == 1
+    assert stats[np.iinfo(np.int64).min].mean == 1.0
+    assert stats[np.iinfo(np.int64).max].count == 1
+    assert stats[np.iinfo(np.int64).max].mean == 3.0

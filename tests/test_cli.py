@@ -1,6 +1,10 @@
+import io
+import logging
+
 import numpy as np
 import pytest
 
+from eo_processor import log
 from eo_processor.cli import cli
 
 
@@ -34,6 +38,59 @@ def test_single_ndvi_run(tmp_path):
     assert out_path.exists()
     arr = load_npy(out_path)
     expected = (np.load(nir) - np.load(red)) / (np.load(nir) + np.load(red))
+    assert arr.shape == expected.shape
+    assert np.allclose(arr, expected, rtol=1e-12)
+
+
+def test_single_ndsi_run(tmp_path):
+    green = make_band(tmp_path, "green", [0.5, 0.6, 0.7])
+    swir1 = make_band(tmp_path, "swir1", [0.2, 0.3, 0.4])
+    out_path = tmp_path / "ndsi_out.npy"
+    code = cli(
+        [
+            "--index",
+            "ndsi",
+            "--green",
+            green,
+            "--swir1",
+            swir1,
+            "--out",
+            str(out_path),
+        ]
+    )
+    assert code == 0
+    assert out_path.exists()
+    arr = load_npy(out_path)
+    expected = (np.load(green) - np.load(swir1)) / (np.load(green) + np.load(swir1))
+    assert arr.shape == expected.shape
+    assert np.allclose(arr, expected, rtol=1e-12)
+
+
+def test_single_evi2_run(tmp_path):
+    nir = make_band(tmp_path, "nir", [0.6, 0.7])
+    red = make_band(tmp_path, "red", [0.3, 0.2])
+    out_path = tmp_path / "evi2_out.npy"
+    code = cli(
+        [
+            "--index",
+            "evi2",
+            "--nir",
+            nir,
+            "--red",
+            red,
+            "--out",
+            str(out_path),
+        ]
+    )
+    assert code == 0
+    assert out_path.exists()
+    arr = load_npy(out_path)
+    nir_arr = np.load(nir)
+    red_arr = np.load(red)
+    denom = nir_arr + 2.4 * red_arr + 1.0
+    expected = 2.5 * (nir_arr - red_arr) / denom
+    mask = np.isclose(denom, 0.0, atol=1e-10)
+    expected[mask] = 0.0
     assert arr.shape == expected.shape
     assert np.allclose(arr, expected, rtol=1e-12)
 
@@ -412,12 +469,6 @@ def test_missing_file_handling(tmp_path):
     )
     assert code == 1
     assert not out_path.exists()
-
-
-import io
-import logging
-from eo_processor import log
-
 
 def test_cli_logging(tmp_path):
     # Redirect logging to a string buffer

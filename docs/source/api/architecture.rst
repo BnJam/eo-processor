@@ -255,6 +255,27 @@ Security & Safety Notes
 - No network or file I/O in the performance-critical path.
 - All external inputs constrained to NumPy array interfaces; memory safety enforced by borrow semantics.
 
+Zonal Stats Safety Refactor (2026-02-08)
+----------------------------------------
+`zonal_stats` previously used `get_unchecked_mut` in its dense accumulator path.
+That path now uses bounds-checked indexing and overflow-safe range detection:
+
+- Dense path selected only when zone span is representable and `< 1_000_000`.
+- Wide zone spans automatically use sparse `HashMap` accumulation.
+- No unsafe memory access is required.
+
+Benchmark note (same machine, CPython 3.12, 5 runs each, wall-clock):
+
++------------------------+------------------+-----------------+-----------------+
+| Case                   | Pre-change (s)   | Post-change (s) | Delta           |
++========================+==================+=================+=================+
+| Contiguous (2000x2000) | 0.07293 mean     | 0.06763 mean    | +7.3% faster    |
+| Non-contiguous (x::2)  | 0.09188 mean     | 0.08958 mean    | +2.5% faster    |
++------------------------+------------------+-----------------+-----------------+
+
+Interpretation: removing `unsafe` did not regress this workload; performance stayed
+within normal run-to-run variance and was slightly faster in this run set.
+
 Reference of Core Modules
 -------------------------
 Module        | Purpose

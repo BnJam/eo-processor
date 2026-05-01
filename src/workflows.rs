@@ -37,7 +37,7 @@ fn build_design_matrix(dates: &[f64], order: usize) -> DMatrix<f64> {
     for i in 0..n {
         let t = dates[i];
         x[(i, 0)] = 1.0; // Intercept
-        x[(i, 1)] = t;   // Trend
+        x[(i, 1)] = t; // Trend
         for j in 1..=order {
             let freq = TWO_PI * j as f64 * t;
             x[(i, 2 * j)] = freq.cos();
@@ -164,7 +164,6 @@ fn dates_to_frac_years(dates: &[i64]) -> Vec<f64> {
 
 // This is the main logic function that runs for each pixel.
 
-
 fn run_bfast_monitor_per_pixel_windows(
     history_ts: &[f64],
     history_dates: &[f64],
@@ -282,13 +281,15 @@ pub fn bfast_monitor(
 
     let mut break_dates = out_slices.next().ok_or_else(|| {
         CoreError::ComputationError(
-            "Internal error: failed to create break_dates output view (missing channel 0)".to_string(),
+            "Internal error: failed to create break_dates output view (missing channel 0)"
+                .to_string(),
         )
     })?;
 
     let mut magnitudes = out_slices.next().ok_or_else(|| {
         CoreError::ComputationError(
-            "Internal error: failed to create magnitudes output view (missing channel 1)".to_string(),
+            "Internal error: failed to create magnitudes output view (missing channel 1)"
+                .to_string(),
         )
     })?;
 
@@ -299,12 +300,12 @@ pub fn bfast_monitor(
     // 1) ensure each output channel is a contiguous 1D slice
     // 2) split each output slice into disjoint chunks
     // 3) process chunks in parallel, writing only within the current chunk
-    let break_dates_slice = break_dates
-        .as_slice_mut()
-        .ok_or_else(|| CoreError::ComputationError("break_dates output buffer is not contiguous".to_string()))?;
-    let magnitudes_slice = magnitudes
-        .as_slice_mut()
-        .ok_or_else(|| CoreError::ComputationError("magnitudes output buffer is not contiguous".to_string()))?;
+    let break_dates_slice = break_dates.as_slice_mut().ok_or_else(|| {
+        CoreError::ComputationError("break_dates output buffer is not contiguous".to_string())
+    })?;
+    let magnitudes_slice = magnitudes.as_slice_mut().ok_or_else(|| {
+        CoreError::ComputationError("magnitudes output buffer is not contiguous".to_string())
+    })?;
 
     // Parallelize over disjoint mutable chunks for both outputs.
     break_dates_slice
@@ -382,18 +383,16 @@ pub fn complex_classification(
 
     let mut out = ndarray::ArrayD::<u8>::zeros(blue_arr.raw_dim());
 
-    out.indexed_iter_mut()
-        .par_bridge()
-        .for_each(|(idx, res)| {
-            let b = blue_arr[&idx];
-            let g = green_arr[&idx];
-            let r = red_arr[&idx];
-            let n = nir_arr[&idx];
-            let s1 = swir1_arr[&idx];
-            let s2 = swir2_arr[&idx];
-            let t = temp_arr[&idx];
-            *res = classify_pixel(b, g, r, n, s1, s2, t);
-        });
+    out.indexed_iter_mut().par_bridge().for_each(|(idx, res)| {
+        let b = blue_arr[&idx];
+        let g = green_arr[&idx];
+        let r = red_arr[&idx];
+        let n = nir_arr[&idx];
+        let s1 = swir1_arr[&idx];
+        let s2 = swir2_arr[&idx];
+        let t = temp_arr[&idx];
+        *res = classify_pixel(b, g, r, n, s1, s2, t);
+    });
 
     Ok(out.into_pyarray(py).to_owned())
 }

@@ -1,3 +1,4 @@
+use crate::CoreError;
 use rand::seq::SliceRandom;
 use rand::thread_rng;
 use rayon::prelude::*;
@@ -124,7 +125,8 @@ impl DecisionTree {
                 .iter()
                 .map(|row| row[feature_index])
                 .collect::<Vec<f64>>();
-            unique_thresholds.sort_by(|a, b| a.partial_cmp(b).unwrap());
+            unique_thresholds.retain(|v| v.is_finite());
+            unique_thresholds.sort_by(|a, b| a.total_cmp(b));
             unique_thresholds.dedup();
 
             for &threshold in &unique_thresholds {
@@ -219,12 +221,12 @@ impl DecisionTree {
             .unwrap_or(0.0)
     }
 
-    pub fn predict(&self, features: &[f64]) -> f64 {
-        let mut current_node = self.root.as_ref().expect("Tree is not trained yet.");
+    pub fn predict(&self, features: &[f64]) -> Option<f64> {
+        let mut current_node = self.root.as_ref()?;
         loop {
             match current_node {
                 DecisionNode::Leaf { class_prediction } => {
-                    return *class_prediction;
+                    return Some(*class_prediction);
                 }
                 DecisionNode::Node {
                     feature_index,
@@ -252,6 +254,8 @@ pub struct RandomForest {
     max_depth: Option<i32>,
     min_samples_split: i32,
     max_features: Option<usize>,
+    #[serde(default)]
+    n_features_in: Option<usize>,
 }
 
 impl RandomForest {
@@ -267,12 +271,14 @@ impl RandomForest {
             max_depth,
             min_samples_split,
             max_features,
+            n_features_in: None,
         }
     }
 
     pub fn fit(&mut self, features: &[Vec<f64>], labels: &[f64]) {
         let n_samples = features.len();
         let n_features = features[0].len();
+        self.n_features_in = Some(n_features);
         let n_features_to_consider = self
             .max_features
             .unwrap_or_else(|| (n_features as f64).sqrt() as usize);
@@ -307,12 +313,24 @@ impl RandomForest {
         if self.trees.is_empty() {
             return None;
         }
+        if features.iter().any(|v| !v.is_finite()) {
+            return None;
+        }
+        if let Some(expected_features) = self.n_features_in {
+            if features.len() != expected_features {
+                return None;
+            }
+        }
 
         let predictions: Vec<f64> = self
             .trees
             .par_iter()
             .map(|tree| tree.predict(features))
-            .collect();
+            .collect::<Option<Vec<f64>>>()?;
+
+        if predictions.is_empty() {
+            return None;
+        }
 
         let mut counts = HashMap::new();
         for prediction in predictions {
@@ -339,8 +357,58 @@ pub fn random_forest_train(
     max_depth: Option<i32>,
     max_features: Option<usize>,
 ) -> PyResult<String> {
+    if n_estimators <= 0 {
+        return Err(CoreError::InvalidArgument("n_estimators must be >= 1".to_string()).into());
+    }
+    if min_samples_split < 2 {
+        return Err(
+            CoreError::InvalidArgument("min_samples_split must be >= 2".to_string()).into(),
+        );
+    }
+    if let Some(depth) = max_depth {
+        if depth <= 0 {
+            return Err(CoreError::InvalidArgument("max_depth must be >= 1".to_string()).into());
+        }
+    }
+    if let Some(maxf) = max_features {
+        if maxf == 0 {
+            return Err(CoreError::InvalidArgument("max_features must be >= 1".to_string()).into());
+        }
+    }
+
     let features_array = features.as_array();
     let labels_array = labels.as_array();
+
+    if features_array.shape()[0] == 0 {
+        return Err(
+            CoreError::InvalidArgument("features must have at least 1 sample".to_string()).into(),
+        );
+    }
+    if features_array.shape()[1] == 0 {
+        return Err(
+            CoreError::InvalidArgument("features must have at least 1 column".to_string()).into(),
+        );
+    }
+    if labels_array.len() != features_array.shape()[0] {
+        return Err(CoreError::InvalidArgument(format!(
+            "labels length ({}) must match features rows ({})",
+            labels_array.len(),
+            features_array.shape()[0]
+        ))
+        .into());
+    }
+    if features_array.iter().any(|v| !v.is_finite()) {
+        return Err(CoreError::InvalidArgument(
+            "features must contain only finite values".to_string(),
+        )
+        .into());
+    }
+    if labels_array.iter().any(|v| !v.is_finite()) {
+        return Err(CoreError::InvalidArgument(
+            "labels must contain only finite values".to_string(),
+        )
+        .into());
+    }
 
     let features_vec: Vec<Vec<f64>> = features_array
         .outer_iter()
@@ -370,15 +438,41 @@ pub fn random_forest_predict<'py>(
     })?;
 
     let features_array = features.as_array();
+    if features_array.shape()[0] == 0 {
+        return Err(
+            CoreError::InvalidArgument("features must have at least 1 sample".to_string()).into(),
+        );
+    }
+    if let Some(expected_features) = forest.n_features_in {
+        if features_array.shape()[1] != expected_features {
+            return Err(CoreError::InvalidArgument(format!(
+                "features column count ({}) does not match trained model ({})",
+                features_array.shape()[1],
+                expected_features
+            ))
+            .into());
+        }
+    }
+    if features_array.iter().any(|v| !v.is_finite()) {
+        return Err(CoreError::InvalidArgument(
+            "features must contain only finite values".to_string(),
+        )
+        .into());
+    }
     let n_samples = features_array.shape()[0];
 
-    let predictions: Vec<f64> = (0..n_samples)
+    let predictions: PyResult<Vec<f64>> = (0..n_samples)
         .into_par_iter()
         .map(|i| {
             let feature_row: Vec<f64> = features_array.row(i).iter().cloned().collect();
-            forest.predict(&feature_row).unwrap_or(f64::NAN)
+            forest.predict(&feature_row).ok_or_else(|| {
+                CoreError::InvalidArgument(
+                    "prediction failed due to invalid model state or feature shape".to_string(),
+                )
+                .into()
+            })
         })
         .collect();
 
-    Ok(PyArray1::from_vec(py, predictions))
+    Ok(PyArray1::from_vec(py, predictions?))
 }

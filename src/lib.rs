@@ -44,8 +44,11 @@ fn _core(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(indices::normalized_difference, m)?)?;
     m.add_function(wrap_pyfunction!(indices::ndvi, m)?)?;
     m.add_function(wrap_pyfunction!(indices::ndwi, m)?)?;
+    m.add_function(wrap_pyfunction!(indices::ndsi, m)?)?;
     m.add_function(wrap_pyfunction!(indices::enhanced_vegetation_index, m)?)?;
+    m.add_function(wrap_pyfunction!(indices::evi2, m)?)?;
     m.add_function(wrap_pyfunction!(indices::savi, m)?)?;
+    m.add_function(wrap_pyfunction!(indices::osavi, m)?)?;
     m.add_function(wrap_pyfunction!(indices::nbr, m)?)?;
     // Additional spectral indices
     m.add_function(wrap_pyfunction!(indices::ndmi, m)?)?;

@@ -411,6 +411,16 @@ pub fn ndwi(py: Python<'_>, green: &PyAny, nir: &PyAny) -> PyResult<PyObject> {
     normalized_difference(py, green, nir)
 }
 
+/// Compute NDSI (Normalized Difference Snow Index) from Green and SWIR1 bands.
+///
+/// Thin wrapper around `normalized_difference`.
+///
+/// NDSI = (Green - SWIR1) / (Green + SWIR1)
+#[pyfunction]
+pub fn ndsi(py: Python<'_>, green: &PyAny, swir1: &PyAny) -> PyResult<PyObject> {
+    normalized_difference(py, green, swir1)
+}
+
 // Normalized Burn Ratio (NBR)
 // Formula: NBR = (NIR - SWIR2) / (NIR + SWIR2)
 // Implemented as a thin wrapper around normalized_difference.
@@ -1010,6 +1020,356 @@ fn enhanced_vegetation_index_4d<'py>(
                 0.0
             } else {
                 G * (nir_v - red_v) / denom
+            };
+        });
+
+    Ok(result.into_pyarray(py))
+}
+
+/// Compute Enhanced Vegetation Index 2-band variant (EVI2).
+///
+/// Formula (common 2-band approximation):
+/// EVI2 = G * (NIR - Red) / (NIR + C1 * Red + L)
+///
+/// Constants:
+/// G = 2.5, C1 = 2.4, L = 1.0
+///
+/// Dispatches for 1D–4D float64 numpy arrays; `nir` and `red` must have identical shapes.
+#[pyfunction]
+pub fn evi2(py: Python<'_>, nir: &PyAny, red: &PyAny) -> PyResult<PyObject> {
+    if let Ok(nir_1d) = nir.extract::<PyReadonlyArray1<f64>>() {
+        let red_1d = red.extract::<PyReadonlyArray1<f64>>()?;
+        if nir_1d.shape() != red_1d.shape() {
+            return Err(CoreError::InvalidArgument(format!(
+                "Shape mismatch for 1D EVI2 inputs: nir {:?}, red {:?}",
+                nir_1d.shape(),
+                red_1d.shape()
+            ))
+            .into());
+        }
+        evi2_1d(py, nir_1d, red_1d).map(|res| res.into_py(py))
+    } else if let Ok(nir_2d) = nir.extract::<PyReadonlyArray2<f64>>() {
+        let red_2d = red.extract::<PyReadonlyArray2<f64>>()?;
+        if nir_2d.shape() != red_2d.shape() {
+            return Err(CoreError::InvalidArgument(format!(
+                "Shape mismatch for 2D EVI2 inputs: nir {:?}, red {:?}",
+                nir_2d.shape(),
+                red_2d.shape()
+            ))
+            .into());
+        }
+        evi2_2d(py, nir_2d, red_2d).map(|res| res.into_py(py))
+    } else if let Ok(nir_3d) = nir.extract::<PyReadonlyArray3<f64>>() {
+        let red_3d = red.extract::<PyReadonlyArray3<f64>>()?;
+        if nir_3d.shape() != red_3d.shape() {
+            return Err(CoreError::InvalidArgument(format!(
+                "Shape mismatch for 3D EVI2 inputs: nir {:?}, red {:?}",
+                nir_3d.shape(),
+                red_3d.shape()
+            ))
+            .into());
+        }
+        evi2_3d(py, nir_3d, red_3d).map(|res| res.into_py(py))
+    } else if let Ok(nir_4d) = nir.extract::<PyReadonlyArray4<f64>>() {
+        let red_4d = red.extract::<PyReadonlyArray4<f64>>()?;
+        if nir_4d.shape() != red_4d.shape() {
+            return Err(CoreError::InvalidArgument(format!(
+                "Shape mismatch for 4D EVI2 inputs: nir {:?}, red {:?}",
+                nir_4d.shape(),
+                red_4d.shape()
+            ))
+            .into());
+        }
+        evi2_4d(py, nir_4d, red_4d).map(|res| res.into_py(py))
+    } else {
+        Err(CoreError::InvalidArgument(
+            "Input arrays must be either 1D, 2D, 3D, or 4D numpy arrays of type float64."
+                .to_string(),
+        )
+        .into())
+    }
+}
+
+fn evi2_1d<'py>(
+    py: Python<'py>,
+    nir: PyReadonlyArray1<f64>,
+    red: PyReadonlyArray1<f64>,
+) -> PyResult<&'py PyArray1<f64>> {
+    const G: f64 = 2.5;
+    const C1: f64 = 2.4;
+    const L: f64 = 1.0;
+
+    let nir = nir.as_array();
+    let red = red.as_array();
+
+    let mut result = Array1::<f64>::zeros(nir.len());
+    Zip::from(&mut result)
+        .and(&nir)
+        .and(&red)
+        .for_each(|r, &nir_v, &red_v| {
+            let denom = nir_v + C1 * red_v + L;
+            *r = if denom.abs() < EPSILON {
+                0.0
+            } else {
+                G * (nir_v - red_v) / denom
+            };
+        });
+    Ok(result.into_pyarray(py))
+}
+
+fn evi2_2d<'py>(
+    py: Python<'py>,
+    nir: PyReadonlyArray2<f64>,
+    red: PyReadonlyArray2<f64>,
+) -> PyResult<&'py PyArray2<f64>> {
+    const G: f64 = 2.5;
+    const C1: f64 = 2.4;
+    const L: f64 = 1.0;
+
+    let nir = nir.as_array();
+    let red = red.as_array();
+
+    let shape = nir.dim();
+    let mut result = Array2::<f64>::zeros(shape);
+    Zip::from(&mut result)
+        .and(&nir)
+        .and(&red)
+        .for_each(|r, &nir_v, &red_v| {
+            let denom = nir_v + C1 * red_v + L;
+            *r = if denom.abs() < EPSILON {
+                0.0
+            } else {
+                G * (nir_v - red_v) / denom
+            };
+        });
+    Ok(result.into_pyarray(py))
+}
+
+fn evi2_3d<'py>(
+    py: Python<'py>,
+    nir: PyReadonlyArray3<f64>,
+    red: PyReadonlyArray3<f64>,
+) -> PyResult<&'py PyArray3<f64>> {
+    const G: f64 = 2.5;
+    const C1: f64 = 2.4;
+    const L: f64 = 1.0;
+
+    let nir = nir.as_array();
+    let red = red.as_array();
+
+    let shape = nir.dim();
+    let mut result = ndarray::Array3::<f64>::zeros(shape);
+    Zip::from(&mut result)
+        .and(&nir)
+        .and(&red)
+        .for_each(|r, &nir_v, &red_v| {
+            let denom = nir_v + C1 * red_v + L;
+            *r = if denom.abs() < EPSILON {
+                0.0
+            } else {
+                G * (nir_v - red_v) / denom
+            };
+        });
+    Ok(result.into_pyarray(py))
+}
+
+fn evi2_4d<'py>(
+    py: Python<'py>,
+    nir: PyReadonlyArray4<f64>,
+    red: PyReadonlyArray4<f64>,
+) -> PyResult<&'py PyArray4<f64>> {
+    const G: f64 = 2.5;
+    const C1: f64 = 2.4;
+    const L: f64 = 1.0;
+
+    let nir = nir.as_array();
+    let red = red.as_array();
+
+    let shape = nir.dim();
+    let mut result = ndarray::Array4::<f64>::zeros(shape);
+    Zip::from(&mut result)
+        .and(&nir)
+        .and(&red)
+        .for_each(|r, &nir_v, &red_v| {
+            let denom = nir_v + C1 * red_v + L;
+            *r = if denom.abs() < EPSILON {
+                0.0
+            } else {
+                G * (nir_v - red_v) / denom
+            };
+        });
+    Ok(result.into_pyarray(py))
+}
+
+/// Compute Optimized Soil Adjusted Vegetation Index (OSAVI).
+///
+/// Formula:
+/// OSAVI = (NIR - Red) / (NIR + Red + 0.16)
+///
+/// OSAVI is similar to SAVI but uses a fixed L=0.16, optimized for
+/// environments with moderate vegetation cover.
+///
+/// Dispatches for 1D–4D float64 numpy arrays; `nir` and `red` must have identical shapes.
+#[pyfunction]
+pub fn osavi(py: Python<'_>, nir: &PyAny, red: &PyAny) -> PyResult<PyObject> {
+    if let Ok(nir_1d) = nir.extract::<PyReadonlyArray1<f64>>() {
+        let red_1d = red.extract::<PyReadonlyArray1<f64>>()?;
+        if nir_1d.shape() != red_1d.shape() {
+            return Err(CoreError::InvalidArgument(format!(
+                "Shape mismatch for 1D OSAVI inputs: nir {:?}, red {:?}",
+                nir_1d.shape(),
+                red_1d.shape()
+            ))
+            .into());
+        }
+        osavi_1d(py, nir_1d, red_1d).map(|res| res.into_py(py))
+    } else if let Ok(nir_2d) = nir.extract::<PyReadonlyArray2<f64>>() {
+        let red_2d = red.extract::<PyReadonlyArray2<f64>>()?;
+        if nir_2d.shape() != red_2d.shape() {
+            return Err(CoreError::InvalidArgument(format!(
+                "Shape mismatch for 2D OSAVI inputs: nir {:?}, red {:?}",
+                nir_2d.shape(),
+                red_2d.shape()
+            ))
+            .into());
+        }
+        osavi_2d(py, nir_2d, red_2d).map(|res| res.into_py(py))
+    } else if let Ok(nir_3d) = nir.extract::<PyReadonlyArray3<f64>>() {
+        let red_3d = red.extract::<PyReadonlyArray3<f64>>()?;
+        if nir_3d.shape() != red_3d.shape() {
+            return Err(CoreError::InvalidArgument(format!(
+                "Shape mismatch for 3D OSAVI inputs: nir {:?}, red {:?}",
+                nir_3d.shape(),
+                red_3d.shape()
+            ))
+            .into());
+        }
+        osavi_3d(py, nir_3d, red_3d).map(|res| res.into_py(py))
+    } else if let Ok(nir_4d) = nir.extract::<PyReadonlyArray4<f64>>() {
+        let red_4d = red.extract::<PyReadonlyArray4<f64>>()?;
+        if nir_4d.shape() != red_4d.shape() {
+            return Err(CoreError::InvalidArgument(format!(
+                "Shape mismatch for 4D OSAVI inputs: nir {:?}, red {:?}",
+                nir_4d.shape(),
+                red_4d.shape()
+            ))
+            .into());
+        }
+        osavi_4d(py, nir_4d, red_4d).map(|res| res.into_py(py))
+    } else {
+        Err(CoreError::InvalidArgument(
+            "Input arrays must be either 1D, 2D, 3D, or 4D numpy arrays of type float64."
+                .to_string(),
+        )
+        .into())
+    }
+}
+
+fn osavi_1d<'py>(
+    py: Python<'py>,
+    nir: PyReadonlyArray1<f64>,
+    red: PyReadonlyArray1<f64>,
+) -> PyResult<&'py PyArray1<f64>> {
+    const L: f64 = 0.16;
+
+    let nir = nir.as_array();
+    let red = red.as_array();
+
+    let mut result = Array1::<f64>::zeros(nir.len());
+
+    Zip::from(&mut result)
+        .and(&nir)
+        .and(&red)
+        .for_each(|r, &nir_v, &red_v| {
+            let denom = nir_v + red_v + L;
+            *r = if denom.abs() < EPSILON {
+                0.0
+            } else {
+                (nir_v - red_v) / denom
+            };
+        });
+
+    Ok(result.into_pyarray(py))
+}
+
+fn osavi_2d<'py>(
+    py: Python<'py>,
+    nir: PyReadonlyArray2<f64>,
+    red: PyReadonlyArray2<f64>,
+) -> PyResult<&'py PyArray2<f64>> {
+    const L: f64 = 0.16;
+
+    let nir = nir.as_array();
+    let red = red.as_array();
+
+    let shape = nir.dim();
+    let mut result = Array2::<f64>::zeros(shape);
+
+    Zip::from(&mut result)
+        .and(&nir)
+        .and(&red)
+        .for_each(|r, &nir_v, &red_v| {
+            let denom = nir_v + red_v + L;
+            *r = if denom.abs() < EPSILON {
+                0.0
+            } else {
+                (nir_v - red_v) / denom
+            };
+        });
+
+    Ok(result.into_pyarray(py))
+}
+
+fn osavi_3d<'py>(
+    py: Python<'py>,
+    nir: PyReadonlyArray3<f64>,
+    red: PyReadonlyArray3<f64>,
+) -> PyResult<&'py PyArray3<f64>> {
+    const L: f64 = 0.16;
+
+    let nir = nir.as_array();
+    let red = red.as_array();
+
+    let shape = nir.dim();
+    let mut result = Array3::<f64>::zeros(shape);
+
+    Zip::from(&mut result)
+        .and(&nir)
+        .and(&red)
+        .for_each(|r, &nir_v, &red_v| {
+            let denom = nir_v + red_v + L;
+            *r = if denom.abs() < EPSILON {
+                0.0
+            } else {
+                (nir_v - red_v) / denom
+            };
+        });
+
+    Ok(result.into_pyarray(py))
+}
+
+fn osavi_4d<'py>(
+    py: Python<'py>,
+    nir: PyReadonlyArray4<f64>,
+    red: PyReadonlyArray4<f64>,
+) -> PyResult<&'py PyArray4<f64>> {
+    const L: f64 = 0.16;
+
+    let nir = nir.as_array();
+    let red = red.as_array();
+
+    let shape = nir.dim();
+    let mut result = Array4::<f64>::zeros(shape);
+
+    Zip::from(&mut result)
+        .and(&nir)
+        .and(&red)
+        .for_each(|r, &nir_v, &red_v| {
+            let denom = nir_v + red_v + L;
+            *r = if denom.abs() < EPSILON {
+                0.0
+            } else {
+                (nir_v - red_v) / denom
             };
         });
 

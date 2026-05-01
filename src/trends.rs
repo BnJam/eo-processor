@@ -1,7 +1,6 @@
 // src/trends.rs
 
 use crate::CoreError;
-use ndarray::Array1;
 use pyo3::prelude::*;
 
 #[pyclass]
@@ -19,10 +18,16 @@ pub struct TrendSegment {
 
 #[pyfunction]
 pub fn trend_analysis(y: Vec<f64>, threshold: f64) -> PyResult<Vec<TrendSegment>> {
-    if threshold < 0.0 {
+    if !threshold.is_finite() || threshold < 0.0 {
         return Err(
             CoreError::InvalidArgument("Threshold must be non-negative".to_string()).into(),
         );
+    }
+    if y.iter().any(|v| !v.is_finite()) {
+        return Err(CoreError::InvalidArgument(
+            "Input series must contain only finite values".to_string(),
+        )
+        .into());
     }
     let mut segments = Vec::new();
     recursive_trend_analysis(&y, 0, &mut segments, threshold);
@@ -56,12 +61,14 @@ fn recursive_trend_analysis(
             intercept,
         });
     } else {
-        let max_residual_index = residuals
+        let Some(max_residual_index) = residuals
             .iter()
             .enumerate()
-            .max_by(|(_, a), (_, b)| a.abs().partial_cmp(&b.abs()).unwrap())
+            .max_by(|(_, a), (_, b)| a.abs().total_cmp(&b.abs()))
             .map(|(i, _)| i)
-            .unwrap();
+        else {
+            return;
+        };
 
         let (left, right) = y.split_at(max_residual_index);
         recursive_trend_analysis(left, start_index, segments, threshold);
@@ -84,10 +91,21 @@ fn calculate_linear_regression(y: &[f64]) -> (f64, f64) {
 
 #[pyfunction]
 pub fn linear_regression(y: Vec<f64>) -> PyResult<(f64, f64, Vec<f64>)> {
-    let y_arr = Array1::from(y);
-    let (slope, intercept) = calculate_linear_regression(y_arr.as_slice().unwrap());
+    if y.len() < 2 {
+        return Err(CoreError::InvalidArgument(
+            "linear_regression requires at least 2 samples".to_string(),
+        )
+        .into());
+    }
+    if y.iter().any(|v| !v.is_finite()) {
+        return Err(CoreError::InvalidArgument(
+            "linear_regression input must contain only finite values".to_string(),
+        )
+        .into());
+    }
+    let (slope, intercept) = calculate_linear_regression(&y);
 
-    let residuals: Vec<f64> = y_arr
+    let residuals: Vec<f64> = y
         .iter()
         .enumerate()
         .map(|(i, &yi)| yi - (slope * i as f64 + intercept))

@@ -77,3 +77,9 @@ Thumbs.db
 # Build artifacts
 *.pyc
 *.pyo
+
+# Librarian artifacts
+.librarian/
+.ingest_blob_store/
+discovery.ndjson
+ops_context.ndjson

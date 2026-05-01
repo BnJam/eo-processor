@@ -127,27 +127,24 @@ pub fn zonal_stats(
         }
 
         let range = if max_zone >= min_zone {
-            (max_zone - min_zone) as usize
+            usize::try_from((max_zone as i128) - (min_zone as i128)).ok()
         } else {
-            0
+            Some(0)
         };
         let mut result: HashMap<i64, ZoneStats> = HashMap::new();
 
-        if range < 1_000_000 {
+        if let Some(range) = range.filter(|r| *r < 1_000_000) {
             // Try to get contiguous slices for Rayon
             if let (Some(v_slice), Some(z_slice)) = (values.as_slice(), zones.as_slice()) {
                 // Simple serial implementation for baseline
-                let mut accs: Vec<SumSqAccumulator> = Vec::with_capacity(range + 1);
-                for _ in 0..=range {
-                    accs.push(SumSqAccumulator::new());
-                }
+                let mut accs: Vec<SumSqAccumulator> = std::iter::repeat_with(SumSqAccumulator::new)
+                    .take(range + 1)
+                    .collect();
 
                 for (&v, &z) in v_slice.iter().zip(z_slice.iter()) {
                     if !v.is_nan() {
                         let idx = (z - min_zone) as usize;
-                        unsafe {
-                            accs.get_unchecked_mut(idx).update(v);
-                        }
+                        accs[idx].update(v);
                     }
                 }
 
@@ -158,17 +155,14 @@ pub fn zonal_stats(
                 }
             } else {
                 // Fallback to sequential Zip for non-contiguous arrays
-                let mut accs: Vec<SumSqAccumulator> = Vec::with_capacity(range + 1);
-                for _ in 0..=range {
-                    accs.push(SumSqAccumulator::new());
-                }
+                let mut accs: Vec<SumSqAccumulator> = std::iter::repeat_with(SumSqAccumulator::new)
+                    .take(range + 1)
+                    .collect();
 
                 ndarray::Zip::from(&values).and(&zones).for_each(|&v, &z| {
                     if !v.is_nan() {
                         let idx = (z - min_zone) as usize;
-                        unsafe {
-                            accs.get_unchecked_mut(idx).update(v);
-                        }
+                        accs[idx].update(v);
                     }
                 });
 

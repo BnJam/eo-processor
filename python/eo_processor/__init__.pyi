@@ -3,7 +3,7 @@
 Notes:
 - All spectral, temporal, processes & masking functions accept any numeric numpy dtype; Rust layer coerces to float64.
 - Dimensional support:
-  * Spectral indices (ndvi, ndwi, savi, nbr, ndmi, nbr2, gci, enhanced_vegetation_index/evi) + delta indices (delta_ndvi, delta_nbr): public wrappers 1D/2D (some internal paths support higher ranks).
+  * Spectral indices (ndvi, ndwi, ndsi, savi, nbr, ndmi, nbr2, gci, enhanced_vegetation_index/evi, evi2) + delta indices (delta_ndvi, delta_nbr): public wrappers 1D/2D (some internal paths support higher ranks).
   * normalized_difference: 1D–4D.
   * temporal_mean, temporal_std, median, composite: 1D–4D (time-first).
   * moving_average_temporal, moving_average_temporal_stride: 1D–4D (time-first).
@@ -22,7 +22,7 @@ from numpy.typing import NDArray
 
 # Dimensional summary kept in sync with README & Sphinx:
 #   - normalized_difference: 1D–4D
-#   - ndvi, ndwi, savi, nbr, ndmi, nbr2, gci, enhanced_vegetation_index (evi), delta_ndvi, delta_nbr: primarily 1D–2D
+#   - ndvi, ndwi, ndsi, savi, nbr, ndmi, nbr2, gci, enhanced_vegetation_index (evi), evi2, delta_ndvi, delta_nbr: primarily 1D–2D
 #   - temporal_mean, temporal_std, median, composite: 1D–4D
 #   - moving_average_temporal, moving_average_temporal_stride: 1D–4D
 #   - pixelwise_transform: 1D–4D
@@ -30,7 +30,7 @@ from numpy.typing import NDArray
 #   - distance functions: 2D (N,D)
 NumericArray: TypeAlias = NDArray[np.generic]
 
-__version__: Literal["0.6.0"]
+__version__: Literal["0.20.0"]
 
 # Logging
 log: structlog.stdlib.BoundLogger
@@ -38,10 +38,12 @@ log: structlog.stdlib.BoundLogger
 # Spectral & change detection
 def normalized_difference(a: NumericArray, b: NumericArray) -> NDArray[np.float64]: ...
 def ndvi(nir: NumericArray, red: NumericArray) -> NDArray[np.float64]: ...
+def ndsi(green: NumericArray, swir1: NumericArray) -> NDArray[np.float64]: ...
 def ndwi(green: NumericArray, nir: NumericArray) -> NDArray[np.float64]: ...
 def savi(
     nir: NumericArray, red: NumericArray, L: float = ...
 ) -> NDArray[np.float64]: ...
+def osavi(nir: NumericArray, red: NumericArray) -> NDArray[np.float64]: ...
 def nbr(nir: NumericArray, swir2: NumericArray) -> NDArray[np.float64]: ...
 def ndmi(nir: NumericArray, swir1: NumericArray) -> NDArray[np.float64]: ...
 def nbr2(swir1: NumericArray, swir2: NumericArray) -> NDArray[np.float64]: ...
@@ -61,6 +63,7 @@ def delta_nbr(
 def enhanced_vegetation_index(
     nir: NumericArray, red: NumericArray, blue: NumericArray
 ) -> NDArray[np.float64]: ...
+def evi2(nir: NumericArray, red: NumericArray) -> NDArray[np.float64]: ...
 
 evi = enhanced_vegetation_index
 

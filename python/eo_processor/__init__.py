@@ -16,6 +16,7 @@ from ._core import (
     delta_nbr as _delta_nbr,
     delta_ndvi as _delta_ndvi,
     enhanced_vegetation_index as _enhanced_vegetation_index,
+    evi2 as _evi2,
     euclidean_distance as _euclidean_distance,
     gci as _gci,
     manhattan_distance as _manhattan_distance,
@@ -33,8 +34,10 @@ from ._core import (
     nbr2 as _nbr2,
     ndmi as _ndmi,
     ndvi as _ndvi,
+    ndsi as _ndsi,
     ndwi as _ndwi,
     normalized_difference as _normalized_difference,
+    osavi as _osavi,
     pixelwise_transform as _pixelwise_transform,
     replace_nans as _replace_nans,
     savi as _savi,
@@ -88,7 +91,7 @@ log.addHandler(handler)
 log.setLevel(logging.INFO)
 
 
-__version__ = "0.6.0"
+__version__ = "0.20.0"
 
 __all__ = [
     "chebyshev_distance",
@@ -98,6 +101,7 @@ __all__ = [
     "enhanced_vegetation_index",
     "euclidean_distance",
     "evi",
+    "evi2",
     "gci",
     "log",
     "manhattan_distance",
@@ -115,8 +119,10 @@ __all__ = [
     "nbr2",
     "ndmi",
     "ndvi",
+    "ndsi",
     "ndwi",
     "normalized_difference",
+    "osavi",
     "pixelwise_transform",
     "replace_nans",
     "savi",
@@ -411,6 +417,27 @@ def ndwi(green, nir):
     return _ndwi(green, nir)
 
 
+def ndsi(green, swir1):
+    """
+    Normalized Difference Snow Index (NDSI)
+
+    NDSI = (Green - SWIR1) / (Green + SWIR1)
+
+    Parameters
+    ----------
+    green : numpy.ndarray
+        Green band.
+    swir1 : numpy.ndarray
+        Short-wave infrared 1 band.
+
+    Returns
+    -------
+    numpy.ndarray
+        NDSI values (typically in [-1, 1]).
+    """
+    return _ndsi(green, swir1)
+
+
 def savi(nir, red, L=0.5, **kwargs):
     """
     Compute Soil Adjusted Vegetation Index (SAVI).
@@ -444,6 +471,32 @@ def savi(nir, red, L=0.5, **kwargs):
     """
     l_val = kwargs.get("l", L)
     return _savi(nir, red, l_val)
+
+
+def osavi(nir, red):
+    """
+    Compute Optimized Soil Adjusted Vegetation Index (OSAVI).
+
+    OSAVI = (NIR - Red) / (NIR + Red + 0.16)
+
+    Parameters
+    ----------
+    nir : numpy.ndarray
+        Near-infrared band.
+    red : numpy.ndarray
+        Red band.
+
+    Returns
+    -------
+    numpy.ndarray
+        OSAVI values with same shape as inputs.
+
+    Notes
+    -----
+    OSAVI uses a fixed L=0.16, optimized for environments with
+    moderate vegetation cover. It requires no parameter tuning.
+    """
+    return _osavi(nir, red)
 
 
 def ndmi(nir, swir1):
@@ -585,6 +638,13 @@ def enhanced_vegetation_index(nir, red, blue):
     Compute EVI = 2.5 * (NIR - Red) / (NIR + 6*Red - 7.5*Blue + 1) via Rust core (1D or 2D).
     """
     return _enhanced_vegetation_index(nir, red, blue)
+
+
+def evi2(nir, red):
+    """
+    Compute EVI2 = 2.5 * (NIR - Red) / (NIR + 2.4*Red + 1) via Rust core.
+    """
+    return _evi2(nir, red)
 
 
 # Alias

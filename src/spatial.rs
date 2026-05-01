@@ -215,7 +215,9 @@ fn median_along_axis<'py>(
     let shape = array.shape();
     let (dim0, dim1, dim2, dim3) = (shape[0], shape[1], shape[2], shape[3]);
 
-    let reshaped = array.to_shape((dim0, dim1 * dim2 * dim3)).unwrap();
+    let reshaped = array.to_shape((dim0, dim1 * dim2 * dim3)).map_err(|_| {
+        CoreError::ComputationError("Failed to reshape 4D input for median".to_string())
+    })?;
     let mut medians = Array1::<f64>::zeros(dim1 * dim2 * dim3);
 
     medians
@@ -247,7 +249,9 @@ fn median_along_axis<'py>(
             }
         });
 
-    let result_3d = medians.into_shape((dim1, dim2, dim3)).unwrap();
+    let result_3d = medians
+        .into_shape((dim1, dim2, dim3))
+        .map_err(|_| CoreError::ComputationError("Failed to reshape median output".to_string()))?;
     Ok(result_3d.into_pyarray(py).to_owned())
 }
 
@@ -261,12 +265,12 @@ pub fn euclidean_distance(
     points_a: &PyAny,
     points_b: &PyAny,
 ) -> PyResult<PyObject> {
-    let points_a_array = points_a
-        .downcast::<PyArray2<f64>>()
-        .expect("points_a should be a 2D array");
-    let points_b_array = points_b
-        .downcast::<PyArray2<f64>>()
-        .expect("points_b should be a 2D array");
+    let points_a_array = points_a.downcast::<PyArray2<f64>>().map_err(|_| {
+        CoreError::InvalidArgument("points_a must be a 2D float64 array".to_string())
+    })?;
+    let points_b_array = points_b.downcast::<PyArray2<f64>>().map_err(|_| {
+        CoreError::InvalidArgument("points_b must be a 2D float64 array".to_string())
+    })?;
     let result = euclidean_distance_2d(py, points_a_array.readonly(), points_b_array.readonly());
     Ok(result.into_py(py))
 }

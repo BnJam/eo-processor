@@ -6,9 +6,11 @@ from eo_processor import (
     ndwi,
     normalized_difference,
     enhanced_vegetation_index as evi,
+    evi2,
     savi,
     nbr,
     ndmi,
+    ndsi,
     nbr2,
     gci,
 )
@@ -94,6 +96,24 @@ def test_ndwi_2d():
     assert np.allclose(result, expected, rtol=1e-9, atol=1e-9)
 
 
+def test_ndsi_1d():
+    green = np.array([0.5, 0.6, 0.7], dtype=np.float64)
+    swir1 = np.array([0.2, 0.3, 0.4], dtype=np.float64)
+    result = ndsi(green, swir1)
+    expected = (green - swir1) / (green + swir1)
+    assert result.shape == green.shape
+    assert np.allclose(result, expected, rtol=1e-9, atol=1e-9)
+
+
+def test_ndsi_2d():
+    green = np.array([[0.5, 0.6], [0.7, 0.8]], dtype=np.float64)
+    swir1 = np.array([[0.2, 0.3], [0.4, 0.5]], dtype=np.float64)
+    result = ndsi(green, swir1)
+    expected = (green - swir1) / (green + swir1)
+    assert result.shape == green.shape
+    assert np.allclose(result, expected, rtol=1e-9, atol=1e-9)
+
+
 def test_evi_1d():
     G, C1, C2, L = 2.5, 6.0, 7.5, 1.0
     nir = np.array([0.6, 0.7])
@@ -129,6 +149,30 @@ def test_evi_monotonic_in_nir():
     assert np.all(np.diff(out) >= -1e-9)
 
 
+def test_evi2_1d():
+    G, C1, L = 2.5, 2.4, 1.0
+    nir = np.array([0.6, 0.7])
+    red = np.array([0.3, 0.2])
+    result = evi2(nir, red)
+    denom = nir + C1 * red + L
+    expected = G * (nir - red) / denom
+    mask = np.isclose(denom, 0.0, atol=1e-10)
+    assert np.allclose(result[~mask], expected[~mask], rtol=1e-12, atol=0.0)
+    assert np.all(result[mask] == 0.0)
+
+
+def test_evi2_2d():
+    G, C1, L = 2.5, 2.4, 1.0
+    nir = np.array([[0.6, 0.7], [0.2, 0.3]])
+    red = np.array([[0.3, 0.2], [0.1, 0.15]])
+    result = evi2(nir, red)
+    denom = nir + C1 * red + L
+    expected = G * (nir - red) / denom
+    mask = np.isclose(denom, 0.0, atol=1e-10)
+    assert np.allclose(result[~mask], expected[~mask], rtol=1e-12, atol=0.0)
+    assert np.all(result[mask] == 0.0)
+
+
 def test_shape_mismatch_ndvi():
     nir = np.array([0.8, 0.7, 0.6])
     red = np.array([0.2, 0.1])  # different length
@@ -142,6 +186,13 @@ def test_shape_mismatch_evi():
     blue = np.array([0.1])  # mismatched
     with pytest.raises(ValueError):
         evi(nir, red, blue)
+
+
+def test_shape_mismatch_evi2():
+    nir = np.array([0.6, 0.7])
+    red = np.array([0.3])  # mismatched
+    with pytest.raises(ValueError):
+        evi2(nir, red)
 
 
 def test_invalid_dimension():
@@ -279,6 +330,46 @@ def test_savi_l_precedence_over_L():
     mask = np.isclose(nir + red + 0.25, 0.0, atol=1e-10)
     expected[mask] = 0.0
     assert np.allclose(out_explicit_l, expected, rtol=1e-12, atol=0.0)
+
+
+def test_osavi_1d():
+    """Test OSAVI computation for 1D arrays."""
+    from eo_processor import osavi
+
+    nir = np.array([0.7, 0.6, 0.8], dtype=np.float64)
+    red = np.array([0.2, 0.3, 0.15], dtype=np.float64)
+    out = osavi(nir, red)
+    assert out.shape == nir.shape
+    L = 0.16
+    expected = (nir - red) / (nir + red + L)
+    mask = np.isclose(nir + red + L, 0.0, atol=1e-10)
+    expected[mask] = 0.0
+    assert np.allclose(out, expected, rtol=1e-12, atol=0.0)
+
+
+def test_osavi_2d():
+    """Test OSAVI computation for 2D arrays."""
+    from eo_processor import osavi
+
+    nir = np.array([[0.6, 0.7], [0.5, 0.4]], dtype=np.float64)
+    red = np.array([[0.2, 0.3], [0.1, 0.2]], dtype=np.float64)
+    out = osavi(nir, red)
+    assert out.shape == nir.shape
+    L = 0.16
+    expected = (nir - red) / (nir + red + L)
+    mask = np.isclose(nir + red + L, 0.0, atol=1e-10)
+    expected[mask] = 0.0
+    assert np.allclose(out, expected, rtol=1e-12, atol=0.0)
+
+
+def test_osavi_shape_mismatch():
+    """Test OSAVI raises error on shape mismatch."""
+    from eo_processor import osavi
+
+    nir = np.array([0.7, 0.6], dtype=np.float64)
+    red = np.array([0.2], dtype=np.float64)
+    with pytest.raises(ValueError):
+        osavi(nir, red)
 
 
 def test_ndmi_1d():

@@ -1,4 +1,5 @@
 import numpy as np
+import pytest
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.datasets import make_classification
 from sklearn.model_selection import train_test_split
@@ -71,3 +72,29 @@ def test_random_forest_train_and_predict():
     assert accuracy >= 0.75, (
         f"Accuracy of {accuracy:.2f} is below the threshold of 0.75"
     )
+
+
+def test_random_forest_train_rejects_label_length_mismatch():
+    x = np.array([[0.1, 0.2], [0.3, 0.4]], dtype=np.float64)
+    y = np.array([1.0], dtype=np.float64)
+    with pytest.raises(ValueError, match="labels length"):
+        random_forest_train(x, y, n_estimators=5, min_samples_split=2, max_depth=3)
+
+
+def test_random_forest_train_rejects_non_finite_features():
+    x = np.array([[0.1, np.nan], [0.3, 0.4]], dtype=np.float64)
+    y = np.array([0.0, 1.0], dtype=np.float64)
+    with pytest.raises(ValueError, match="finite"):
+        random_forest_train(x, y, n_estimators=5, min_samples_split=2, max_depth=3)
+
+
+def test_random_forest_predict_rejects_feature_width_mismatch():
+    x_train = np.array([[0.1, 0.2], [0.3, 0.4], [0.5, 0.6]], dtype=np.float64)
+    y_train = np.array([0.0, 1.0, 0.0], dtype=np.float64)
+    model_json = random_forest_train(
+        x_train, y_train, n_estimators=5, min_samples_split=2, max_depth=3
+    )
+
+    x_bad = np.array([[0.1, 0.2, 0.3]], dtype=np.float64)
+    with pytest.raises(ValueError, match="column count"):
+        random_forest_predict(model_json, x_bad)

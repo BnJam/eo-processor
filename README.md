@@ -78,7 +78,7 @@ uv pip install eo-processor
 ### From Source
 
 Requirements:
-- Python 3.8+
+- Python 3.9+
 - Rust toolchain (`rustup` recommended)
 - `maturin` for building the extension module
 
@@ -123,7 +123,9 @@ All inputs may be any numeric NumPy dtype (int/uint/float); internal coercion to
 | `normalized_difference(a, b)` | Generic normalized difference `(a - b) / (a + b)` with near-zero denominator safeguard |
 | `ndvi(nir, red)` | Normalized Difference Vegetation Index |
 | `ndwi(green, nir)` | Normalized Difference Water Index |
+| `ndsi(green, swir1)` | Normalized Difference Snow Index `(Green - SWIR1)/(Green + SWIR1)` |
 | `evi(nir, red, blue)` / `enhanced_vegetation_index(...)` | Enhanced Vegetation Index (G*(NIR - Red)/(NIR + C1*Red - C2*Blue + L)) |
+| `evi2(nir, red)` | Enhanced Vegetation Index 2-band variant `2.5*(NIR - Red)/(NIR + 2.4*Red + 1)` |
 | `savi(nir, red, L=0.5)` | Soil Adjusted Vegetation Index `(NIR - Red)/(NIR + Red + L) * (1 + L)` |
 | `nbr(nir, swir2)` | Normalized Burn Ratio `(NIR - SWIR2)/(NIR + SWIR2)` |
 | `ndmi(nir, swir1)` | Normalized Difference Moisture Index `(NIR - SWIR1)/(NIR + SWIR1)` |
@@ -135,9 +137,22 @@ All inputs may be any numeric NumPy dtype (int/uint/float); internal coercion to
 | `composite(arr, method="median")` | Compositing convenience (currently median only) |
 | `temporal_mean(arr, skip_na=True)` | Mean across time axis |
 | `temporal_std(arr, skip_na=True)` | Sample standard deviation (n-1) across time |
+| `temporal_sum(arr, skip_na=True)` | Sum across time axis |
+| `temporal_composite(arr, weights, skip_na=True)` | Weighted temporal composite |
 | `moving_average_temporal(arr, window, skip_na=True, mode="same")` | Sliding window mean (same/valid edge modes, NaN skip/propagate) |
 | `moving_average_temporal_stride(arr, window, stride, skip_na=True, mode="same")` | Strided moving average (downsampled temporal smoothing) |
 | `pixelwise_transform(arr, scale=1.0, offset=0.0, clamp_min=None, clamp_max=None)` | Per-pixel linear transform with optional clamping |
+| `linear_regression(y)` | Simple linear regression (slope, intercept, residuals) on 1D array |
+| `bfast_monitor(stack, dates, ...)` | BFAST Monitor change detection on time series |
+| `random_forest_train(features, labels, ...)` | Train a Random Forest model |
+| `random_forest_predict(model_json, features)` | Predict using a trained Random Forest model |
+| `complex_classification(blue, green, ...)` | Multi-band classification workflow |
+| `haralick_features(data, window_size, ...)` | Calculate Haralick texture features (GLCM) |
+| `zonal_stats(values, zones)` | Calculate statistics per zone |
+| `binary_dilation(input, kernel_size)` | Binary morphological dilation |
+| `binary_erosion(input, kernel_size)` | Binary morphological erosion |
+| `binary_opening(input, kernel_size)` | Binary morphological opening |
+| `binary_closing(input, kernel_size)` | Binary morphological closing |
 | `euclidean_distance(points_a, points_b)` | Pairwise Euclidean distances |
 | `manhattan_distance(points_a, points_b)` | Pairwise L1 distances |
 | `chebyshev_distance(points_a, points_b)` | Pairwise L∞ distances |
@@ -148,6 +163,7 @@ All inputs may be any numeric NumPy dtype (int/uint/float); internal coercion to
 | `mask_in_range(arr, min_val=None, max_val=None, fill_value=None)` | Mask values inside `[min, max]` |
 | `mask_invalid(arr, invalid_values, fill_value=None)` | Mask list of sentinel values (e.g., `0, -9999`) |
 | `mask_scl(scl, keep_codes=None, fill_value=None)` | Mask Sentinel‑2 SCL codes, keeping selected classes |
+| `mask_with_scl(data, scl, mask_codes=None, fill_value=None)` | Apply SCL-based mask to data array |
 
 Temporal dimension expectations:
 - 1D: `(time,)`
@@ -177,9 +193,19 @@ Interpretation (approximate):
 - 0.0–0.3: moist vegetation / wetlands
 - < 0.0: dry vegetation / soil
 
+### NDSI
+`(Green - SWIR1) / (Green + SWIR1)`
+- Often > 0.3: likely snow/ice
+- Near 0: mixed pixels / uncertain surfaces
+- < 0.0: common for non-snow surfaces
+
 ### EVI
 `G * (NIR - Red) / (NIR + C1*Red - C2*Blue + L)` (MODIS constants: G=2.5, C1=6.0, C2=7.5, L=1.0)
 Improves sensitivity over high biomass & reduces soil/atmospheric noise vs NDVI.
+
+### EVI2
+`2.5 * (NIR - Red) / (NIR + 2.4*Red + 1)`
+2-band EVI variant often used when the blue band is unavailable.
 
 ### SAVI
 `(NIR - Red) / (NIR + Red + L) * (1 + L)`
@@ -220,15 +246,18 @@ Rust-accelerated preprocessing helpers for quality filtering.
 | `mask_in_range` | Mask inside interval |
 | `mask_invalid` | Shorthand for common invalid sentinels |
 | `mask_scl` | Keep only selected Sentinel‑2 SCL classes |
+| `mask_with_scl` | Apply SCL-based mask directly to data array |
 
 Example:
 
 ```python
 import numpy as np
-from eo_processor import mask_vals, replace_nans, mask_out_range, mask_scl
+from eo_processor import mask_vals, replace_nans, mask_out_range, mask_scl, mask_with_scl
 
 scl = np.array([4,5,6,8,9])  # vegetation, vegetation, water, cloud (med), cloud (high)
 clear = mask_scl(scl, keep_codes=[4,5,6])   # -> [4., 5., 6., nan, nan]
+# mask data where SCL is cloud/high cloud (8, 9)
+masked_data = mask_with_scl(np.ones(5), scl, mask_codes=[8, 9]) # -> [1., 1., 1., nan, nan]
 
 ndvi = np.array([-0.3, 0.1, 0.8, 1.2])
 valid = mask_out_range(ndvi, min_val=-0.2, max_val=1.0)  # -> [nan,0.1,0.8,nan]
@@ -240,37 +269,64 @@ filled = replace_nans(clean, -9999.0)      # -> [-9999.,100.,-9999.,50.]
 
 ---
 
+## Morphological Operations
+
+Binary morphological operations for 2D arrays (e.g. masks).
+
+| Function | Purpose |
+|----------|---------|
+| `binary_dilation(input, kernel_size)` | Dilate features (expand white regions) |
+| `binary_erosion(input, kernel_size)` | Erode features (shrink white regions) |
+| `binary_opening(input, kernel_size)` | Erosion followed by dilation (remove noise) |
+| `binary_closing(input, kernel_size)` | Dilation followed by erosion (fill holes) |
+
+All operations assume the input is a 2D array where values > 0 are treated as True/foreground. The structuring element is a square kernel of size `kernel_size`.
+
 ## Temporal Statistics & Compositing
 
-Median, mean, and standard deviation across time axis (skip NaNs optional):
+Median, mean, sum, and standard deviation across time axis (skip NaNs optional):
 
 ```python
 import numpy as np
-from eo_processor import temporal_mean, temporal_std, median
+from eo_processor import temporal_mean, temporal_std, temporal_sum, median, temporal_composite
 
 cube = np.random.rand(12, 256, 256)  # (time, y, x)
 mean_img  = temporal_mean(cube)      # (256, 256)
 std_img   = temporal_std(cube)       # (256, 256)
+sum_img   = temporal_sum(cube)       # (256, 256)
 median_img = median(cube)
+
+# Weighted composite for 4D arrays (time, bands, y, x)
+cube_4d = np.random.rand(5, 4, 256, 256)
+weights = np.array([0.1, 0.2, 0.4, 0.2, 0.1])
+comp_img = temporal_composite(cube_4d, weights) # (4, 256, 256)
 ```
 
 `composite(cube, method="median")` currently routes to `median`.
 
-## Trend Analysis
+## Trend Analysis & Regression
 
-`eo-processor` provides a simple trend analysis UDF to detect breaks in a time series. This implementation uses a recursive approach, which is more performant than the previous iterative version.
+`eo-processor` provides tools for trend analysis, regression, and change detection on time series data.
 
 | Function | Purpose |
 |----------|---------|
 | `trend_analysis(y, threshold)` | Detects breaks in a time series by recursively fitting linear models. |
+| `linear_regression(y)` | Simple linear regression on a 1D array (returns slope, intercept, residuals). |
+| `bfast_monitor(stack, dates, ...)` | BFAST Monitor for change detection in time series stacks. |
 
 Example:
 
 ```python
 import numpy as np
 from eo_processor._core import trend_analysis
+from eo_processor import linear_regression
 
-# Generate some sample time-series data with a break
+# Simple linear regression
+y_reg = np.array([1.0, 2.1, 2.9, 4.2])
+slope, intercept, resid = linear_regression(y_reg)
+
+# Trend Analysis on time series
+# Generate some sample data with a break
 y = np.concatenate([
     np.linspace(0, 10, 50),
     np.linspace(10, 0, 50)
@@ -288,6 +344,54 @@ for segment in segments:
         f"Slope: {segment.slope:.4f}, "
         f"Intercept: {segment.intercept:.4f}"
     )
+
+# BFAST Monitor (Change Detection)
+from eo_processor import bfast_monitor
+from datetime import datetime
+
+# stack: (time, y, x), dates: list of python datetime objects matching time axis
+# result = bfast_monitor(
+#     stack, dates,
+#     history_start_date=datetime(2019, 1, 1),
+#     monitor_start_date=datetime(2020, 1, 1),
+#     h=0.25, alpha=0.05
+# )
+```
+
+## Classification & Feature Extraction
+
+Tools for classification and texture analysis.
+
+| Function | Purpose |
+|----------|---------|
+| `random_forest_train(features, labels, ...)` | Train a Random Forest classifier |
+| `random_forest_predict(model_json, features)` | Predict using a trained Random Forest model |
+| `complex_classification(...)` | Multi-band classification workflow |
+| `haralick_features(data, window_size, ...)` | Compute GLCM texture features (Contrast, Homogeneity, etc.) |
+| `zonal_stats(values, zones)` | Compute statistics for defined zones |
+
+```python
+from eo_processor import haralick_features, zonal_stats
+import xarray as xr
+
+# Haralick features on xarray DataArray (Dask-aware)
+# data = xr.DataArray(...)
+# features = haralick_features(data, window_size=5)
+
+# Zonal statistics
+values = np.random.rand(100, 100)
+zones = np.random.randint(0, 5, (100, 100))
+stats = zonal_stats(values, zones)
+# Access results: stats[zone_id].mean, stats[zone_id].sum, etc.
+
+# Random Forest
+from eo_processor import random_forest_train, random_forest_predict
+
+# Train (returns JSON model string)
+# model_json = random_forest_train(features, labels, n_estimators=100)
+
+# Predict
+# predictions = random_forest_predict(model_json, features)
 ```
 
 ## Advanced Temporal & Pixelwise Processing

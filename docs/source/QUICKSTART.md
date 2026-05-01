@@ -6,7 +6,7 @@ Get started with eo-processor in 5 minutes!
 
 ### Prerequisites
 
-- Python 3.8+
+- Python 3.9+
 - Rust toolchain from [rustup.rs](https://rustup.rs/)
 
 ### Install from Source

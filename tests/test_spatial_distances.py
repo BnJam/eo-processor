@@ -175,5 +175,12 @@ def test_zero_vector_distances():
     assert np.allclose(mi, 0.0)
 
 
+def test_euclidean_distance_rejects_non_2d():
+    a = np.array([0.0, 1.0], dtype=np.float64)
+    b = np.array([0.5, 1.5], dtype=np.float64)
+    with pytest.raises(ValueError, match="2D float64"):
+        euclidean_distance(a, b)
+
+
 if __name__ == "__main__":  # pragma: no cover
     pytest.main([__file__])
