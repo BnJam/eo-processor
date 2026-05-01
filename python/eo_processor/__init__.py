@@ -39,6 +39,7 @@ from ._core import (
     normalized_difference as _normalized_difference,
     osavi as _osavi,
     msavi as _msavi,
+    gndvi as _gndvi,
     pixelwise_transform as _pixelwise_transform,
     replace_nans as _replace_nans,
     savi as _savi,
@@ -92,7 +93,7 @@ log.addHandler(handler)
 log.setLevel(logging.INFO)
 
 
-__version__ = "0.21.0"
+__version__ = "0.22.0"
 
 __all__ = [
     "chebyshev_distance",
@@ -125,6 +126,7 @@ __all__ = [
     "normalized_difference",
     "osavi",
     "msavi",
+    "gndvi",
     "pixelwise_transform",
     "replace_nans",
     "savi",
@@ -525,6 +527,33 @@ def msavi(nir, red):
     to avoid the need for a soil brightness correction factor (L).
     """
     return _msavi(nir, red)
+
+
+def gndvi(nir, green):
+    """
+    Compute Green Normalized Difference Vegetation Index (GNDVI).
+
+    GNDVI = (NIR - Green) / (NIR + Green)
+
+    Parameters
+    ----------
+    nir : numpy.ndarray
+        Near-infrared band.
+    green : numpy.ndarray
+        Green band.
+
+    Returns
+    -------
+    numpy.ndarray
+        GNDVI values with same shape as inputs.
+
+    Notes
+    -----
+    GNDVI is a variation of NDVI that uses the green band instead of red.
+    It is more sensitive to chlorophyll concentration and can be used
+    to assess vegetation health and nitrogen content.
+    """
+    return _gndvi(nir, green)
 
 
 def ndmi(nir, swir1):

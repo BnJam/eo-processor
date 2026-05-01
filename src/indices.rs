@@ -1547,6 +1547,174 @@ fn msavi_4d<'py>(
     Ok(result.into_pyarray(py))
 }
 
+/// Compute Green Normalized Difference Vegetation Index (GNDVI).
+///
+/// Formula:
+/// GNDVI = (NIR - Green) / (NIR + Green)
+///
+/// GNDVI is a variation of NDVI that uses the green band instead of red.
+/// It is more sensitive to chlorophyll concentration and can be used
+/// to assess vegetation health and nitrogen content.
+///
+/// Dispatches for 1D–4D float64 numpy arrays; `nir` and `green` must have identical shapes.
+#[pyfunction]
+pub fn gndvi(py: Python<'_>, nir: &PyAny, green: &PyAny) -> PyResult<PyObject> {
+    if let Ok(nir_1d) = nir.extract::<PyReadonlyArray1<f64>>() {
+        let green_1d = green.extract::<PyReadonlyArray1<f64>>()?;
+        if nir_1d.shape() != green_1d.shape() {
+            return Err(CoreError::InvalidArgument(format!(
+                "Shape mismatch for 1D GNDVI inputs: nir {:?}, green {:?}",
+                nir_1d.shape(),
+                green_1d.shape()
+            ))
+            .into());
+        }
+        gndvi_1d(py, nir_1d, green_1d).map(|res| res.into_py(py))
+    } else if let Ok(nir_2d) = nir.extract::<PyReadonlyArray2<f64>>() {
+        let green_2d = green.extract::<PyReadonlyArray2<f64>>()?;
+        if nir_2d.shape() != green_2d.shape() {
+            return Err(CoreError::InvalidArgument(format!(
+                "Shape mismatch for 2D GNDVI inputs: nir {:?}, green {:?}",
+                nir_2d.shape(),
+                green_2d.shape()
+            ))
+            .into());
+        }
+        gndvi_2d(py, nir_2d, green_2d).map(|res| res.into_py(py))
+    } else if let Ok(nir_3d) = nir.extract::<PyReadonlyArray3<f64>>() {
+        let green_3d = green.extract::<PyReadonlyArray3<f64>>()?;
+        if nir_3d.shape() != green_3d.shape() {
+            return Err(CoreError::InvalidArgument(format!(
+                "Shape mismatch for 3D GNDVI inputs: nir {:?}, green {:?}",
+                nir_3d.shape(),
+                green_3d.shape()
+            ))
+            .into());
+        }
+        gndvi_3d(py, nir_3d, green_3d).map(|res| res.into_py(py))
+    } else if let Ok(nir_4d) = nir.extract::<PyReadonlyArray4<f64>>() {
+        let green_4d = green.extract::<PyReadonlyArray4<f64>>()?;
+        if nir_4d.shape() != green_4d.shape() {
+            return Err(CoreError::InvalidArgument(format!(
+                "Shape mismatch for 4D GNDVI inputs: nir {:?}, green {:?}",
+                nir_4d.shape(),
+                green_4d.shape()
+            ))
+            .into());
+        }
+        gndvi_4d(py, nir_4d, green_4d).map(|res| res.into_py(py))
+    } else {
+        Err(CoreError::InvalidArgument(
+            "Input arrays must be either 1D, 2D, 3D, or 4D numpy arrays of type float64."
+                .to_string(),
+        )
+        .into())
+    }
+}
+
+fn gndvi_1d<'py>(
+    py: Python<'py>,
+    nir: PyReadonlyArray1<f64>,
+    green: PyReadonlyArray1<f64>,
+) -> PyResult<&'py PyArray1<f64>> {
+    let nir = nir.as_array();
+    let green = green.as_array();
+
+    let mut result = Array1::<f64>::zeros(nir.len());
+
+    Zip::from(&mut result)
+        .and(&nir)
+        .and(&green)
+        .for_each(|r, &nir_v, &green_v| {
+            let denom = nir_v + green_v;
+            *r = if denom.abs() < EPSILON {
+                0.0
+            } else {
+                (nir_v - green_v) / denom
+            };
+        });
+
+    Ok(result.into_pyarray(py))
+}
+
+fn gndvi_2d<'py>(
+    py: Python<'py>,
+    nir: PyReadonlyArray2<f64>,
+    green: PyReadonlyArray2<f64>,
+) -> PyResult<&'py PyArray2<f64>> {
+    let nir = nir.as_array();
+    let green = green.as_array();
+
+    let shape = nir.dim();
+    let mut result = Array2::<f64>::zeros(shape);
+
+    Zip::from(&mut result)
+        .and(&nir)
+        .and(&green)
+        .for_each(|r, &nir_v, &green_v| {
+            let denom = nir_v + green_v;
+            *r = if denom.abs() < EPSILON {
+                0.0
+            } else {
+                (nir_v - green_v) / denom
+            };
+        });
+
+    Ok(result.into_pyarray(py))
+}
+
+fn gndvi_3d<'py>(
+    py: Python<'py>,
+    nir: PyReadonlyArray3<f64>,
+    green: PyReadonlyArray3<f64>,
+) -> PyResult<&'py PyArray3<f64>> {
+    let nir = nir.as_array();
+    let green = green.as_array();
+
+    let shape = nir.dim();
+    let mut result = Array3::<f64>::zeros(shape);
+
+    Zip::from(&mut result)
+        .and(&nir)
+        .and(&green)
+        .for_each(|r, &nir_v, &green_v| {
+            let denom = nir_v + green_v;
+            *r = if denom.abs() < EPSILON {
+                0.0
+            } else {
+                (nir_v - green_v) / denom
+            };
+        });
+
+    Ok(result.into_pyarray(py))
+}
+
+fn gndvi_4d<'py>(
+    py: Python<'py>,
+    nir: PyReadonlyArray4<f64>,
+    green: PyReadonlyArray4<f64>,
+) -> PyResult<&'py PyArray4<f64>> {
+    let nir = nir.as_array();
+    let green = green.as_array();
+
+    let shape = nir.dim();
+    let mut result = Array4::<f64>::zeros(shape);
+
+    Zip::from(&mut result)
+        .and(&nir)
+        .and(&green)
+        .for_each(|r, &nir_v, &green_v| {
+            let denom = nir_v + green_v;
+            *r = if denom.abs() < EPSILON {
+                0.0
+            } else {
+                (nir_v - green_v) / denom
+            };
+        });
+
+    Ok(result.into_pyarray(py))
+}
+
 #[cfg(test)]
 mod savi_nbr_tests {
     use super::*;

@@ -411,6 +411,44 @@ def test_msavi_shape_mismatch():
         msavi(nir, red)
 
 
+def test_gndvi_1d():
+    """Test GNDVI computation for 1D arrays."""
+    from eo_processor import gndvi
+
+    nir = np.array([0.7, 0.6, 0.8], dtype=np.float64)
+    green = np.array([0.2, 0.3, 0.15], dtype=np.float64)
+    out = gndvi(nir, green)
+    assert out.shape == nir.shape
+    expected = (nir - green) / (nir + green)
+    mask = np.isclose(nir + green, 0.0, atol=1e-10)
+    expected[mask] = 0.0
+    assert np.allclose(out, expected, rtol=1e-12)
+
+
+def test_gndvi_2d():
+    """Test GNDVI computation for 2D arrays."""
+    from eo_processor import gndvi
+
+    nir = np.array([[0.6, 0.7], [0.5, 0.4]], dtype=np.float64)
+    green = np.array([[0.2, 0.3], [0.1, 0.2]], dtype=np.float64)
+    out = gndvi(nir, green)
+    assert out.shape == nir.shape
+    expected = (nir - green) / (nir + green)
+    mask = np.isclose(nir + green, 0.0, atol=1e-10)
+    expected[mask] = 0.0
+    assert np.allclose(out, expected, rtol=1e-12)
+
+
+def test_gndvi_shape_mismatch():
+    """Test GNDVI raises error on shape mismatch."""
+    from eo_processor import gndvi
+
+    nir = np.array([0.7, 0.6], dtype=np.float64)
+    green = np.array([0.2], dtype=np.float64)
+    with pytest.raises(ValueError):
+        gndvi(nir, green)
+
+
 def test_ndmi_1d():
     nir = np.array([0.8, 0.6, 0.4], dtype=np.float64)
     swir1 = np.array([0.3, 0.2, 0.1], dtype=np.float64)
