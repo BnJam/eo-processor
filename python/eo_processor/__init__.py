@@ -41,6 +41,12 @@ from ._core import (
     msavi as _msavi,
     gndvi as _gndvi,
     ndre as _ndre,
+    ndvi_re2 as _ndvi_re2,
+    lai as _lai,
+    dnbr as _dnbr,
+    rbr as _rbr,
+    ci_re as _ci_re,
+    mtci as _mtci,
     pixelwise_transform as _pixelwise_transform,
     replace_nans as _replace_nans,
     savi as _savi,
@@ -94,7 +100,7 @@ log.addHandler(handler)
 log.setLevel(logging.INFO)
 
 
-__version__ = "0.23.0"
+__version__ = "0.25.0"
 
 __all__ = [
     "chebyshev_distance",
@@ -129,6 +135,12 @@ __all__ = [
     "msavi",
     "gndvi",
     "ndre",
+    "ndvi_re2",
+    "lai",
+    "dnbr",
+    "rbr",
+    "ci_re",
+    "mtci",
     "pixelwise_transform",
     "replace_nans",
     "savi",
@@ -583,6 +595,146 @@ def ndre(nir, rededge):
     detecting early signs of stress before visible symptoms appear.
     """
     return _ndre(nir, rededge)
+
+
+def ndvi_re2(nir, rededge, red):
+    """
+    Compute Normalized Difference Vegetation Index Red Edge (NDVIre).
+
+    NDVIre = (NIR - RedEdge) / (NIR - Red)
+
+    Parameters
+    ----------
+    nir : numpy.ndarray
+        Near-infrared band.
+    rededge : numpy.ndarray
+        Red edge band.
+    red : numpy.ndarray
+        Red band.
+
+    Returns
+    -------
+    numpy.ndarray
+        NDVIre values with same shape as inputs.
+    """
+    return _ndvi_re2(nir, rededge, red)
+
+
+def lai(nir, red, blue):
+    """
+    Compute Leaf Area Index (LAI) from Enhanced Vegetation Index.
+
+    LAI = 3.618 * EVI - 0.118
+
+    Parameters
+    ----------
+    nir : numpy.ndarray
+        Near-infrared band.
+    red : numpy.ndarray
+        Red band.
+    blue : numpy.ndarray
+        Blue band.
+
+    Returns
+    -------
+    numpy.ndarray
+        LAI values with same shape as inputs.
+    """
+    return _lai(nir, red, blue)
+
+
+def dnbr(pre_nir, pre_swir2, post_nir, post_swir2):
+    """
+    Compute Differenced Normalized Burn Ratio (dNBR).
+
+    dNBR = NBR_pre - NBR_post
+
+    Parameters
+    ----------
+    pre_nir : numpy.ndarray
+        Pre-fire NIR band.
+    pre_swir2 : numpy.ndarray
+        Pre-fire SWIR2 band.
+    post_nir : numpy.ndarray
+        Post-fire NIR band.
+    post_swir2 : numpy.ndarray
+        Post-fire SWIR2 band.
+
+    Returns
+    -------
+    numpy.ndarray
+        dNBR values with same shape as inputs.
+    """
+    return _dnbr(pre_nir, pre_swir2, post_nir, post_swir2)
+
+
+def rbr(pre_nir, pre_swir2, post_nir, post_swir2):
+    """
+    Compute Relative Burn Ratio (RBR).
+
+    RBR = (NBR_pre - NBR_post) / (NBR_pre + 1)
+
+    Parameters
+    ----------
+    pre_nir : numpy.ndarray
+        Pre-fire NIR band.
+    pre_swir2 : numpy.ndarray
+        Pre-fire SWIR2 band.
+    post_nir : numpy.ndarray
+        Post-fire NIR band.
+    post_swir2 : numpy.ndarray
+        Post-fire SWIR2 band.
+
+    Returns
+    -------
+    numpy.ndarray
+        RBR values with same shape as inputs.
+    """
+    return _rbr(pre_nir, pre_swir2, post_nir, post_swir2)
+
+
+def ci_re(nir, rededge):
+    """
+    Compute Chlorophyll Index Red Edge (CIre).
+
+    CIre = (NIR / RedEdge) - 1
+
+    Parameters
+    ----------
+    nir : numpy.ndarray
+        Near-infrared band.
+    rededge : numpy.ndarray
+        Red edge band.
+
+    Returns
+    -------
+    numpy.ndarray
+        CIre values with same shape as inputs.
+    """
+    return _ci_re(nir, rededge)
+
+
+def mtci(rededge, red, green):
+    """
+    Compute MERIS Terrestrial Chlorophyll Index (MTCI).
+
+    MTCI = (RedEdge - Red) / (Red - Green)
+
+    Parameters
+    ----------
+    rededge : numpy.ndarray
+        Red edge band.
+    red : numpy.ndarray
+        Red band.
+    green : numpy.ndarray
+        Green band.
+
+    Returns
+    -------
+    numpy.ndarray
+        MTCI values with same shape as inputs.
+    """
+    return _mtci(rededge, red, green)
 
 
 def ndmi(nir, swir1):

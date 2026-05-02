@@ -52,6 +52,12 @@ fn _core(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(indices::msavi, m)?)?;
     m.add_function(wrap_pyfunction!(indices::gndvi, m)?)?;
     m.add_function(wrap_pyfunction!(indices::ndre, m)?)?;
+    m.add_function(wrap_pyfunction!(indices::ndvi_re2, m)?)?;
+    m.add_function(wrap_pyfunction!(indices::lai, m)?)?;
+    m.add_function(wrap_pyfunction!(indices::dnbr, m)?)?;
+    m.add_function(wrap_pyfunction!(indices::rbr, m)?)?;
+    m.add_function(wrap_pyfunction!(indices::ci_re, m)?)?;
+    m.add_function(wrap_pyfunction!(indices::mtci, m)?)?;
     m.add_function(wrap_pyfunction!(indices::nbr, m)?)?;
     // Additional spectral indices
     m.add_function(wrap_pyfunction!(indices::ndmi, m)?)?;

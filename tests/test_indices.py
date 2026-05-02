@@ -487,6 +487,137 @@ def test_ndre_shape_mismatch():
         ndre(nir, rededge)
 
 
+def test_ndvi_re2_1d():
+    """Test NDVIre2 computation for 1D arrays."""
+    from eo_processor import ndvi_re2
+    nir = np.array([0.7, 0.6, 0.8], dtype=np.float64)
+    rededge = np.array([0.3, 0.4, 0.35], dtype=np.float64)
+    red = np.array([0.2, 0.3, 0.15], dtype=np.float64)
+    out = ndvi_re2(nir, rededge, red)
+    expected = (nir - rededge) / (nir - red)
+    mask = np.isclose(nir - red, 0.0, atol=1e-10)
+    expected[mask] = 0.0
+    assert np.allclose(out, expected, rtol=1e-12)
+
+
+def test_ndvi_re2_2d():
+    """Test NDVIre2 computation for 2D arrays."""
+    from eo_processor import ndvi_re2
+    nir = np.array([[0.7, 0.6], [0.8, 0.5]], dtype=np.float64)
+    rededge = np.array([[0.3, 0.4], [0.35, 0.25]], dtype=np.float64)
+    red = np.array([[0.2, 0.3], [0.15, 0.2]], dtype=np.float64)
+    out = ndvi_re2(nir, rededge, red)
+    expected = (nir - rededge) / (nir - red)
+    mask = np.isclose(nir - red, 0.0, atol=1e-10)
+    expected[mask] = 0.0
+    assert np.allclose(out, expected, rtol=1e-12)
+
+
+def test_lai_1d():
+    """Test LAI computation for 1D arrays."""
+    from eo_processor import lai
+    nir = np.array([0.7, 0.6, 0.8], dtype=np.float64)
+    red = np.array([0.2, 0.3, 0.15], dtype=np.float64)
+    blue = np.array([0.1, 0.05, 0.08], dtype=np.float64)
+    out = lai(nir, red, blue)
+    # LAI = 3.618 * EVI - 0.118
+    G, C1, C2, L = 2.5, 6.0, 7.5, 1.0
+    evi = G * (nir - red) / (nir + C1 * red - C2 * blue + L)
+    expected = 3.618 * evi - 0.118
+    assert np.allclose(out, expected, rtol=1e-12)
+
+
+def test_lai_2d():
+    """Test LAI computation for 2D arrays."""
+    from eo_processor import lai
+    nir = np.array([[0.7, 0.6], [0.8, 0.5]], dtype=np.float64)
+    red = np.array([[0.2, 0.3], [0.15, 0.2]], dtype=np.float64)
+    blue = np.array([[0.1, 0.05], [0.08, 0.06]], dtype=np.float64)
+    out = lai(nir, red, blue)
+    G, C1, C2, L = 2.5, 6.0, 7.5, 1.0
+    evi = G * (nir - red) / (nir + C1 * red - C2 * blue + L)
+    expected = 3.618 * evi - 0.118
+    assert np.allclose(out, expected, rtol=1e-12)
+
+
+def test_dnbr_1d():
+    """Test dNBR computation for 1D arrays."""
+    from eo_processor import dnbr
+    pre_nir = np.array([0.7, 0.6, 0.8], dtype=np.float64)
+    pre_swir2 = np.array([0.2, 0.3, 0.15], dtype=np.float64)
+    post_nir = np.array([0.5, 0.4, 0.6], dtype=np.float64)
+    post_swir2 = np.array([0.4, 0.5, 0.3], dtype=np.float64)
+    out = dnbr(pre_nir, pre_swir2, post_nir, post_swir2)
+    pre_nbr = (pre_nir - pre_swir2) / (pre_nir + pre_swir2)
+    post_nbr = (post_nir - post_swir2) / (post_nir + post_swir2)
+    expected = pre_nbr - post_nbr
+    assert np.allclose(out, expected, rtol=1e-12)
+
+
+def test_rbr_1d():
+    """Test RBR computation for 1D arrays."""
+    from eo_processor import rbr
+    pre_nir = np.array([0.7, 0.6, 0.8], dtype=np.float64)
+    pre_swir2 = np.array([0.2, 0.3, 0.15], dtype=np.float64)
+    post_nir = np.array([0.5, 0.4, 0.6], dtype=np.float64)
+    post_swir2 = np.array([0.4, 0.5, 0.3], dtype=np.float64)
+    out = rbr(pre_nir, pre_swir2, post_nir, post_swir2)
+    pre_nbr = (pre_nir - pre_swir2) / (pre_nir + pre_swir2)
+    post_nbr = (post_nir - post_swir2) / (post_nir + post_swir2)
+    expected = (pre_nbr - post_nbr) / (pre_nbr + 1.0)
+    assert np.allclose(out, expected, rtol=1e-12)
+
+
+def test_ci_re_1d():
+    """Test CIre computation for 1D arrays."""
+    from eo_processor import ci_re
+    nir = np.array([0.7, 0.6, 0.8], dtype=np.float64)
+    rededge = np.array([0.3, 0.4, 0.35], dtype=np.float64)
+    out = ci_re(nir, rededge)
+    expected = (nir / rededge) - 1.0
+    mask = np.isclose(rededge, 0.0, atol=1e-10)
+    expected[mask] = 0.0
+    assert np.allclose(out, expected, rtol=1e-12)
+
+
+def test_ci_re_2d():
+    """Test CIre computation for 2D arrays."""
+    from eo_processor import ci_re
+    nir = np.array([[0.7, 0.6], [0.8, 0.5]], dtype=np.float64)
+    rededge = np.array([[0.3, 0.4], [0.35, 0.25]], dtype=np.float64)
+    out = ci_re(nir, rededge)
+    expected = (nir / rededge) - 1.0
+    mask = np.isclose(rededge, 0.0, atol=1e-10)
+    expected[mask] = 0.0
+    assert np.allclose(out, expected, rtol=1e-12)
+
+
+def test_mtci_1d():
+    """Test MTCI computation for 1D arrays."""
+    from eo_processor import mtci
+    rededge = np.array([0.35, 0.45, 0.4], dtype=np.float64)
+    red = np.array([0.2, 0.3, 0.15], dtype=np.float64)
+    green = np.array([0.15, 0.2, 0.1], dtype=np.float64)
+    out = mtci(rededge, red, green)
+    expected = (rededge - red) / (red - green)
+    mask = np.isclose(red - green, 0.0, atol=1e-10)
+    expected[mask] = 0.0
+    assert np.allclose(out, expected, rtol=1e-12)
+
+
+def test_mtci_2d():
+    """Test MTCI computation for 2D arrays."""
+    from eo_processor import mtci
+    rededge = np.array([[0.35, 0.45], [0.4, 0.3]], dtype=np.float64)
+    red = np.array([[0.2, 0.3], [0.15, 0.2]], dtype=np.float64)
+    green = np.array([[0.15, 0.2], [0.1, 0.12]], dtype=np.float64)
+    out = mtci(rededge, red, green)
+    expected = (rededge - red) / (red - green)
+    mask = np.isclose(red - green, 0.0, atol=1e-10)
+    expected[mask] = 0.0
+    assert np.allclose(out, expected, rtol=1e-12)
+
+
 def test_ndmi_1d():
     nir = np.array([0.8, 0.6, 0.4], dtype=np.float64)
     swir1 = np.array([0.3, 0.2, 0.1], dtype=np.float64)
