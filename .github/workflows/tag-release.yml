@@ -6,55 +6,54 @@ on:
       - 'v*'
 
 env:
-  PYTHON_VERSION: "3.12"
   CARGO_TERM_COLOR: always
 
 permissions:
   contents: write
 
 jobs:
-  build-wheel:
+  linux-wheels:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+      - name: Setup QEMU for ARM builds
+        uses: docker/setup-qemu-action@v3
         with:
-          toolchain: stable
+          platforms: all
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-
-      - name: Install maturin
-        run: pip install maturin
-
-      - name: Build wheel
-        run: maturin build --release
-
-      - name: Upload wheel
-        uses: actions/upload-artifact@v4
-        with:
-          name: wheel
-          path: target/wheels/*.whl
-
-  publish-pypi:
-    needs: build-wheel
-    runs-on: ubuntu-latest
-    permissions:
-      id-token: write
-    steps:
-      - name: Download wheel
-        uses: actions/download-artifact@v4
-        with:
-          name: wheel
-          path: dist
-
-      - name: Publish to PyPI
+      - name: Build and publish wheels
         uses: PyO3/maturin-action@v1
+        with:
+          command: publish
+          args: --skip-existing --manylinux auto
+        env:
+          MATURIN_PYTHON_VERSION: "3.12"
+
+  windows-wheels:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install maturin
+      - uses: PyO3/maturin-action@v1
+        with:
+          command: publish
+          args: --skip-existing
+
+  macos-wheels:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install maturin
+      - uses: PyO3/maturin-action@v1
         with:
           command: publish
           args: --skip-existing
