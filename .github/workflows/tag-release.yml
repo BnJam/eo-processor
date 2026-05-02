@@ -27,7 +27,7 @@ jobs:
         uses: PyO3/maturin-action@v1
         with:
           command: build
-          args: --release
+          args: --release --sdist
           manylinux: auto
 
       - name: Upload Linux Artifacts
