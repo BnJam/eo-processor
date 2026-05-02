@@ -26,9 +26,10 @@ jobs:
         uses: PyO3/maturin-action@v1
         with:
           command: publish
-          args: --skip-existing --manylinux auto
+          args: --skip-existing
         env:
           MATURIN_PYTHON_VERSION: "3.12"
+          manylinux: auto
 
   windows-wheels:
     runs-on: windows-latest
