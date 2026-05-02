@@ -1,12 +1,9 @@
 name: CI
 
-# --- TRIGGER: Runs on Pull Requests and Tag Pushes ---
+# --- TRIGGER: Runs on Pull Requests only ---
 on:
   pull_request:
     types: [opened, synchronize, reopened, edited]
-  push:
-    tags:
-      - 'v*'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}

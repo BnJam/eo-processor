@@ -40,6 +40,7 @@ from ._core import (
     osavi as _osavi,
     msavi as _msavi,
     gndvi as _gndvi,
+    ndre as _ndre,
     pixelwise_transform as _pixelwise_transform,
     replace_nans as _replace_nans,
     savi as _savi,
@@ -93,7 +94,7 @@ log.addHandler(handler)
 log.setLevel(logging.INFO)
 
 
-__version__ = "0.22.0"
+__version__ = "0.23.0"
 
 __all__ = [
     "chebyshev_distance",
@@ -127,6 +128,7 @@ __all__ = [
     "osavi",
     "msavi",
     "gndvi",
+    "ndre",
     "pixelwise_transform",
     "replace_nans",
     "savi",
@@ -554,6 +556,33 @@ def gndvi(nir, green):
     to assess vegetation health and nitrogen content.
     """
     return _gndvi(nir, green)
+
+
+def ndre(nir, rededge):
+    """
+    Compute Normalized Difference Red Edge (NDRE).
+
+    NDRE = (NIR - RedEdge) / (NIR + RedEdge)
+
+    Parameters
+    ----------
+    nir : numpy.ndarray
+        Near-infrared band.
+    rededge : numpy.ndarray
+        Red edge band.
+
+    Returns
+    -------
+    numpy.ndarray
+        NDRE values with same shape as inputs.
+
+    Notes
+    -----
+    NDRE uses the red edge band which is sensitive to chlorophyll content
+    and plant stress. It is useful for assessing vegetation health and
+    detecting early signs of stress before visible symptoms appear.
+    """
+    return _ndre(nir, rededge)
 
 
 def ndmi(nir, swir1):

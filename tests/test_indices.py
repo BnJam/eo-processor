@@ -449,6 +449,44 @@ def test_gndvi_shape_mismatch():
         gndvi(nir, green)
 
 
+def test_ndre_1d():
+    """Test NDRE computation for 1D arrays."""
+    from eo_processor import ndre
+
+    nir = np.array([0.7, 0.6, 0.8], dtype=np.float64)
+    rededge = np.array([0.2, 0.3, 0.15], dtype=np.float64)
+    out = ndre(nir, rededge)
+    assert out.shape == nir.shape
+    expected = (nir - rededge) / (nir + rededge)
+    mask = np.isclose(nir + rededge, 0.0, atol=1e-10)
+    expected[mask] = 0.0
+    assert np.allclose(out, expected, rtol=1e-12)
+
+
+def test_ndre_2d():
+    """Test NDRE computation for 2D arrays."""
+    from eo_processor import ndre
+
+    nir = np.array([[0.6, 0.7], [0.5, 0.4]], dtype=np.float64)
+    rededge = np.array([[0.2, 0.3], [0.1, 0.2]], dtype=np.float64)
+    out = ndre(nir, rededge)
+    assert out.shape == nir.shape
+    expected = (nir - rededge) / (nir + rededge)
+    mask = np.isclose(nir + rededge, 0.0, atol=1e-10)
+    expected[mask] = 0.0
+    assert np.allclose(out, expected, rtol=1e-12)
+
+
+def test_ndre_shape_mismatch():
+    """Test NDRE raises error on shape mismatch."""
+    from eo_processor import ndre
+
+    nir = np.array([0.7, 0.6], dtype=np.float64)
+    rededge = np.array([0.2], dtype=np.float64)
+    with pytest.raises(ValueError):
+        ndre(nir, rededge)
+
+
 def test_ndmi_1d():
     nir = np.array([0.8, 0.6, 0.4], dtype=np.float64)
     swir1 = np.array([0.3, 0.2, 0.1], dtype=np.float64)

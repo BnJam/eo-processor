@@ -1715,6 +1715,174 @@ fn gndvi_4d<'py>(
     Ok(result.into_pyarray(py))
 }
 
+/// Compute Normalized Difference Red Edge (NDRE).
+///
+/// Formula:
+/// NDRE = (NIR - RedEdge) / (NIR + RedEdge)
+///
+/// NDRE uses the red edge band which is sensitive to chlorophyll content
+/// and plant stress. It is useful for assessing vegetation health and
+/// detecting early signs of stress before visible symptoms appear.
+///
+/// Dispatches for 1D–4D float64 numpy arrays; `nir` and `rededge` must have identical shapes.
+#[pyfunction]
+pub fn ndre(py: Python<'_>, nir: &PyAny, rededge: &PyAny) -> PyResult<PyObject> {
+    if let Ok(nir_1d) = nir.extract::<PyReadonlyArray1<f64>>() {
+        let rededge_1d = rededge.extract::<PyReadonlyArray1<f64>>()?;
+        if nir_1d.shape() != rededge_1d.shape() {
+            return Err(CoreError::InvalidArgument(format!(
+                "Shape mismatch for 1D NDRE inputs: nir {:?}, rededge {:?}",
+                nir_1d.shape(),
+                rededge_1d.shape()
+            ))
+            .into());
+        }
+        ndre_1d(py, nir_1d, rededge_1d).map(|res| res.into_py(py))
+    } else if let Ok(nir_2d) = nir.extract::<PyReadonlyArray2<f64>>() {
+        let rededge_2d = rededge.extract::<PyReadonlyArray2<f64>>()?;
+        if nir_2d.shape() != rededge_2d.shape() {
+            return Err(CoreError::InvalidArgument(format!(
+                "Shape mismatch for 2D NDRE inputs: nir {:?}, rededge {:?}",
+                nir_2d.shape(),
+                rededge_2d.shape()
+            ))
+            .into());
+        }
+        ndre_2d(py, nir_2d, rededge_2d).map(|res| res.into_py(py))
+    } else if let Ok(nir_3d) = nir.extract::<PyReadonlyArray3<f64>>() {
+        let rededge_3d = rededge.extract::<PyReadonlyArray3<f64>>()?;
+        if nir_3d.shape() != rededge_3d.shape() {
+            return Err(CoreError::InvalidArgument(format!(
+                "Shape mismatch for 3D NDRE inputs: nir {:?}, rededge {:?}",
+                nir_3d.shape(),
+                rededge_3d.shape()
+            ))
+            .into());
+        }
+        ndre_3d(py, nir_3d, rededge_3d).map(|res| res.into_py(py))
+    } else if let Ok(nir_4d) = nir.extract::<PyReadonlyArray4<f64>>() {
+        let rededge_4d = rededge.extract::<PyReadonlyArray4<f64>>()?;
+        if nir_4d.shape() != rededge_4d.shape() {
+            return Err(CoreError::InvalidArgument(format!(
+                "Shape mismatch for 4D NDRE inputs: nir {:?}, rededge {:?}",
+                nir_4d.shape(),
+                rededge_4d.shape()
+            ))
+            .into());
+        }
+        ndre_4d(py, nir_4d, rededge_4d).map(|res| res.into_py(py))
+    } else {
+        Err(CoreError::InvalidArgument(
+            "Input arrays must be either 1D, 2D, 3D, or 4D numpy arrays of type float64."
+                .to_string(),
+        )
+        .into())
+    }
+}
+
+fn ndre_1d<'py>(
+    py: Python<'py>,
+    nir: PyReadonlyArray1<f64>,
+    rededge: PyReadonlyArray1<f64>,
+) -> PyResult<&'py PyArray1<f64>> {
+    let nir = nir.as_array();
+    let rededge = rededge.as_array();
+
+    let mut result = Array1::<f64>::zeros(nir.len());
+
+    Zip::from(&mut result)
+        .and(&nir)
+        .and(&rededge)
+        .for_each(|r, &nir_v, &rededge_v| {
+            let denom = nir_v + rededge_v;
+            *r = if denom.abs() < EPSILON {
+                0.0
+            } else {
+                (nir_v - rededge_v) / denom
+            };
+        });
+
+    Ok(result.into_pyarray(py))
+}
+
+fn ndre_2d<'py>(
+    py: Python<'py>,
+    nir: PyReadonlyArray2<f64>,
+    rededge: PyReadonlyArray2<f64>,
+) -> PyResult<&'py PyArray2<f64>> {
+    let nir = nir.as_array();
+    let rededge = rededge.as_array();
+
+    let shape = nir.dim();
+    let mut result = Array2::<f64>::zeros(shape);
+
+    Zip::from(&mut result)
+        .and(&nir)
+        .and(&rededge)
+        .for_each(|r, &nir_v, &rededge_v| {
+            let denom = nir_v + rededge_v;
+            *r = if denom.abs() < EPSILON {
+                0.0
+            } else {
+                (nir_v - rededge_v) / denom
+            };
+        });
+
+    Ok(result.into_pyarray(py))
+}
+
+fn ndre_3d<'py>(
+    py: Python<'py>,
+    nir: PyReadonlyArray3<f64>,
+    rededge: PyReadonlyArray3<f64>,
+) -> PyResult<&'py PyArray3<f64>> {
+    let nir = nir.as_array();
+    let rededge = rededge.as_array();
+
+    let shape = nir.dim();
+    let mut result = Array3::<f64>::zeros(shape);
+
+    Zip::from(&mut result)
+        .and(&nir)
+        .and(&rededge)
+        .for_each(|r, &nir_v, &rededge_v| {
+            let denom = nir_v + rededge_v;
+            *r = if denom.abs() < EPSILON {
+                0.0
+            } else {
+                (nir_v - rededge_v) / denom
+            };
+        });
+
+    Ok(result.into_pyarray(py))
+}
+
+fn ndre_4d<'py>(
+    py: Python<'py>,
+    nir: PyReadonlyArray4<f64>,
+    rededge: PyReadonlyArray4<f64>,
+) -> PyResult<&'py PyArray4<f64>> {
+    let nir = nir.as_array();
+    let rededge = rededge.as_array();
+
+    let shape = nir.dim();
+    let mut result = Array4::<f64>::zeros(shape);
+
+    Zip::from(&mut result)
+        .and(&nir)
+        .and(&rededge)
+        .for_each(|r, &nir_v, &rededge_v| {
+            let denom = nir_v + rededge_v;
+            *r = if denom.abs() < EPSILON {
+                0.0
+            } else {
+                (nir_v - rededge_v) / denom
+            };
+        });
+
+    Ok(result.into_pyarray(py))
+}
+
 #[cfg(test)]
 mod savi_nbr_tests {
     use super::*;
