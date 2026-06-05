@@ -93,4 +93,4 @@ jobs:
           python-version: ${{ env.PYTHON_VERSION }}
 
       - name: Publish to PyPI
-        run: uv publish dist --token ${{ secrets.MATURIN_PYPI_TOKEN }} *.whl dist/*
+        run: uv publish dist/* --token ${{ secrets.MATURIN_PYPI_TOKEN }}
