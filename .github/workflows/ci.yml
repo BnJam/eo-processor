@@ -37,7 +37,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
 
       - name: Install uv and tools
-        uses: astral-sh/setup-uv@v3
+        uses: astral-sh/setup-uv@v7
 
       - name: Install tox and plugins
         # Install tox and the tox-gh-actions plugin into the base environment
@@ -90,7 +90,7 @@ jobs:
           echo "Benchmark JSON generated: benchmark-results.json"
       - name: 📦 Upload Benchmark Artifact
         if: matrix.python-version == '3.12' && env.RUN_BENCHMARKS == 'true'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: benchmark-results
           path: benchmark-results.json
@@ -113,7 +113,7 @@ jobs:
           python-version: "3.11"
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v3
+        uses: astral-sh/setup-uv@v7
 
       - name: Install docs dependencies
         run: |
@@ -134,7 +134,7 @@ jobs:
              echo "Documentation build warnings detected"; exit 1; fi
 
       - name: Upload built docs artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: site-docs
           path: docs/build/html
