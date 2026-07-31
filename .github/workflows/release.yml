@@ -237,13 +237,13 @@ jobs:
 
   #   steps:
   #     - name: Checkout repository
-  #       uses: actions/checkout@v4
+  #       uses: actions/checkout@v5
   #       with:
   #         # Fetch the latest commit which contains the version bump and tag
   #         ref: main
 
   #     - name: Set up Python
-  #       uses: actions/setup-python@v5
+  #       uses: actions/setup-python@v6
   #       with:
   #         python-version: "3.12"
 
@@ -295,9 +295,9 @@ jobs:
   #     contents: write
   #   steps:
   #     - name: Checkout repository
-  #       uses: actions/checkout@v4
+  #       uses: actions/checkout@v5
   #     - name: Set up Python
-  #       uses: actions/setup-python@v5
+  #       uses: actions/setup-python@v6
   #       with:
   #         python-version: "3.12"
   #     - name: Install uv and tools
