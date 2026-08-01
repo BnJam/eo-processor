@@ -27,14 +27,14 @@ jobs:
       version_changed: ${{ steps.bump.outputs.version_changed }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           # Fetch depth 0 needed for full history access for version bump logic
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.12"
 
@@ -135,12 +135,12 @@ jobs:
         python-version: ["3.9", "3.10", "3.11", "3.12"] 
         
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           ref: v${{ needs.version-bump.outputs.new_version }}
       - name: Setup QEMU for ARM builds 🖥️
         # Enables cross-compilation for aarch64 (ARM) systems like AWS Graviton
-        uses: docker/setup-qemu-action@v3
+        uses: docker/setup-qemu-action@v4
         with:
           platforms: all
           
@@ -153,7 +153,7 @@ jobs:
           manylinux: auto # Use the best manylinux tag available
 
       - name: Upload Linux Artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: linux-wheels-py${{ matrix.python-version }}
           path: target/wheels
@@ -171,13 +171,13 @@ jobs:
         python-version: ["3.9", "3.10", "3.11", "3.12"]
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           ref: v${{ needs.version-bump.outputs.new_version }}
       - uses: dtolnay/rust-toolchain@stable
       
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python-version }}
           
@@ -194,7 +194,7 @@ jobs:
         run: maturin build --release --sdist
         
       - name: Upload OS Artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: ${{ matrix.os }}-wheel-py${{ matrix.python-version }}
           path: target/wheels
@@ -209,10 +209,10 @@ jobs:
     if: needs.version-bump.outputs.version_changed == 'true'
     
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       
       - name: Download all wheels and sdist
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           path: dist # Downloads all artifacts from the two build jobs
 
@@ -221,10 +221,10 @@ jobs:
         run: find dist -type f \( -name "*.whl" -o -name "*.tar.gz" \) -exec mv {} dist/ \;
 
       - name: Install uv and tools
-        uses: astral-sh/setup-uv@v3
+        uses: astral-sh/setup-uv@v7
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
@@ -237,13 +237,13 @@ jobs:
 
   #   steps:
   #     - name: Checkout repository
-  #       uses: actions/checkout@v4
+  #       uses: actions/checkout@v5
   #       with:
   #         # Fetch the latest commit which contains the version bump and tag
   #         ref: main
 
   #     - name: Set up Python
-  #       uses: actions/setup-python@v5
+  #       uses: actions/setup-python@v6
   #       with:
   #         python-version: "3.12"
 
@@ -295,13 +295,13 @@ jobs:
   #     contents: write
   #   steps:
   #     - name: Checkout repository
-  #       uses: actions/checkout@v4
+  #       uses: actions/checkout@v5
   #     - name: Set up Python
-  #       uses: actions/setup-python@v5
+  #       uses: actions/setup-python@v6
   #       with:
   #         python-version: "3.12"
   #     - name: Install uv and tools
-  #       uses: astral-sh/setup-uv@v3
+  #       uses: astral-sh/setup-uv@v7
   #     - name: Sync dependencies (dev + extras)
   #       run: |
   #         uv sync --all-extras --dev
@@ -323,7 +323,7 @@ jobs:
 
   #     # Optional: Upload the badge as an artifact so you can download it from the CI run
   #     - name: Upload Coverage Badge Artifact
-  #       uses: actions/upload-artifact@v4
+  #       uses: actions/upload-artifact@v6
   #       with:
   #         name: coverage-badge
   #         path: |
