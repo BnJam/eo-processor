@@ -60,20 +60,22 @@ fn recursive_trend_analysis(
             slope,
             intercept,
         });
-    } else {
-        let Some(max_residual_index) = residuals
-            .iter()
-            .enumerate()
-            .max_by(|(_, a), (_, b)| a.abs().total_cmp(&b.abs()))
-            .map(|(i, _)| i)
-        else {
-            return;
-        };
-
-        let (left, right) = y.split_at(max_residual_index);
-        recursive_trend_analysis(left, start_index, segments, threshold);
-        recursive_trend_analysis(right, start_index + max_residual_index, segments, threshold);
+        return;
     }
+
+    let Some(max_residual_index) = residuals
+        .iter()
+        .enumerate()
+        .filter(|(i, _)| *i > 0 && *i < y.len() - 1)
+        .max_by(|(_, a), (_, b)| a.abs().total_cmp(&b.abs()))
+        .map(|(i, _)| i)
+    else {
+        return;
+    };
+
+    let (left, right) = y.split_at(max_residual_index);
+    recursive_trend_analysis(left, start_index, segments, threshold);
+    recursive_trend_analysis(right, start_index + max_residual_index, segments, threshold);
 }
 
 fn calculate_linear_regression(y: &[f64]) -> (f64, f64) {
