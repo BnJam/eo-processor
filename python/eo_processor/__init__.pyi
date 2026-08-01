@@ -84,6 +84,17 @@ def composite(
 def temporal_mean(arr: NumericArray, skip_na: bool = ...) -> NDArray[np.float64]: ...
 def temporal_std(arr: NumericArray, skip_na: bool = ...) -> NDArray[np.float64]: ...
 
+# Trend analysis & regression
+class TrendSegment:
+    start_index: int
+    end_index: int
+    slope: float
+    intercept: float
+
+def trend_analysis(
+    y: Sequence[float], threshold: float
+) -> list[TrendSegment]: ...
+
 # Advanced temporal processes
 def moving_average_temporal(
     arr: NumericArray,

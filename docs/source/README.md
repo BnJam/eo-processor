@@ -318,8 +318,7 @@ Example:
 
 ```python
 import numpy as np
-from eo_processor._core import trend_analysis
-from eo_processor import linear_regression
+from eo_processor import trend_analysis, linear_regression
 
 # Simple linear regression
 y_reg = np.array([1.0, 2.1, 2.9, 4.2])
