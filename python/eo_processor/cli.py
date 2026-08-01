@@ -34,8 +34,9 @@ from __future__ import annotations
 import argparse
 import os
 import sys
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
-from typing import Dict, Iterable, List, Mapping, Optional
+from typing import Optional
 
 import numpy as np
 
@@ -76,17 +77,17 @@ IndexFunction = IndexFunctionProtocol
 class IndexSpec:
     name: str
     func: IndexFunction
-    required_bands: List[str]
+    required_bands: list[str]
     description: str
 
-    def missing_bands(self, provided: Mapping[str, NumericArray]) -> List[str]:
+    def missing_bands(self, provided: Mapping[str, NumericArray]) -> list[str]:
         return [b for b in self.required_bands if b not in provided]
 
     # (Method moved into class definition above with annotations)
 
 
 # Registry of supported indices
-INDEX_SPECS: Dict[str, IndexSpec] = {
+INDEX_SPECS: dict[str, IndexSpec] = {
     "normalized_difference": IndexSpec(
         "normalized_difference",
         normalized_difference,
@@ -239,7 +240,7 @@ def apply_mask(arr: NumericArray, mask: NumericArray) -> NumericArray:
 
 
 def save_npy(
-    path: str, arr: NumericArray, dtype: str, clamp: Optional[List[float]]
+    path: str, arr: NumericArray, dtype: str, clamp: Optional[list[float]]
 ) -> None:
     out_arr = arr
     if clamp:
@@ -250,10 +251,10 @@ def save_npy(
     np.save(path, out_arr)
 
 
-def save_png(path: str, arr: NumericArray, clamp: Optional[List[float]]) -> None:
+def save_png(path: str, arr: NumericArray, clamp: Optional[list[float]]) -> None:
     try:
         from PIL import Image
-    except Exception:
+    except ImportError:
         log.warn("Pillow not installed; PNG preview skipped.")
         return
     data = np.asarray(arr)
@@ -320,8 +321,8 @@ def compute(
     raise ValueError(f"Unhandled index: {name}")
 
 
-def _gather_required_bands(indices: Iterable[str]) -> List[str]:
-    needed: List[str] = []
+def _gather_required_bands(indices: Iterable[str]) -> list[str]:
+    needed: list[str] = []
     for idx in indices:
         if idx not in INDEX_SPECS:
             raise KeyError(idx)
@@ -331,7 +332,7 @@ def _gather_required_bands(indices: Iterable[str]) -> List[str]:
     return needed
 
 
-def cli(argv: Optional[List[str]] = None) -> int:
+def cli(argv: Optional[list[str]] = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
 
@@ -342,7 +343,7 @@ def cli(argv: Optional[List[str]] = None) -> int:
     if not args.index:
         parser.error("either --index or --list is required")
 
-    indices: List[str] = args.index
+    indices: list[str] = args.index
     multi = len(indices) > 1
 
     if multi and not args.out_dir:
@@ -357,7 +358,7 @@ def cli(argv: Optional[List[str]] = None) -> int:
     if args.mask:
         try:
             mask_arr = load_npy(args.mask)
-        except Exception as exc:
+        except (OSError, ValueError) as exc:
             log.error("Failed loading mask", exc_info=exc)
             return 1
 
@@ -384,7 +385,7 @@ def cli(argv: Optional[List[str]] = None) -> int:
     except KeyError as e:
         log.error("Unsupported index", index=e.args[0])
         return 1
-    loaded: Dict[str, NumericArray] = {}
+    loaded: dict[str, NumericArray] = {}
 
     for band in required:
         path = band_path_map.get(band)
@@ -400,11 +401,11 @@ def cli(argv: Optional[List[str]] = None) -> int:
             if mask_arr is not None:
                 arr = apply_mask(arr, mask_arr)
             loaded[band] = arr
-        except Exception as exc:
+        except (OSError, ValueError) as exc:
             log.error("Failed loading band", band=band, path=path, exc_info=exc)
             return 1
 
-    results: Dict[str, NumericArray] = {}
+    results: dict[str, NumericArray] = {}
     for idx in indices:
         spec = INDEX_SPECS.get(idx)
         if not spec:
@@ -422,7 +423,7 @@ def cli(argv: Optional[List[str]] = None) -> int:
             res = compute(spec, loaded, args.savi_l)
             results[idx] = res
             log.info("Computed index", index=idx, shape=res.shape)
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001
             log.error("Failed computing index", index=idx, exc_info=exc)
             return 2
 

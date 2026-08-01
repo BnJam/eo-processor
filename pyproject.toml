@@ -1,6 +1,6 @@
 [project]
 name = "eo-processor"
-version = "0.22.0"
+version = "0.23.0"
 description = "High-performance Rust UDFs for Earth Observation processing"
 # IMPROVED: Explicitly mention Rust, PyO3, and Dask acceleration
 readme = "README.md"
@@ -15,19 +15,16 @@ classifiers = [
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
-    "Programming Language :: Python :: 3.13",
     "License :: OSI Approved :: MIT License",
     # Add a classifier for your domain
     "Topic :: Scientific/Engineering :: GIS",
 ]
 requires-python = ">=3.9"
 dependencies = [
-    "maturin>=1.9.6",
     "numpy>=1.20.0",
     "structlog>=23.1.0",
     "xarray>=2023.0.0",
     "dask[array]>=2023.0.0",
-    "matplotlib>=3.9.4",
 ]
 
 [project.scripts]
@@ -73,11 +70,6 @@ dev = [
     "ruff>=0.14.4",
     "pytest>=7.0",
 ]
-
-[tool.maturin.metadata]
-authors = ["Ben Smith"]
-license = "MIT"
-repository = "https://github.com/Bnjam/eo-processor"
 
 [tool.ruff]
 line-length = 100

@@ -5,13 +5,12 @@ on:
     types: [closed]
 
 env:
-  # The environment for PyPI publishing (used in the final publish step)
   PYPI_ENVIRONMENT: pypi
   PYTHON_VERSION: "3.12"
 
 permissions:
-  contents: write # Required for the version-bump job to commit and tag
-  id-token: write # Required for maturin to publish to PyPI securely via OIDC
+  contents: write
+  id-token: write
 
 jobs:
   # ----------------------------------------------------
@@ -21,40 +20,31 @@ jobs:
     if: github.event.pull_request.merged == true && github.event.pull_request.base.ref == 'main'
     runs-on: ubuntu-latest
     permissions:
-      contents: write # Required to push commits and tags
+      contents: write
     outputs:
       new_version: ${{ steps.bump.outputs.new_version }}
       version_changed: ${{ steps.bump.outputs.version_changed }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v4
         with:
-          # Fetch depth 0 needed for full history access for version bump logic
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set up Python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v5
         with:
           python-version: "3.12"
 
       - name: Install uv
-        run: |
-          pip install uv
+        run: pip install uv
 
       - name: Install Dependencies for version script
-        run: |
-          # Sync dev dependencies to ensure the version script's dependencies are met
-          uv pip install --system maturin ".[dev]"
+        run: uv pip install --system maturin ".[dev]"
 
       - name: Determine version increment, Commit, and Tag
         id: bump
-        # NOTE: You MUST ensure your Python version script (scripts/version.py)
-        # also updates the version in Cargo.toml for the Rust code,
-        # otherwise maturin will build with the old version number!
-        # Assuming your script now handles both: pyproject.toml and Cargo.toml
         run: |
-          # Use github.event context to get PR information
           PR_NUM=${{ github.event.pull_request.number }}
           BRANCH_NAME=${{ github.event.pull_request.head.ref }}
           LABELS=$(echo '${{ toJSON(github.event.pull_request.labels.*.name) }}' | tr -d '[]"' | sed 's/,/ /g')
@@ -68,20 +58,14 @@ jobs:
             INCREMENT_TYPE=""
           elif echo "$LABELS" | grep -q "bump:major\|bump:release"; then
             INCREMENT_TYPE="major"
-          elif echo "$LABELS" | grep -q "bump:major\|bump:major"; then
-            INCREMENT_TYPE="major"
           elif echo "$LABELS" | grep -q "bump:minor\|bump:feature"; then
             INCREMENT_TYPE="minor"
-          elif echo "$LABELS" | grep -q "bump:minor\|bump:minor"; then
-            INCREMENT_TYPE="minor"
           elif echo "$LABELS" | grep -q "bump:patch\|bump:hotfix"; then
-            INCREMENT_TYPE="patch"
-          elif echo "$LABELS" | grep -q "bump:patch\|bump:patch"; then
             INCREMENT_TYPE="patch"
           fi
 
           if [ -z "$INCREMENT_TYPE" ]; then
-            echo "No version bump label or recognized branch prefix found, skipping version bump"
+            echo "No version bump label found, skipping version bump"
             echo "version_changed=false" >> $GITHUB_OUTPUT
             exit 0
           fi
@@ -90,7 +74,6 @@ jobs:
           CURRENT_VERSION=$(python scripts/version.py current | cut -d' ' -f3)
           echo "Current version: $CURRENT_VERSION"
 
-          # Increment version (This must update pyproject.toml AND Cargo.toml)
           python scripts/version.py $INCREMENT_TYPE
           NEW_VERSION=$(python scripts/version.py current | cut -d' ' -f3)
 
@@ -98,179 +81,124 @@ jobs:
           echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
           echo "version_changed=true" >> $GITHUB_OUTPUT
 
-          # Configure git for commit
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
 
-          # Commit version changes (must include pyproject.toml and Cargo.toml)
-          git add pyproject.toml Cargo.toml
-          # Add any other files updated by your version script (e.g., __init__.py)
+          git add pyproject.toml Cargo.toml python/eo_processor/__init__.py
           git commit -m "chore: bump version to $NEW_VERSION (auto-increment from $BRANCH_NAME branch)"
 
-          # Pull latest changes from main to avoid push conflicts
           git pull --rebase --autostash origin main || (git fetch origin main && git rebase origin/main)
 
-          # Push the version bump commit
           git push
 
-          # Create and push tag
           git tag "v$NEW_VERSION"
           git push origin "v$NEW_VERSION"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   # ----------------------------------------------------
-  # JOB 2: BUILD AND PUBLISH TO PYPI
-  # ----------------------------------------------------
-  # ----------------------------------------------------
-  # 1. LINUX WHEELS (MOST CRITICAL FOR MANYLINUX)
+  # JOB 2: LINUX WHEELS (manylinux/musllinux via Docker + QEMU)
   # ----------------------------------------------------
   linux-wheels:
     needs: [version-bump]
     if: needs.version-bump.outputs.version_changed == 'true'
     runs-on: ubuntu-latest
-    strategy:
-      # Build for a range of Python versions to maximize compatibility
-      matrix:
-        python-version: ["3.9", "3.10", "3.11", "3.12"] 
-        
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v4
         with:
           ref: v${{ needs.version-bump.outputs.new_version }}
-      - name: Setup QEMU for ARM builds 🖥️
-        # Enables cross-compilation for aarch64 (ARM) systems like AWS Graviton
-        uses: docker/setup-qemu-action@v4
+
+      - name: Setup QEMU for ARM builds
+        uses: docker/setup-qemu-action@v3
         with:
           platforms: all
-          
+
       - name: Build manylinux/musllinux wheels
-        # This action automatically uses manylinux Docker containers
         uses: PyO3/maturin-action@v1
         with:
           command: build
           args: --release --sdist
-          manylinux: auto # Use the best manylinux tag available
+          manylinux: auto
 
       - name: Upload Linux Artifacts
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v4
         with:
-          name: linux-wheels-py${{ matrix.python-version }}
+          name: linux-wheels
           path: target/wheels
 
   # ----------------------------------------------------
-  # 2. MACOS & WINDOWS WHEELS
+  # JOB 3: MACOS & WINDOWS WHEELS
   # ----------------------------------------------------
   os-wheels:
     needs: [version-bump]
     if: needs.version-bump.outputs.version_changed == 'true'
     strategy:
       matrix:
-        # These operating systems build the correct wheel tags natively
         os: [windows-latest, macos-latest]
         python-version: ["3.9", "3.10", "3.11", "3.12"]
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v4
         with:
           ref: v${{ needs.version-bump.outputs.new_version }}
+
       - uses: dtolnay/rust-toolchain@stable
-      
+
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-          
+
       - name: Install maturin
         run: pip install maturin
 
-      - name: Build wheel (Windows)
-        if: startsWith(matrix.os, 'windows')
+      - name: Build wheel
         run: maturin build --release --sdist
 
-      - name: Build universal2 wheel (macOS) 🍎
-        if: startsWith(matrix.os, 'macos')
-        # Creates a single wheel for both Intel and Apple Silicon
-        run: maturin build --release --sdist
-        
       - name: Upload OS Artifacts
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.os }}-wheel-py${{ matrix.python-version }}
           path: target/wheels
 
   # ----------------------------------------------------
-  # 3. PUBLISH TO PYPI
+  # JOB 4: PUBLISH TO PYPI
   # ----------------------------------------------------
   pypi-publish:
     runs-on: ubuntu-latest
-    # This job now depends on all builds being successful
     needs: [version-bump, linux-wheels, os-wheels]
     if: needs.version-bump.outputs.version_changed == 'true'
-    
-    steps:
-      - uses: actions/checkout@v5
-      
-      - name: Download all wheels and sdist
-        uses: actions/download-artifact@v7
-        with:
-          path: dist # Downloads all artifacts from the two build jobs
 
-      - name: Find and Move Wheels to root
-        # This command flattens the directory structure created by download-artifact
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all wheels and sdist
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+
+      - name: Flatten artifacts into dist/
         run: find dist -type f \( -name "*.whl" -o -name "*.tar.gz" \) -exec mv {} dist/ \;
 
-      - name: Install uv and tools
-        uses: astral-sh/setup-uv@v7
+      - name: Clean up nested directories
+        run: find dist -mindepth 1 -type d -exec rm -rf {} + 2>/dev/null || true
 
-      - name: Set up Python
-        uses: actions/setup-python@v6
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
+      - name: List dist contents
+        run: ls -la dist/
 
-      - name: 🚀 Publish all artifacts to PyPI
-        run: uv publish dist/* --token ${{ secrets.MATURIN_PYPI_TOKEN }}
-  # pypi-publish:
-  #   runs-on: ubuntu-latest
-  #   needs: [version-bump]
-  #   if: needs.version-bump.outputs.version_changed == 'true'
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
 
-  #   steps:
-  #     - name: Checkout repository
-  #       uses: actions/checkout@v5
-  #       with:
-  #         # Fetch the latest commit which contains the version bump and tag
-  #         ref: main
-
-  #     - name: Set up Python
-  #       uses: actions/setup-python@v6
-  #       with:
-  #         python-version: "3.12"
-
-  #     - name: Install Rust toolchain
-  #       uses: dtolnay/rust-toolchain@stable
-
-  #     - name: Install maturin
-  #       run: pip install maturin
-
-  #     - name: 🏗️ Build All Wheels and Source Distribution
-  #       # maturin builds for all major platforms (Linux/macOS/Windows) and Python versions
-  #       run: maturin build --release
-
-  #     - name: 🚀 Publish to PyPI
-  #       env:
-  #         # Using the PYPI_ENVIRONMENT defined in the workflow env
-  #         MATURIN_PYPI_TOKEN: ${{ secrets.MATURIN_PYPI_TOKEN }}
-  #       # Uses maturin's built-in publishing command with OIDC (OpenID Connect)
-  #       run: maturin publish --skip-existing --repository pypi --username __token__ --password ${{ secrets.MATURIN_PYPI_TOKEN }}
+      - name: Publish to PyPI
+        run: uv publish dist/*.whl dist/*.tar.gz --token ${{ secrets.MATURIN_PYPI_TOKEN }}
 
   # ----------------------------------------------------
-  # JOB 3: CREATE GITHUB RELEASE
+  # JOB 5: CREATE GITHUB RELEASE
   # ----------------------------------------------------
   github-release:
     if: github.event.pull_request.merged == true && github.event.pull_request.base.ref == 'main' && needs.version-bump.outputs.version_changed == 'true'
     runs-on: ubuntu-latest
-    needs: [version-bump, pypi-publish] # Wait for both version bump and PyPI publish to ensure everything is ready
+    needs: [version-bump, pypi-publish]
     permissions:
       contents: write
     steps:
@@ -279,69 +207,8 @@ jobs:
         with:
           tag: v${{ needs.version-bump.outputs.new_version }}
           name: "Release v${{ needs.version-bump.outputs.new_version }}"
-          # A minimal body for the release, you could extend this
           body: |
-            ## 🎉 New Release: v${{ needs.version-bump.outputs.new_version }}
+            ## Release v${{ needs.version-bump.outputs.new_version }}
 
-            This release was automatically generated after a successful CI/CD pipeline.
+            Automated release from merged PR.
           token: ${{ secrets.GITHUB_TOKEN }}
-
-  # ----------------------------------------------------
-  # Coverage Badge Update Job
-  # ----------------------------------------------------
-  # update-coverage-badge:
-  #   runs-on: ubuntu-latest
-  #   permissions:
-  #     contents: write
-  #   steps:
-  #     - name: Checkout repository
-  #       uses: actions/checkout@v5
-  #     - name: Set up Python
-  #       uses: actions/setup-python@v6
-  #       with:
-  #         python-version: "3.12"
-  #     - name: Install uv and tools
-  #       uses: astral-sh/setup-uv@v7
-  #     - name: Sync dependencies (dev + extras)
-  #       run: |
-  #         uv sync --all-extras --dev
-  #         uv pip install --system tox coverage pytest-cov
-  #     # --- COVERAGE & BADGE STEPS (Run once on 3.12) ---
-  #     - name: 📊 Run Coverage Reporting
-  #       id: coverage_step
-  #       # This assumes the 'coverage' env generates 'coverage.xml' in the repository root.
-  #       run: |
-  #         tox -e coverage
-  #         # Output coverage percentage for logging
-  #         COVERAGE_PERCENT=$(coverage report | tail -n 1 | awk '{print $4}' | sed 's/%//')
-  #         echo "Coverage Percentage: $COVERAGE_PERCENT%"
-  #         echo "coverage_percent=$COVERAGE_PERCENT" >> $GITHUB_OUTPUT
-
-  #     - name: 🖼️ Generate Coverage Badge
-  #       # Runs your script using the installed uv environment
-  #       run: uv run python scripts/generate_coverage_badge.py coverage.xml coverage-badge.svg
-
-  #     # Optional: Upload the badge as an artifact so you can download it from the CI run
-  #     - name: Upload Coverage Badge Artifact
-  #       uses: actions/upload-artifact@v6
-  #       with:
-  #         name: coverage-badge
-  #         path: |
-  #           coverage.xml
-  #           coverage-badge.svg
-
-  #     # --- COMMIT & PUSH BADGE IF CHANGED (Run once on 3.12) ---
-  #     - name: 📤 Commit and Push Coverage Badge if Changed
-  #       env:
-  #         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-  #       run: |
-  #         if git diff --quiet coverage-badge.svg 2>/dev/null; then
-  #           echo 'No badge changes'
-  #         else
-  #           git config user.name 'github-actions'
-  #           git config user.email 'actions@github.com'
-  #           git add coverage-badge.svg
-  #           git commit -m 'chore(ci): update coverage badge'
-  #           git pull --rebase --autostash origin main || (git fetch origin main && git rebase origin/main)
-  #           git push
-  #         fi
