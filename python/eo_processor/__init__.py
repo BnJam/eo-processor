@@ -51,6 +51,8 @@ from ._core import (
     replace_nans as _replace_nans,
     savi as _savi,
     linear_regression as _linear_regression,
+    trend_analysis as _trend_analysis,
+    TrendSegment as _TrendSegment,
     temporal_sum as _temporal_sum,
     temporal_composite as _temporal_composite,
     zonal_stats as _zonal_stats,
@@ -355,7 +357,29 @@ def linear_regression(y):
     return _linear_regression(y)
 
 
+def trend_analysis(y, threshold):
+    """
+    Detect breaks in a time series by recursively fitting linear models.
+
+    Parameters
+    ----------
+    y : sequence of float
+        1D time series of finite values.
+    threshold : float
+        Maximum absolute residual tolerated before a segment is split.
+        Must be non-negative.
+
+    Returns
+    -------
+    list of TrendSegment
+        Each segment exposes `start_index`, `end_index`, `slope`, and
+        `intercept` attributes.
+    """
+    return _trend_analysis(y, threshold)
+
+
 ZoneStats = _ZoneStats
+TrendSegment = _TrendSegment
 
 
 def zonal_stats(values: np.ndarray, zones: np.ndarray) -> dict[int, ZoneStats]:
