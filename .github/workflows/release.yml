@@ -3,6 +3,17 @@ name: Build and Publish Wheels
 on:
   pull_request:
     types: [closed]
+  workflow_dispatch:
+    inputs:
+      bump_type:
+        description: "Semver bump to apply (manual trigger bypasses PR labels)"
+        required: true
+        type: choice
+        default: "patch"
+        options:
+          - patch
+          - minor
+          - major
 
 env:
   PYPI_ENVIRONMENT: pypi
@@ -17,7 +28,7 @@ jobs:
   # JOB 1: VERSION BUMP, COMMIT, AND TAG
   # ----------------------------------------------------
   version-bump:
-    if: github.event.pull_request.merged == true && github.event.pull_request.base.ref == 'main'
+    if: github.event_name == 'workflow_dispatch' || (github.event.pull_request.merged == true && github.event.pull_request.base.ref == 'main')
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -45,27 +56,34 @@ jobs:
       - name: Determine version increment, Commit, and Tag
         id: bump
         run: |
-          PR_NUM=${{ github.event.pull_request.number }}
-          BRANCH_NAME=${{ github.event.pull_request.head.ref }}
-          LABELS=$(echo '${{ toJSON(github.event.pull_request.labels.*.name) }}' | tr -d '[]"' | sed 's/,/ /g')
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            INCREMENT_TYPE="${{ inputs.bump_type }}"
+            BRANCH_NAME="manual-dispatch"
+            echo "Manual workflow_dispatch trigger"
+            echo "Requested increment: $INCREMENT_TYPE"
+          else
+            PR_NUM=${{ github.event.pull_request.number }}
+            BRANCH_NAME=${{ github.event.pull_request.head.ref }}
+            LABELS=$(echo '${{ toJSON(github.event.pull_request.labels.*.name) }}' | tr -d '[]"' | sed 's/,/ /g')
 
-          echo "PR #$PR_NUM"
-          echo "Branch name: $BRANCH_NAME"
-          echo "PR labels: $LABELS"
+            echo "PR #$PR_NUM"
+            echo "Branch name: $BRANCH_NAME"
+            echo "PR labels: $LABELS"
 
-          INCREMENT_TYPE=""
-          if echo "$LABELS" | grep -q "bump:none"; then
             INCREMENT_TYPE=""
-          elif echo "$LABELS" | grep -q "bump:major\|bump:release"; then
-            INCREMENT_TYPE="major"
-          elif echo "$LABELS" | grep -q "bump:minor\|bump:feature"; then
-            INCREMENT_TYPE="minor"
-          elif echo "$LABELS" | grep -q "bump:patch\|bump:hotfix"; then
-            INCREMENT_TYPE="patch"
+            if echo "$LABELS" | grep -q "bump:none"; then
+              INCREMENT_TYPE=""
+            elif echo "$LABELS" | grep -q "bump:major\|bump:release"; then
+              INCREMENT_TYPE="major"
+            elif echo "$LABELS" | grep -q "bump:minor\|bump:feature"; then
+              INCREMENT_TYPE="minor"
+            elif echo "$LABELS" | grep -q "bump:patch\|bump:hotfix"; then
+              INCREMENT_TYPE="patch"
+            fi
           fi
 
           if [ -z "$INCREMENT_TYPE" ]; then
-            echo "No version bump label found, skipping version bump"
+            echo "No version bump requested, skipping version bump"
             echo "version_changed=false" >> $GITHUB_OUTPUT
             exit 0
           fi
@@ -196,7 +214,7 @@ jobs:
   # JOB 5: CREATE GITHUB RELEASE
   # ----------------------------------------------------
   github-release:
-    if: github.event.pull_request.merged == true && github.event.pull_request.base.ref == 'main' && needs.version-bump.outputs.version_changed == 'true'
+    if: needs.version-bump.outputs.version_changed == 'true'
     runs-on: ubuntu-latest
     needs: [version-bump, pypi-publish]
     permissions:
