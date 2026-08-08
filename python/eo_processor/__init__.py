@@ -100,7 +100,7 @@ log.addHandler(handler)
 log.setLevel(logging.INFO)
 
 
-__version__ = "0.23.1"
+__version__ = "0.23.2"
 
 __all__ = [
     "chebyshev_distance",
